@@ -1,0 +1,30 @@
+services:
+  sms-forwarder:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: sms-forwarder
+    ports:
+      - "34567:34567"
+    volumes:
+      - ./data:/app/data
+      - ./firmware:/app/firmware
+    environment:
+      - NODE_ENV=production
+      - PORT=34567
+      - TZ=Asia/Shanghai
+      - MQTT_HOST=192.168.31.197
+      - MQTT_PORT=1883
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "--header", "Authorization: Basic YWRtaW46YWRtaW4xMjM=", "http://localhost:34567/api/devices"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - sms-network
+
+networks:
+  sms-network:
+    driver: bridge

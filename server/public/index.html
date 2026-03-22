@@ -1,0 +1,2278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>短信转发器 - 管理后台 v2.0</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: { 50: '#eff6ff', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' },
+            dark: { bg: '#0f172a', card: '#1e293b', border: '#334155' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    .toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+    .toast { padding: 12px 20px; border-radius: 10px; color: white; font-size: 14px; font-weight: 500; box-shadow: 0 4px 12px rgba(0,0,0,0.2); animation: slideIn 0.3s ease; max-width: 360px; }
+    .toast.success { background: #10b981; }
+    .toast.error { background: #ef4444; }
+    .toast.info { background: #3b82f6; }
+    .toast.warning { background: #f59e0b; }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; transform: translateX(50px); } }
+    .toast.removing { animation: fadeOut 0.3s ease forwards; }
+    .device-card { transition: all 0.2s; cursor: pointer; }
+    .device-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.15); }
+    .device-card.selected { border-color: #3b82f6; box-shadow: 0 0 0 2px #3b82f6; }
+    .online-dot { animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .msg-scroll { scroll-behavior: smooth; }
+    .msg-scroll::-webkit-scrollbar { width: 6px; }
+    .msg-scroll::-webkit-scrollbar-track { background: transparent; }
+    .msg-scroll::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+    .at-log { background: #0a0e17; color: #10b981; font-family: 'Courier New', Courier, monospace; font-size: 13px; min-height: 200px; max-height: 320px; overflow-y: auto; padding: 12px; border-radius: 10px; white-space: pre-wrap; word-break: break-all; }
+    .at-log::-webkit-scrollbar { width: 6px; }
+    .at-log::-webkit-scrollbar-track { background: #0a0e17; }
+    .at-log::-webkit-scrollbar-thumb { background: #10b981; border-radius: 3px; }
+    .tab-btn.active { background: #1e40af; color: white; }
+    .tab-content { display: none; }
+    .tab-content:not(.hidden) { display: block; }
+    .push-card { transition: all 0.15s; }
+    .msg-card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      overflow: hidden;
+      transition: all 0.2s;
+    }
+    .msg-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+      border-color: #475569;
+    }
+    .msg-card-header {
+      padding: 10px 12px;
+      border-bottom: 1px solid #334155;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(15,23,42,0.5);
+    }
+    .msg-card-body {
+      padding: 12px;
+      min-height: 80px;
+    }
+    .msg-card-footer {
+      padding: 8px 12px;
+      background: #0f172a;
+      border-top: 1px solid #334155;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    .msg-card-text {
+      font-size: 14px;
+      color: #e2e8f0;
+      line-height: 1.6;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      word-break: break-all;
+    }
+    .msg-card-text.expanded {
+      -webkit-line-clamp: unset;
+    }
+    .push-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+    .push-badge.success { background: rgba(16,185,129,0.2); color: #10b981; }
+    .push-badge.failed { background: rgba(239,68,68,0.2); color: #ef4444; }
+    .push-badge.pending { background: rgba(100,116,139,0.3); color: #94a3b8; }
+    .msg-card-empty {
+      grid-column: 1 / -1;
+      padding: 40px 20px;
+    }
+    .pagination-container {
+      grid-column: 1 / -1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      padding: 20px;
+      margin-top: 16px;
+      background: rgba(15,23,42,0.3);
+      border-radius: 12px;
+    }
+    .pagination-info {
+      font-size: 13px;
+      color: #94a3b8;
+    }
+    .pagination-controls {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .pagination-btn {
+      min-width: 36px;
+      height: 32px;
+      padding: 0 8px;
+      background: rgba(51,65,85,0.5);
+      border: 1px solid #334155;
+      border-radius: 6px;
+      color: #cbd5e1;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .pagination-btn:hover:not(:disabled) {
+      background: rgba(51,65,85,0.8);
+      border-color: #475569;
+    }
+    .pagination-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .pagination-btn.active {
+      background: #3b82f6;
+      border-color: #3b82f6;
+      color: #fff;
+    }
+    .pagination-ellipsis {
+      padding: 0 8px;
+      color: #64748b;
+    }
+    .pagination-jump {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: #94a3b8;
+    }
+    .pagination-jump-inline {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-left: 8px;
+      font-size: 13px;
+      color: #94a3b8;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .pagination-input {
+      width: 50px;
+      height: 28px;
+      padding: 0 8px;
+      background: rgba(30,41,59,0.8);
+      border: 1px solid #334155;
+      border-radius: 6px;
+      color: #e2e8f0;
+      font-size: 13px;
+      text-align: center;
+    }
+    .pagination-input:focus {
+      outline: none;
+      border-color: #3b82f6;
+    }
+    .push-card.disabled { opacity: 0.5; }
+    .config-section { display: none; }
+    .config-section.active { display: block; }
+    .loading-spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.6s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
+    .modal { background: #1e293b; border-radius: 16px; padding: 24px; max-width: 500px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.4); border: 1px solid #334155; }
+    input[type="text"], input[type="password"], input[type="number"], input[type="time"], select, textarea {
+      background: #0f172a !important; border: 1px solid #334155; color: #e2e8f0 !important; border-radius: 8px; padding: 8px 12px; font-size: 14px; width: 100%; transition: border-color 0.2s;
+    }
+    input[type="time"]::-webkit-calendar-picker-indicator {
+      filter: invert(1);
+      cursor: pointer;
+    }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.2); }
+    label { display: block; font-size: 13px; font-weight: 500; color: #94a3b8; margin-bottom: 4px; }
+    .form-row { margin-bottom: 14px; }
+    .form-row\.mb-2 { margin-bottom: 8px; }
+    label.\!text-xs { font-size: 11px; }
+    .btn { padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.15s; border: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary { background: #3b82f6; color: white; }
+    .btn-primary:hover:not(:disabled) { background: #2563eb; }
+    .btn-danger { background: #ef4444; color: white; }
+    .btn-danger:hover:not(:disabled) { background: #dc2626; }
+    .btn-warning { background: #f59e0b; color: white; }
+    .btn-warning:hover:not(:disabled) { background: #d97706; }
+    .btn-success { background: #10b981; color: white; }
+    .btn-success:hover:not(:disabled) { background: #059669; }
+    .btn-purple { background: #8b5cf6; color: white; }
+    .btn-purple:hover:not(:disabled) { background: #7c3aed; }
+    .btn-gray { background: #475569; color: white; }
+    .btn-gray:hover:not(:disabled) { background: #334155; }
+    .btn-sm { padding: 6px 12px; font-size: 13px; border-radius: 6px; }
+    .login-overlay { position: fixed; inset: 0; background: #0f172a; z-index: 10000; align-items: center; justify-content: center; }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen">
+  <div id="loginOverlay" class="login-overlay flex hidden">
+    <div class="bg-slate-800 rounded-xl border border-slate-700 p-8 w-full max-w-sm">
+      <h2 class="text-2xl font-bold text-white text-center mb-6">🔐 登录</h2>
+      <div class="form-row">
+        <label>用户名</label>
+        <input type="text" id="loginUsername" placeholder="admin" value="admin">
+      </div>
+      <div class="form-row">
+        <label>密码</label>
+        <input type="password" id="loginPassword" placeholder="admin123">
+      </div>
+      <button class="btn btn-primary w-full mt-4" id="loginBtn" onclick="doLogin()">登录</button>
+      <p class="text-slate-500 text-sm text-center mt-4">默认账号: admin / admin123</p>
+    </div>
+  </div>
+
+  <div id="changePwdModal" class="fixed inset-0 bg-black/60 z-[10001] hidden flex items-center justify-center">
+    <div class="bg-slate-800 rounded-xl border border-slate-700 p-8 w-full max-w-sm">
+      <h2 class="text-xl font-bold text-white text-center mb-6">🔑 修改密码</h2>
+      <div class="form-row">
+        <label>当前密码</label>
+        <input type="password" id="pwdOld" placeholder="输入当前密码">
+      </div>
+      <div class="form-row">
+        <label>新密码</label>
+        <input type="password" id="pwdNew1" placeholder="输入新密码（至少6位）">
+      </div>
+      <div class="form-row">
+        <label>确认新密码</label>
+        <input type="password" id="pwdNew2" placeholder="再次输入新密码">
+      </div>
+      <div class="flex gap-3 mt-4">
+        <button class="btn btn-gray flex-1" onclick="closeChangePwdModal()">取消</button>
+        <button class="btn btn-primary flex-1" onclick="doChangePassword()">确认修改</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="app" class="max-w-7xl mx-auto p-4">
+    <header class="flex items-center justify-between mb-6">
+      <div>
+        <h1 class="text-2xl font-bold text-white">📱 短信转发器管理后台</h1>
+        <p class="text-slate-400 text-sm mt-1" id="serverStatus">连接中...</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <div id="wsIndicator" class="flex items-center gap-2 text-sm text-slate-400">
+          <span class="w-2 h-2 rounded-full bg-slate-500"></span> WebSocket
+        </div>
+        <div class="relative">
+          <button class="btn btn-gray btn-sm" onclick="toggleUserMenu()">👤 <span id="userDisplayName">admin</span> ▼</button>
+          <div id="userMenu" class="hidden absolute right-0 mt-2 w-40 bg-slate-800 border border-slate-700 rounded-lg shadow-xl overflow-hidden z-50">
+            <button class="w-full text-left px-4 py-2.5 text-sm text-slate-200 hover:bg-slate-700 transition-colors" onclick="openChangePwdModal()">🔑 修改密码</button>
+            <div class="border-t border-slate-700"></div>
+            <button class="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-slate-700 transition-colors" onclick="doLogout()">🚪 退出登录</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+      <div class="lg:col-span-1">
+        <div class="bg-slate-800 rounded-xl border border-slate-700 p-4 h-full">
+          <h2 class="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+            <span>📊</span> 系统统计
+          </h2>
+          <div class="space-y-3">
+            <div class="flex items-center justify-between py-2 border-b border-slate-700">
+              <span class="text-slate-400 text-sm">在线设备</span>
+              <span id="statOnline" class="text-green-400 font-bold">0</span>
+            </div>
+            <div class="flex items-center justify-between py-2 border-b border-slate-700">
+              <span class="text-slate-400 text-sm">离线设备</span>
+              <span id="statOffline" class="text-slate-400 font-bold">0</span>
+            </div>
+            <div class="flex items-center justify-between py-2 border-b border-slate-700">
+              <span class="text-slate-400 text-sm">短信总数</span>
+              <span id="statSms" class="text-blue-400 font-bold">0</span>
+            </div>
+            <div class="flex items-center justify-between py-2">
+              <span class="text-slate-400 text-sm">服务器时间</span>
+              <span id="serverTime" class="text-yellow-400 font-mono text-sm">--:--:--</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="lg:col-span-2">
+        <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
+          <h2 class="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+            <span>📡</span> 在线设备
+            <span id="deviceCount" class="text-sm font-normal text-slate-400 ml-2">(0)</span>
+          </h2>
+          <div id="deviceList" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="text-slate-500 text-sm py-4 text-center col-span-2">暂无设备连接</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-slate-800 rounded-xl border border-slate-700 p-4 mb-6">
+      <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <h2 class="text-lg font-semibold text-white flex items-center gap-2">
+          <span>💬</span> 实时消息中心
+          <span id="msgCount" class="text-sm font-normal text-slate-400 ml-2">(0)</span>
+        </h2>
+        <div class="flex items-center gap-2 flex-wrap">
+          <div class="relative">
+            <input type="text" id="msgSearchInput" placeholder="🔍 搜索内容/号码..." 
+                   class="!w-48 !text-sm !py-1.5 !px-3" oninput="filterMessages()">
+          </div>
+          <select id="msgDeviceFilter" class="!w-32 !text-sm !py-1.5 !bg-slate-900 !w-auto" onchange="filterMessages()">
+            <option value="">全部设备</option>
+          </select>
+          <select id="msgStatusFilter" class="!w-28 !text-sm !py-1.5 !bg-slate-900 !w-auto" onchange="filterMessages()">
+            <option value="">全部</option>
+            <option value="success">成功</option>
+            <option value="failed">失败</option>
+            <option value="pending">推送中</option>
+          </select>
+          <button class="btn btn-gray btn-sm" onclick="resetFilters()">🔄 刷新</button>
+        </div>
+      </div>
+      <div id="msgContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div class="text-slate-500 text-sm text-center py-8 col-span-full">暂无短信记录</div>
+      </div>
+    </div>
+
+    <div id="toolboxSection">
+      <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-semibold text-white flex items-center gap-2">
+            <span>🧰</span> 设备工具箱
+            <span id="selectedDeviceLabel" class="text-sm font-normal text-blue-400 ml-2"></span>
+          </h2>
+        </div>
+
+        <div class="flex flex-wrap gap-2 mb-4 border-b border-slate-700 pb-3">
+          <button class="tab-btn active px-4 py-2 rounded-lg text-sm font-medium bg-slate-700 text-white transition-all" data-tab="push" onclick="switchTab('push')">📨 推送配置</button>
+          <button class="tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-700 text-white transition-all" data-tab="sms" onclick="switchTab('sms')">📤 发送短信</button>
+          <button class="tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-700 text-white transition-all" data-tab="query" onclick="switchTab('query')">📊 信息查询</button>
+          <button class="tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-700 text-white transition-all" data-tab="ping" onclick="switchTab('ping')">🌐 网络测试</button>
+          <button class="tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-700 text-white transition-all" data-tab="flight" onclick="switchTab('flight')">✈️ 飞行模式</button>
+          <button class="tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-700 text-white transition-all" data-tab="at" onclick="switchTab('at')">💻 AT终端</button>
+          <button class="tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-700 text-white transition-all" data-tab="ota" onclick="switchTab('ota')">📦 OTA升级</button>
+          <button class="tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-700 text-white transition-all" data-tab="schedule" onclick="switchTab('schedule')">⏰ 定时任务</button>
+        </div>
+
+        <div id="tab-push" class="tab-content">
+          <h3 class="text-lg font-medium text-white mb-4">📨 全局推送配置</h3>
+          
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            <div class="bg-slate-700 rounded-lg overflow-hidden">
+                <div class="flex items-center justify-between p-3 cursor-pointer hover:bg-slate-600" onclick="togglePushCard('tg')">
+                  <span class="font-medium text-white flex items-center gap-2">📱 Telegram</span>
+                  <div class="flex items-center gap-2">
+                    <input type="checkbox" id="cfg_tg_en" class="w-auto" onclick="event.stopPropagation();savePushConfig()">
+                    <span class="text-slate-400">▼</span>
+                  </div>
+                </div>
+                <div id="push-card-tg" class="hidden px-4 pb-3 space-y-2 border-t border-slate-600">
+                  <div class="form-row !mb-2"><label class="!text-xs">Bot Token</label><input type="text" id="cfg_tg_token" placeholder="12345678:ABC..." onchange="savePushConfig()"></div>
+                  <div class="form-row !mb-2"><label class="!text-xs">Chat ID</label><input type="text" id="cfg_tg_chatid" placeholder="123456789" onchange="savePushConfig()"></div>
+                </div>
+              </div>
+
+              <div class="bg-slate-700 rounded-lg overflow-hidden">
+                <div class="flex items-center justify-between p-3 cursor-pointer hover:bg-slate-600" onclick="togglePushCard('dt')">
+                  <span class="font-medium text-white flex items-center gap-2">🔔 钉钉</span>
+                  <div class="flex items-center gap-2">
+                    <input type="checkbox" id="cfg_dt_en" class="w-auto" onclick="event.stopPropagation();savePushConfig()">
+                    <span class="text-slate-400">▼</span>
+                  </div>
+                </div>
+                <div id="push-card-dt" class="hidden px-4 pb-3 space-y-2 border-t border-slate-600">
+                  <div class="form-row !mb-2"><label class="!text-xs">Webhook URL</label><input type="text" id="cfg_dt_url" placeholder="https://oapi.dingtalk.com/..." onchange="savePushConfig()"></div>
+                  <div class="form-row !mb-2"><label class="!text-xs">Secret</label><input type="text" id="cfg_dt_secret" placeholder="SEC..." onchange="savePushConfig()"></div>
+                </div>
+              </div>
+
+              <div class="bg-slate-700 rounded-lg overflow-hidden">
+                <div class="flex items-center justify-between p-3 cursor-pointer hover:bg-slate-600" onclick="togglePushCard('pp')">
+                  <span class="font-medium text-white flex items-center gap-2">📣 PushPlus</span>
+                  <div class="flex items-center gap-2">
+                    <input type="checkbox" id="cfg_pp_en" class="w-auto" onclick="event.stopPropagation();savePushConfig()">
+                    <span class="text-slate-400">▼</span>
+                  </div>
+                </div>
+                <div id="push-card-pp" class="hidden px-4 pb-3 space-y-2 border-t border-slate-600">
+                  <div class="form-row !mb-2"><label class="!text-xs">Token</label><input type="text" id="cfg_pp_token" placeholder="pushplus token" onchange="savePushConfig()"></div>
+                  <div class="form-row !mb-2"><label class="!text-xs">渠道</label><input type="text" id="cfg_pp_channel" placeholder="wechat" value="wechat" onchange="savePushConfig()"></div>
+                </div>
+              </div>
+
+              <div class="bg-slate-700 rounded-lg overflow-hidden">
+                <div class="flex items-center justify-between p-3 cursor-pointer hover:bg-slate-600" onclick="togglePushCard('sc')">
+                  <span class="font-medium text-white flex items-center gap-2">🖊 Server酱</span>
+                  <div class="flex items-center gap-2">
+                    <input type="checkbox" id="cfg_sc_en" class="w-auto" onclick="event.stopPropagation();savePushConfig()">
+                    <span class="text-slate-400">▼</span>
+                  </div>
+                </div>
+                <div id="push-card-sc" class="hidden px-4 pb-3 space-y-2 border-t border-slate-600">
+                  <div class="form-row !mb-2"><label class="!text-xs">SendKey</label><input type="text" id="cfg_sc_key" placeholder="SCT..." onchange="savePushConfig()"></div>
+                </div>
+              </div>
+
+              <div class="bg-slate-700 rounded-lg overflow-hidden">
+                <div class="flex items-center justify-between p-3 cursor-pointer hover:bg-slate-600" onclick="togglePushCard('fs')">
+                  <span class="font-medium text-white flex items-center gap-2">🦜 飞书</span>
+                  <div class="flex items-center gap-2">
+                    <input type="checkbox" id="cfg_fs_en" class="w-auto" onclick="event.stopPropagation();savePushConfig()">
+                    <span class="text-slate-400">▼</span>
+                  </div>
+                </div>
+                <div id="push-card-fs" class="hidden px-4 pb-3 space-y-2 border-t border-slate-600">
+                  <div class="form-row !mb-2"><label class="!text-xs">Webhook URL</label><input type="text" id="cfg_fs_url" placeholder="https://open.feishu.cn/..." onchange="savePushConfig()"></div>
+                  <div class="form-row !mb-2"><label class="!text-xs">Secret</label><input type="text" id="cfg_fs_secret" placeholder="签名密钥" onchange="savePushConfig()"></div>
+                </div>
+              </div>
+
+              <div class="bg-slate-700 rounded-lg overflow-hidden">
+                <div class="flex items-center justify-between p-3 cursor-pointer hover:bg-slate-600" onclick="togglePushCard('bark')">
+                  <span class="font-medium text-white flex items-center gap-2">🍎 Bark</span>
+                  <div class="flex items-center gap-2">
+                    <input type="checkbox" id="cfg_bark_en" class="w-auto" onclick="event.stopPropagation();savePushConfig()">
+                    <span class="text-slate-400">▼</span>
+                  </div>
+                </div>
+                <div id="push-card-bark" class="hidden px-4 pb-3 space-y-2 border-t border-slate-600">
+                  <div class="form-row !mb-2"><label class="!text-xs">Bark URL</label><input type="text" id="cfg_bark_url" placeholder="https://api.day.app/your_key" onchange="savePushConfig()"></div>
+                </div>
+              </div>
+
+              <div class="bg-slate-700 rounded-lg overflow-hidden">
+                <div class="flex items-center justify-between p-3 cursor-pointer hover:bg-slate-600" onclick="togglePushCard('gotify')">
+                  <span class="font-medium text-white flex items-center gap-2">🔊 Gotify</span>
+                  <div class="flex items-center gap-2">
+                    <input type="checkbox" id="cfg_gotify_en" class="w-auto" onclick="event.stopPropagation();savePushConfig()">
+                    <span class="text-slate-400">▼</span>
+                  </div>
+                </div>
+                <div id="push-card-gotify" class="hidden px-4 pb-3 space-y-2 border-t border-slate-600">
+                  <div class="form-row !mb-2"><label class="!text-xs">Gotify URL</label><input type="text" id="cfg_gotify_url" placeholder="https://gotify.example.com" onchange="savePushConfig()"></div>
+                  <div class="form-row !mb-2"><label class="!text-xs">App Token</label><input type="text" id="cfg_gotify_token" placeholder="A..." onchange="savePushConfig()"></div>
+                </div>
+              </div>
+
+              <div class="bg-slate-700 rounded-lg overflow-hidden">
+                <div class="flex items-center justify-between p-3 cursor-pointer hover:bg-slate-600" onclick="togglePushCard('post')">
+                  <span class="font-medium text-white flex items-center gap-2">📤 POST JSON</span>
+                  <div class="flex items-center gap-2">
+                    <input type="checkbox" id="cfg_post_en" class="w-auto" onclick="event.stopPropagation();savePushConfig()">
+                    <span class="text-slate-400">▼</span>
+                  </div>
+                </div>
+                <div id="push-card-post" class="hidden px-4 pb-3 space-y-2 border-t border-slate-600">
+                  <div class="form-row !mb-2"><label class="!text-xs">POST URL</label><input type="text" id="cfg_post_url" placeholder="https://your-server.com/webhook" onchange="savePushConfig()"></div>
+                </div>
+              </div>
+
+              <div class="bg-slate-700 rounded-lg overflow-hidden">
+                <div class="flex items-center justify-between p-3 cursor-pointer hover:bg-slate-600" onclick="togglePushCard('custom')">
+                  <span class="font-medium text-white flex items-center gap-2">⚙️ 自定义模板</span>
+                  <div class="flex items-center gap-2">
+                    <input type="checkbox" id="cfg_custom_en" class="w-auto" onclick="event.stopPropagation();savePushConfig()">
+                    <span class="text-slate-400">▼</span>
+                  </div>
+                </div>
+                <div id="push-card-custom" class="hidden px-4 pb-3 space-y-2 border-t border-slate-600">
+                  <div class="form-row !mb-2"><label class="!text-xs">URL</label><input type="text" id="cfg_custom_url" placeholder="https://..." onchange="savePushConfig()"></div>
+                  <div class="form-row !mb-2"><label class="!text-xs">模板</label><textarea id="cfg_custom_body" rows="2" placeholder='{"sender":"{sender}","text":"{message}"}' onchange="savePushConfig()"></textarea></div>
+                </div>
+              </div>
+          </div>
+        </div>
+
+        <div id="tab-sms" class="tab-content hidden">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <div class="form-row">
+                <label>目标号码</label>
+                <input type="text" id="smsPhone" placeholder="13800138000">
+              </div>
+              <div class="form-row">
+                <label>短信内容</label>
+                <textarea id="smsContent" rows="4" placeholder="请输入短信内容..."></textarea>
+                <div class="text-right text-xs text-slate-500 mt-1"><span id="smsCharCount">0</span> 字符</div>
+              </div>
+              <button class="btn btn-primary w-full" id="sendSmsBtn" onclick="doSendSms()">📨 立即发送</button>
+            </div>
+            <div>
+              <div class="bg-slate-900 rounded-lg p-4 h-full">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-sm font-medium text-slate-300">📋 最近发送</span>
+                </div>
+                <div id="recentSmsList" class="space-y-2 max-h-52 overflow-y-auto">
+                  <div class="text-slate-500 text-sm text-center py-4">暂无发送记录</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="tab-query" class="tab-content hidden">
+          <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+            <button class="btn btn-primary" onclick="doQuery('ati')">📋 固件信息</button>
+            <button class="btn btn-primary" onclick="doQuery('signal')">📶 信号质量</button>
+            <button class="btn btn-purple" onclick="doQuery('siminfo')">💳 SIM卡信息</button>
+            <button class="btn btn-purple" onclick="doQuery('network')">🌍 网络状态</button>
+            <button class="btn btn-gray" onclick="doQuery('wifi')">📡 WiFi状态</button>
+          </div>
+          <div id="queryResult" class="bg-slate-900 rounded-lg p-4 min-h-16">
+            <div class="text-slate-500 text-sm">点击上方按钮查询模组信息...</div>
+          </div>
+        </div>
+
+        <div id="tab-ping" class="tab-content hidden">
+          <div class="max-w-md">
+            <p class="text-slate-400 text-sm mb-4">点击下方按钮执行 Ping 测试（向 8.8.8.8 发送 ICMP 包，消耗极少量流量）。</p>
+            <button class="btn btn-warning w-full text-lg py-3" id="pingBtn" onclick="doPing()">📡 执行 Ping 测试</button>
+            <div id="pingResult" class="mt-4"></div>
+          </div>
+        </div>
+
+        <div id="tab-flight" class="tab-content hidden">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <button class="btn btn-danger py-3" id="flightOnBtn" onclick="doFlightMode(1)">✈️ 开启飞行模式</button>
+            <button class="btn btn-success py-3" id="flightOffBtn" onclick="doFlightMode(0)">🟢 关闭飞行模式</button>
+            <button class="btn btn-gray py-3" id="flightQueryBtn" onclick="doFlightMode(-1)">🔍 查询当前状态</button>
+          </div>
+          <div id="flightResult" class="mt-4 bg-slate-900 rounded-lg p-4">
+            <div class="text-slate-500 text-sm">点击上方按钮操作...</div>
+          </div>
+        </div>
+
+        <div id="tab-at" class="tab-content hidden">
+          <div class="mb-3">
+            <div class="flex gap-2 mb-2">
+              <input type="text" id="atCmdInput" placeholder="输入 AT 指令，如: AT+CSQ" onkeydown="if(event.key==='Enter')sendAtCmd()">
+              <button class="btn btn-primary" id="atSendBtn" onclick="sendAtCmd()">发送</button>
+              <button class="btn btn-gray" onclick="clearAtLog()">清空</button>
+            </div>
+          </div>
+          <div id="atLog" class="at-log"><span style="color:#6b7280">AT 终端就绪，输入指令后按发送...</span></div>
+          <div class="mt-2 flex flex-wrap gap-2">
+            <button class="btn btn-gray btn-sm" onclick="quickAt('ATI')">ATI</button>
+            <button class="btn btn-gray btn-sm" onclick="quickAt('AT+CSQ')">AT+CSQ</button>
+            <button class="btn btn-gray btn-sm" onclick="quickAt('AT+CIMI')">AT+CIMI</button>
+            <button class="btn btn-gray btn-sm" onclick="quickAt('AT+ICCID')">AT+ICCID</button>
+            <button class="btn btn-gray btn-sm" onclick="quickAt('AT+CNUM')">AT+CNUM</button>
+            <button class="btn btn-gray btn-sm" onclick="quickAt('AT+COPS?')">AT+COPS?</button>
+            <button class="btn btn-gray btn-sm" onclick="quickAt('AT+CEREG?')">AT+CEREG?</button>
+            <button class="btn btn-gray btn-sm" onclick="quickAt('AT+CGACT?')">AT+CGACT?</button>
+          </div>
+        </div>
+
+        <div id="tab-ota" class="tab-content hidden">
+          <div class="max-w-lg">
+            <div class="bg-slate-900 rounded-lg p-4 mb-4">
+              <h3 class="text-lg font-medium text-white mb-3">📦 OTA 固件升级</h3>
+              <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                  <span class="text-slate-400 text-sm">当前固件版本:</span>
+                  <span id="currentFirmware" class="text-blue-400 font-mono">-</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-slate-400 text-sm">最新版本:</span>
+                  <span id="latestFirmware" class="text-green-400 font-mono">检查中...</span>
+                </div>
+                <div id="otaProgress" class="hidden">
+                  <div class="text-slate-400 text-sm mb-1">升级进度</div>
+                  <div class="w-full bg-slate-700 rounded-full h-2">
+                    <div id="otaProgressBar" class="bg-blue-500 h-2 rounded-full transition-all" style="width: 0%"></div>
+                  </div>
+                  <div id="otaProgressText" class="text-xs text-slate-500 mt-1 text-right">0%</div>
+                </div>
+              </div>
+            </div>
+            <div class="flex gap-3">
+              <button class="btn btn-primary flex-1" id="checkOtaBtn" onclick="doOtaCheck()">🔍 检查更新</button>
+              <button class="btn btn-success flex-1" id="startOtaBtn" onclick="doOtaStart()" disabled>🚀 开始升级</button>
+            </div>
+            <div id="otaResult" class="mt-4"></div>
+          </div>
+        </div>
+
+        <div id="tab-schedule" class="tab-content hidden">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div>
+              <div class="bg-slate-800 rounded-lg p-4">
+                <h3 class="text-lg font-medium text-white mb-4">📝 新建定时任务</h3>
+                <div class="form-row">
+                  <label>目标号码</label>
+                  <input type="text" id="schedulePhone" placeholder="13800138000">
+                </div>
+                <div class="form-row">
+                  <label>短信内容</label>
+                  <textarea id="scheduleContent" rows="3" placeholder="请输入短信内容..."></textarea>
+                </div>
+                <div class="form-row">
+                  <label>发送类型</label>
+                  <select id="scheduleTypeNew" onchange="onScheduleTypeChange()">
+                    <option value="once">一次性发送</option>
+                    <option value="interval">周期发送</option>
+                  </select>
+                </div>
+                <div class="form-row">
+                  <label>发送时间</label>
+                  <input type="time" id="scheduleTimeNew" value="08:00">
+                </div>
+                <div id="intervalForm" class="hidden">
+                  <div class="form-row">
+                    <label>发送间隔</label>
+                    <div class="flex items-center gap-2 flex-wrap">
+                      <span>每</span>
+                      <input type="number" id="scheduleIntervalDays" value="7" min="1" max="365" style="width: 70px">
+                      <span>天</span>
+                      <span>执行，时间固定为首日</span>
+                    </div>
+                  </div>
+                </div>
+                <button class="btn btn-primary w-full mt-2" id="createScheduleBtn" onclick="doCreateSchedule()">📅 创建定时任务</button>
+              </div>
+            </div>
+            <div>
+              <div class="bg-slate-800 rounded-lg p-4">
+                <div class="flex items-center justify-between mb-3">
+                  <span class="font-medium text-white">📋 任务列表 (<span id="scheduleCount">0</span>)</span>
+                  <button class="btn btn-gray btn-sm" onclick="loadScheduleList()">🔄 刷新</button>
+                </div>
+                <div id="scheduleList" class="space-y-2 max-h-[400px] overflow-y-auto">
+                  <div class="text-slate-500 text-sm text-center py-8">暂无定时任务</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="scheduleDetailModal" class="modal-overlay hidden">
+    <div class="modal" style="max-width: 550px;">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-xl font-bold text-white">⏰ 任务详情</h3>
+        <button class="text-slate-400 hover:text-white text-2xl leading-none" onclick="closeScheduleDetail()">&times;</button>
+      </div>
+      <div id="scheduleDetailInfo" class="bg-slate-900 rounded-lg p-4 mb-4">
+      </div>
+      <h4 class="text-sm font-medium text-slate-300 mb-2">📋 执行历史</h4>
+      <div id="scheduleHistoryList" class="bg-slate-900 rounded-lg p-3 space-y-1 max-h-48 overflow-y-auto text-sm">
+      </div>
+      <div class="flex gap-2 mt-4">
+        <button id="pauseScheduleBtn" class="btn btn-warning flex-1" onclick="toggleSchedulePause()">⏸ 暂停</button>
+        <button id="deleteScheduleBtn" class="btn btn-danger flex-1" onclick="deleteCurrentSchedule()">🗑 删除</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="confirmModal" class="modal-overlay hidden">
+    <div class="modal text-center">
+      <h3 class="text-xl font-bold text-white mb-2" id="confirmTitle">确认操作</h3>
+      <p class="text-slate-400 mb-4" id="confirmBody"></p>
+      <div class="flex gap-3 justify-center">
+        <button class="btn btn-gray" onclick="closeConfirm()">取消</button>
+        <button class="btn btn-danger" id="confirmBtn" onclick="doConfirm()">确认</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toastContainer" class="toast-container"></div>
+
+  <script>
+    let ws = null;
+    let selectedMac = null;
+    let devices = [];
+    let messages = [];
+    let filteredMessages = [];
+    let currentFilters = { search: '', device: '', status: '' };
+    let pushStatusCache = {};
+    let atSeq = 0;
+    let pendingConfirm = null;
+    let serverTimeInterval = null;
+    let pendingRespCallback = null;
+    let latestOtaVersion = null;
+    let currentOtaUrl = null;
+    let currentOtaChecksum = null;
+    let currentFirmwareVersion = null;
+    let recentSmsList = [];
+    let currentPage = 1;
+    let totalMessagesCount = 0;
+    let totalPages = 1;
+    let hasMoreMessages = false;
+    let newMessagesCount = 0;
+
+    function init() {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('skip') === '1') {
+        document.getElementById('loginOverlay').classList.add('hidden');
+        afterLogin();
+        return;
+      }
+      document.getElementById('loginOverlay').classList.remove('hidden');
+      showLoginPrompt();
+    }
+
+    function showLoginPrompt() {
+      const username = localStorage.getItem('sms_admin_user');
+      const password = localStorage.getItem('sms_admin_pass');
+      if (username && password) {
+        document.getElementById('loginUsername').value = username;
+        document.getElementById('loginPassword').value = password;
+        doLogin();
+      } else {
+        document.getElementById('loginOverlay').classList.remove('hidden');
+      }
+    }
+
+    function doLogin() {
+      const username = document.getElementById('loginUsername').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const loginBtn = document.getElementById('loginBtn');
+      
+      if (!username || !password) {
+        showToast('请输入账号和密码', 'warning');
+        return;
+      }
+      
+      loginBtn.disabled = true;
+      loginBtn.innerHTML = '<span class="loading-spinner"></span> 登录中...';
+      
+      localStorage.setItem('sms_admin_user', username);
+      localStorage.setItem('sms_admin_pass', password);
+      
+      fetch('/api/login', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Authorization': 'Basic ' + btoa(username + ':' + password)
+        }
+      }).then(async r => {
+        let data = {};
+        try {
+          data = await r.json();
+        } catch (e) {
+          data = { success: false, message: '服务器响应格式错误' };
+        }
+        
+        if (r.ok && data.success) {
+          document.getElementById('loginOverlay').classList.add('hidden');
+          afterLogin();
+        } else {
+          document.getElementById('loginPassword').value = '';
+          localStorage.removeItem('sms_admin_pass');
+          showToast(data.message || '账号或密码错误', 'error');
+        }
+      }).catch((e) => {
+        showToast('网络错误，请检查服务器连接', 'error');
+      }).finally(() => {
+        loginBtn.disabled = false;
+        loginBtn.innerHTML = '登录';
+      });
+    }
+
+    function afterLogin() {
+      const username = localStorage.getItem('sms_admin_user') || 'admin';
+      document.getElementById('userDisplayName').textContent = username;
+      connectWS();
+      loadPushConfigToUI();
+      startServerTime();
+      loadStats();
+      document.getElementById('smsContent').addEventListener('input', () => {
+        document.getElementById('smsCharCount').textContent = document.getElementById('smsContent').value.length;
+      });
+    }
+
+    function loadStats() {
+      fetch('/api/stats', {
+        credentials: 'include',
+        headers: authHeader()
+      }).then(r => r.json()).then(data => {
+        if (data.success) {
+          document.getElementById('statSms').textContent = data.stats.totalSms;
+        }
+      }).catch(() => {});
+    }
+
+    function authHeader() {
+      const username = localStorage.getItem('sms_admin_user') || 'admin';
+      const password = localStorage.getItem('sms_admin_pass') || '';
+      return { 'Authorization': 'Basic ' + btoa(username + ':' + password) };
+    }
+
+    function startServerTime() {
+      const updateTime = () => {
+        const now = new Date();
+        document.getElementById('serverTime').textContent = now.toLocaleString('zh-CN', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false
+        });
+      };
+      updateTime();
+      serverTimeInterval = setInterval(updateTime, 1000);
+    }
+
+    function connectWS() {
+      const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${location.host}/ws`;
+      ws = new WebSocket(wsUrl);
+      ws.onopen = () => {
+        document.getElementById('wsIndicator').innerHTML = '<span class="w-2 h-2 rounded-full bg-green-500 online-dot"></span> <span class="text-green-400">已连接</span>';
+        document.getElementById('serverStatus').textContent = 'WebSocket 已连接';
+      };
+      ws.onmessage = (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          handleWSMessage(data);
+        } catch {}
+      };
+      ws.onclose = () => {
+        document.getElementById('wsIndicator').innerHTML = '<span class="w-2 h-2 rounded-full bg-red-500"></span> <span class="text-red-400">已断开，重新连接中...</span>';
+        document.getElementById('serverStatus').textContent = 'WebSocket 断开，重新连接中...';
+        setTimeout(connectWS, 3000);
+      };
+      ws.onerror = () => { ws.close(); };
+    }
+
+    async function handleWSMessage(data) {
+      if (data.type === 'init') {
+        devices = data.devices || [];
+        try {
+          const res = await fetch('/api/messages?page=1&pageSize=10', { credentials: 'include', headers: authHeader() });
+          const msgData = await res.json();
+          if (msgData.success && msgData.messages) {
+            messages = msgData.messages;
+            totalMessagesCount = msgData.pagination?.total || messages.length;
+            totalPages = msgData.pagination?.totalPages || 1;
+            hasMoreMessages = msgData.pagination?.hasMore || false;
+          } else {
+            messages = data.messages || [];
+            totalMessagesCount = messages.length;
+            totalPages = 1;
+            hasMoreMessages = messages.length >= 10;
+          }
+        } catch (e) {
+          console.error('获取消息列表失败:', e);
+          messages = data.messages || [];
+          totalMessagesCount = messages.length;
+          totalPages = 1;
+          hasMoreMessages = messages.length >= 10;
+        }
+        currentPage = 1;
+        newMessagesCount = 0;
+        renderDevices();
+        renderMessages();
+        updateNewMsgIndicator();
+      } else if (data.type === 'devices') {
+        devices = data.devices || [];
+        renderDevices();
+      } else if (data.type === 'sms') {
+        messages.unshift(data.sms);
+        if (messages.length > 200) messages.pop();
+        clearPushStatusCache();
+        
+        if (currentFilters.search || currentFilters.device || currentFilters.status) {
+          filteredMessages = messages.filter(m => {
+            const matchSearch = !currentFilters.search || 
+              ((m.text && m.text.toLowerCase().includes(currentFilters.search)) ||
+               (m.sender && m.sender.includes(currentFilters.search)) ||
+               (m.phone && m.phone.includes(currentFilters.search)));
+            const matchDevice = !currentFilters.device || m.mac === currentFilters.device;
+            return matchSearch && matchDevice;
+          });
+        } else {
+          filteredMessages = [...messages];
+        }
+        
+        if (currentPage > 1) {
+          newMessagesCount++;
+          updateNewMsgIndicator();
+        } else {
+          renderMessageCards();
+        }
+        loadStats();
+      } else if (data.type === 'resp') {
+        handleDeviceResp(data.mac, data.data);
+      } else if (data.type === 'schedule') {
+        const { event, data: eventData } = data;
+        if (event === 'executed') {
+          showToast(`⏰ ${eventData.message}`, 'info');
+          loadScheduleList();
+        } else if (event === 'completed') {
+          showToast(`✅ ${eventData.message}`, 'success');
+          loadScheduleList();
+        } else if (event === 'failed') {
+          showToast(`❌ ${eventData.message}`, 'error');
+          loadScheduleList();
+        }
+      }
+    }
+
+    function handleDeviceResp(mac, data) {
+      if (pendingRespCallback) {
+        pendingRespCallback(data);
+        pendingRespCallback = null;
+      }
+      
+      if (data.action === 'ota') {
+        handleOtaStatus(data);
+      }
+    }
+
+    function renderDevices() {
+      const list = document.getElementById('deviceList');
+      const online = devices.filter(d => d.online);
+      const offline = devices.filter(d => !d.online);
+      document.getElementById('deviceCount').textContent = `(${devices.length})`;
+      document.getElementById('statOnline').textContent = online.length;
+      document.getElementById('statOffline').textContent = offline.length;
+      
+      if (devices.length === 0) {
+        list.innerHTML = '<div class="text-slate-500 text-sm py-4 text-center col-span-2">暂无设备连接</div>';
+        return;
+      }
+      
+      list.innerHTML = devices.map(d => `
+        <div class="device-card bg-slate-700 rounded-lg p-3 border-2 ${d.online ? 'border-green-600' : 'border-slate-600'} ${selectedMac === d.mac ? 'selected' : ''}" onclick="selectDevice('${d.mac}')">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full ${d.online ? 'bg-green-500 online-dot' : 'bg-slate-500'}"></span>
+              <span class="font-mono text-xs text-slate-300">${d.mac.substring(0, 12)}</span>
+            </div>
+            <span class="text-xs ${d.online ? 'text-green-400' : 'text-slate-500'}">${d.online ? '在线' : '离线'}</span>
+          </div>
+          <div class="space-y-1 text-xs text-slate-400">
+            <div>IP: <span class="text-slate-200">${d.ip || '-'}</span></div>
+            ${d.rssi ? `<div>RSSI: <span class="text-slate-200">${d.rssi} dBm</span></div>` : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function renderMessages() {
+      filteredMessages = [...messages];
+      newMessagesCount = 0;
+      updateNewMsgIndicator();
+      await renderMessageCards();
+    }
+
+    async function filterMessages() {
+      currentFilters.search = document.getElementById('msgSearchInput').value.toLowerCase().trim();
+      currentFilters.device = document.getElementById('msgDeviceFilter').value;
+      currentFilters.status = document.getElementById('msgStatusFilter').value;
+      
+      const params = new URLSearchParams({ page: 1, pageSize: 10 });
+      if (currentFilters.search) params.append('search', currentFilters.search);
+      if (currentFilters.device) params.append('device', currentFilters.device);
+      if (currentFilters.status) params.append('status', currentFilters.status);
+      
+      try {
+        const res = await fetch(`/api/messages?${params}`, { credentials: 'include', headers: authHeader() });
+        const data = await res.json();
+        
+        if (data.success && data.messages) {
+          messages = data.messages;
+          filteredMessages = [...messages];
+          totalMessagesCount = data.pagination?.total || messages.length;
+          totalPages = data.pagination?.totalPages || 1;
+          hasMoreMessages = data.pagination?.hasMore || false;
+          currentPage = 1;
+        }
+      } catch (e) {
+        console.error('筛选消息失败:', e);
+      }
+      
+      newMessagesCount = 0;
+      updateNewMsgIndicator();
+      renderMessageCards();
+    }
+
+    async function resetFilters() {
+      document.getElementById('msgSearchInput').value = '';
+      document.getElementById('msgDeviceFilter').value = '';
+      document.getElementById('msgStatusFilter').value = '';
+      currentFilters = { search: '', device: '', status: '' };
+      clearPushStatusCache();
+      currentPage = 1;
+      newMessagesCount = 0;
+      updateNewMsgIndicator();
+      
+      try {
+        const res = await fetch('/api/messages?page=1&pageSize=10', { credentials: 'include', headers: authHeader() });
+        const data = await res.json();
+        
+        if (data.success && data.messages) {
+          messages = data.messages;
+          filteredMessages = [...messages];
+          totalMessagesCount = data.pagination?.total || messages.length;
+          totalPages = data.pagination?.totalPages || 1;
+          hasMoreMessages = data.pagination?.hasMore || false;
+        }
+      } catch (e) {
+        console.error('重置筛选失败:', e);
+      }
+      
+      renderMessageCards();
+    }
+
+    async function renderMessageCards() {
+      const container = document.getElementById('msgContainer');
+      const hasFilter = currentFilters.search || currentFilters.device || currentFilters.status;
+      
+      updateDeviceFilterOptions();
+      
+      if (filteredMessages.length === 0) {
+        container.innerHTML = `<div class="text-slate-500 text-sm text-center py-8 msg-card-empty">${hasFilter ? '没有匹配的消息记录' : '暂无短信记录'}</div>` + getPaginationHtml();
+        document.getElementById('msgCount').textContent = '(0)';
+        return;
+      }
+      
+      const cfg = await fetch('/api/push-config', { credentials: 'include', headers: authHeader() }).then(r => r.json()).catch(() => null);
+      const cfgData = cfg?.config || {};
+      const channelNames = { telegram: 'TG', dingtalk: '钉钉', pushplus: 'PP', serverchan: 'SC', feishu: '飞书', bark: 'Bark', gotify: 'Gotify', postjson: 'POST', custom: '自定义' };
+      const enabledChannels = Object.entries(cfgData).filter(([k, v]) => v && v.enabled && k !== 'postJson' && k !== 'custom').map(([k]) => k);
+      
+      const cards = [];
+      for (const m of filteredMessages) {
+        const statusFilter = currentFilters.status;
+        let pushStatus = pushStatusCache[m.id];
+        
+        if (!pushStatus) {
+          const pushHistory = await fetch(`/api/push-history/sms/${m.id}`, { credentials: 'include', headers: authHeader() }).then(r => r.json()).catch(() => null);
+          const history = pushHistory?.history || [];
+          pushStatus = {};
+          enabledChannels.forEach(ch => {
+            const record = history.find(h => h.channel === ch);
+            pushStatus[ch] = record ? { status: record.status, error: record.error_message } : { status: 'pending' };
+          });
+          pushStatusCache[m.id] = pushStatus;
+        }
+        
+        if (statusFilter) {
+          const hasSuccess = enabledChannels.some(ch => pushStatus[ch]?.status === 'success');
+          const hasFailed = enabledChannels.some(ch => pushStatus[ch]?.status === 'failed');
+          const allPending = enabledChannels.length > 0 && enabledChannels.every(ch => !pushStatus[ch] || pushStatus[ch].status === 'pending');
+          
+          if (statusFilter === 'success' && !hasSuccess) continue;
+          if (statusFilter === 'failed' && !hasFailed) continue;
+          if (statusFilter === 'pending' && !allPending) continue;
+        }
+        
+        const statusHtml = enabledChannels.map(ch => {
+          const s = pushStatus[ch];
+          const name = channelNames[ch] || ch;
+          if (!s || s.status === 'pending') return `<span class="push-badge pending" title="推送中">${name}...</span>`;
+          if (s.status === 'success') return `<span class="push-badge success" title="推送成功">✅ ${name}</span>`;
+          if (s.status === 'failed') return `<span class="push-badge failed" title="${s.error || '推送失败'}">❌ ${name}</span>`;
+          return '';
+        }).join(' ');
+        
+        const hasFailed = enabledChannels.some(ch => pushStatus[ch]?.status === 'failed');
+        
+        const isOnline = devices.some(d => d.mac === m.mac && d.online);
+        const senderDisplay = formatPhone(m.sender);
+        const timeStr = formatTimeStr(m.receivedAt || m.timestamp);
+        const isLongText = m.text && m.text.length > 80;
+        const deviceMac = m.mac || '';
+        
+        cards.push(`<div class="msg-card">
+          <div class="msg-card-header">
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-blue-400 font-mono" title="${deviceMac}">${deviceMac.substring(0, 12)}</span>
+              <span class="w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-slate-500'}"></span>
+            </div>
+            <span class="text-xs text-slate-500">${timeStr}</span>
+          </div>
+          <div class="msg-card-body">
+            <div class="flex items-center gap-2 mb-2 flex-wrap">
+              <span class="text-xs bg-green-900/50 text-green-300 px-2 py-0.5 rounded">📱 ${escapeHtml(senderDisplay)}</span>
+              ${m.phone ? `<span class="text-xs text-slate-500">→ ${escapeHtml(m.phone)}</span>` : ''}
+            </div>
+            <div class="msg-card-text">${escapeHtml(m.text||'')}</div>
+            ${isLongText ? `<button class="text-xs text-blue-400 mt-1 hover:underline" onclick="event.stopPropagation();this.previousElementSibling.classList.toggle('expanded');this.textContent=this.previousElementSibling.classList.contains('expanded')?'收起':'展开全部'">展开全部</button>` : ''}
+          </div>
+          <div class="msg-card-footer">
+            <div class="flex flex-wrap gap-1">${statusHtml || '<span class="text-slate-500 text-xs">未配置推送</span>'}</div>
+            <div class="flex items-center gap-2">
+              ${hasFailed ? `<button class="btn btn-warning btn-xs" onclick="event.stopPropagation();retryPushForSms(${m.id});delete pushStatusCache[${m.id}]">🔄 重推</button>` : ''}
+            </div>
+          </div>
+        </div>`);
+      }
+      
+      document.getElementById('msgCount').textContent = `(${totalMessagesCount})`;
+      container.innerHTML = (cards.length > 0 ? cards.join('') : '<div class="text-slate-500 text-sm text-center py-8 msg-card-empty">没有匹配的消息记录</div>') + getPaginationHtml();
+    }
+    
+    function getPaginationHtml() {
+      if (totalMessagesCount === 0) return '';
+      
+      const cp = currentPage;
+      
+      let pageButtons = '';
+      
+      if (totalPages <= 7) {
+        for (let i = 1; i <= totalPages; i++) {
+          pageButtons += `<button class="pagination-btn ${i === cp ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+        }
+      } else {
+        pageButtons += `<button class="pagination-btn ${1 === cp ? 'active' : ''}" onclick="goToPage(1)">1</button>`;
+        pageButtons += `<button class="pagination-btn ${2 === cp ? 'active' : ''}" onclick="goToPage(2)">2</button>`;
+        
+        if (cp <= 4) {
+          pageButtons += `<button class="pagination-btn ${3 === cp ? 'active' : ''}" onclick="goToPage(3)">3</button>`;
+          pageButtons += `<button class="pagination-btn ${4 === cp ? 'active' : ''}" onclick="goToPage(4)">4</button>`;
+          pageButtons += `<button class="pagination-btn ${5 === cp ? 'active' : ''}" onclick="goToPage(5)">5</button>`;
+          pageButtons += `<span class="pagination-ellipsis">...</span>`;
+        } else if (cp >= totalPages - 3) {
+          pageButtons += `<span class="pagination-ellipsis">...</span>`;
+          pageButtons += `<button class="pagination-btn ${totalPages - 4 === cp ? 'active' : ''}" onclick="goToPage(${totalPages - 4})">${totalPages - 4}</button>`;
+          pageButtons += `<button class="pagination-btn ${totalPages - 3 === cp ? 'active' : ''}" onclick="goToPage(${totalPages - 3})">${totalPages - 3}</button>`;
+          pageButtons += `<button class="pagination-btn ${totalPages - 2 === cp ? 'active' : ''}" onclick="goToPage(${totalPages - 2})">${totalPages - 2}</button>`;
+        } else {
+          pageButtons += `<span class="pagination-ellipsis">...</span>`;
+          pageButtons += `<button class="pagination-btn" onclick="goToPage(${cp - 1})">${cp - 1}</button>`;
+          pageButtons += `<button class="pagination-btn active" onclick="goToPage(${cp})">${cp}</button>`;
+          pageButtons += `<button class="pagination-btn" onclick="goToPage(${cp + 1})">${cp + 1}</button>`;
+          pageButtons += `<span class="pagination-ellipsis">...</span>`;
+        }
+        
+        pageButtons += `<button class="pagination-btn ${totalPages === cp ? 'active' : ''}" onclick="goToPage(${totalPages})">${totalPages}</button>`;
+      }
+      
+      return `
+        <div class="pagination-container">
+          <div class="pagination-info">
+            共 ${totalMessagesCount} 条  第 ${cp}/${totalPages} 页
+          </div>
+          <div class="pagination-controls">
+            <button class="pagination-btn" onclick="goToPage(1)" ${cp === 1 ? 'disabled' : ''}>首页</button>
+            <button class="pagination-btn" onclick="goToPage(${cp - 1})" ${cp === 1 ? 'disabled' : ''}>上一页</button>
+            ${pageButtons}
+            <button class="pagination-btn" onclick="goToPage(${cp + 1})" ${cp === totalPages ? 'disabled' : ''}>下一页</button>
+            <button class="pagination-btn" onclick="goToPage(${totalPages})" ${cp === totalPages ? 'disabled' : ''}>末页</button>
+            <span class="pagination-jump-inline">
+              跳至 <input type="number" id="jumpPageInput" class="pagination-input" min="1" max="${totalPages}" value="${cp}"> 页 
+              <button class="pagination-btn" onclick="jumpToPage()">跳转</button>
+            </span>
+          </div>
+        </div>`;
+    }
+    
+    async function goToPage(page) {
+      page = Math.max(1, Math.min(page, totalPages));
+      
+      if (page === currentPage) return;
+      
+      currentPage = page;
+      newMessagesCount = 0;
+      updateNewMsgIndicator();
+      
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      
+      try {
+        const params = new URLSearchParams({ page: page, pageSize: 10 });
+        if (currentFilters.search) params.append('search', currentFilters.search);
+        if (currentFilters.device) params.append('device', currentFilters.device);
+        if (currentFilters.status) params.append('status', currentFilters.status);
+        
+        const res = await fetch(`/api/messages?${params}`, { credentials: 'include', headers: authHeader() });
+        const data = await res.json();
+        
+        if (data.success && data.messages) {
+          messages = data.messages;
+          filteredMessages = [...messages];
+          totalMessagesCount = data.pagination?.total || messages.length;
+          totalPages = data.pagination?.totalPages || 1;
+          hasMoreMessages = data.pagination?.hasMore || false;
+          renderMessageCards();
+        }
+      } catch (e) {
+        console.error('跳转页面失败:', e);
+      }
+    }
+    
+    function jumpToPage() {
+      const input = document.getElementById('jumpPageInput');
+      if (!input) return;
+      const page = parseInt(input.value);
+      if (!isNaN(page)) {
+        goToPage(page);
+      }
+    }
+    
+    function updateNewMsgIndicator() {
+      let indicator = document.getElementById('newMsgIndicator');
+      if (!indicator) {
+        const container = document.getElementById('msgContainer');
+        if (!container) return;
+        const el = document.createElement('div');
+        el.id = 'newMsgIndicator';
+        el.className = 'hidden';
+        el.innerHTML = `<div class="fixed bottom-24 right-6 z-50 cursor-pointer" onclick="scrollToTop()">
+          <div class="bg-blue-600 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 hover:bg-blue-700 transition-colors">
+            <span>⬆</span>
+            <span id="newMsgCount">0</span>
+            <span>条新消息</span>
+          </div>
+        </div>`;
+        document.body.appendChild(el);
+        indicator = el;
+      }
+      
+      if (newMessagesCount > 0) {
+        document.getElementById('newMsgCount').textContent = newMessagesCount;
+        indicator.classList.remove('hidden');
+      } else {
+        indicator.classList.add('hidden');
+      }
+    }
+    
+    function scrollToTop() {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      currentPage = 1;
+      newMessagesCount = 0;
+      updateNewMsgIndicator();
+      renderMessageCards();
+    }
+
+    function updateDeviceFilterOptions() {
+      const select = document.getElementById('msgDeviceFilter');
+      const currentValue = select.value;
+      const devicesInMessages = [...new Set(messages.map(m => m.mac).filter(Boolean))];
+      
+      select.innerHTML = '<option value="">全部设备</option>' + 
+        devicesInMessages.map(mac => `<option value="${mac}">${mac.substring(0, 12)}...</option>`).join('');
+      
+      if (devicesInMessages.includes(currentValue)) {
+        select.value = currentValue;
+      }
+    }
+
+    function formatPhone(phone) {
+      if (!phone) return '-';
+      if (phone.length > 7) {
+        return phone.substring(0, 3) + '****' + phone.substring(phone.length - 4);
+      }
+      return phone;
+    }
+
+    function clearPushStatusCache() {
+      pushStatusCache = {};
+    }
+
+    function formatTimeStr(timeStr) {
+      if (!timeStr && timeStr !== 0) return '-';
+      try {
+        let ts;
+        if (typeof timeStr === 'number') {
+          ts = timeStr;
+        } else if (typeof timeStr === 'string') {
+          if (/^\d{10,13}$/.test(timeStr)) {
+            ts = parseInt(timeStr);
+          } else {
+            if (!/^\d{4}-\d{2}-\d{2}/.test(timeStr)) return '-';
+            const d = new Date(timeStr);
+            if (isNaN(d.getTime())) return '-';
+            ts = d.getTime();
+          }
+        } else {
+          return String(timeStr);
+        }
+        
+        if (ts <= 0) return '-';
+        if (ts < 10000000000) ts *= 1000;
+        
+        const d = new Date(ts);
+        if (isNaN(d.getTime()) || d.getFullYear() < 2000 || d.getFullYear() > 2100) {
+          return '-';
+        }
+        
+        return d.toLocaleString('zh-CN', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false
+        });
+      } catch {
+        return '-';
+      }
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    function selectDevice(mac) {
+      selectedMac = mac;
+      const dev = devices.find(d => d.mac === mac);
+      document.getElementById('selectedDeviceLabel').textContent = dev ? `${mac.substring(0, 12)} (${dev.ip || '?'})` : mac.substring(0, 12);
+      document.getElementById('toolboxSection').classList.remove('hidden');
+      renderDevices();
+      switchTab('sms');
+      currentFirmwareVersion = null;
+      document.getElementById('currentFirmware').textContent = '-';
+    }
+
+    function deselectDevice() {
+      selectedMac = null;
+      document.getElementById('selectedDeviceLabel').textContent = '';
+      renderDevices();
+    }
+
+    const deviceTabs = ['sms', 'query', 'ping', 'flight', 'at', 'ota', 'schedule'];
+
+    function requireDevice() {
+      if (!selectedMac) {
+        showToast('请先选择设备', 'warning');
+        return false;
+      }
+      return true;
+    }
+
+    function switchTab(tab) {
+      if (deviceTabs.includes(tab) && !selectedMac) {
+        showToast('请先选择设备', 'warning');
+        switchTab('push');
+        return;
+      }
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll(`.tab-btn[data-tab="${tab}"]`).forEach(b => b.classList.add('active'));
+      document.querySelectorAll('.tab-content').forEach(c => {
+        c.classList.add('hidden');
+        c.scrollTop = 0;
+      });
+      const el = document.getElementById(`tab-${tab}`);
+      if (el) {
+        el.classList.remove('hidden');
+        el.scrollTop = 0;
+      }
+      if (tab === 'schedule') {
+        loadScheduleList()();
+      }
+    }
+
+    function showToast(message, type = 'info', duration = 3000) {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.classList.add('removing');
+        setTimeout(() => toast.remove(), 300);
+      }, duration);
+    }
+
+    function sendCmd(action, params = {}) {
+      return new Promise((resolve, reject) => {
+        if (!selectedMac) {
+          reject(new Error('请先选择一个在线设备'));
+          return;
+        }
+        const dev = devices.find(d => d.mac === selectedMac);
+        if (!dev?.online) {
+          reject(new Error('设备不在线'));
+          return;
+        }
+        
+        fetch(`/api/cmd/${selectedMac}`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json', ...authHeader() },
+          body: JSON.stringify({ action, ...params })
+        }).then(r => r.json()).then(data => {
+          if (data.success) {
+            resolve(data.result);
+          } else {
+            reject(new Error(data.message || '命令执行失败'));
+          }
+        }).catch(e => reject(e));
+      });
+    }
+
+    function sendCmdWithWsCallback(action, params = {}) {
+      return new Promise((resolve, reject) => {
+        if (!selectedMac) {
+          reject(new Error('请先选择一个在线设备'));
+          return;
+        }
+        const dev = devices.find(d => d.mac === selectedMac);
+        if (!dev?.online) {
+          reject(new Error('设备不在线'));
+          return;
+        }
+        
+        pendingRespCallback = (data) => {
+          if (data.action === action || !data.action) {
+            resolve(data);
+          }
+        };
+        
+        fetch(`/api/cmd/${selectedMac}`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json', ...authHeader() },
+          body: JSON.stringify({ action, ...params })
+        }).then(r => r.json()).then(data => {
+          if (!data.success) {
+            pendingRespCallback = null;
+            reject(new Error(data.message || '命令执行失败'));
+          }
+        }).catch(e => {
+          pendingRespCallback = null;
+          reject(e);
+        });
+        
+        setTimeout(() => {
+          if (pendingRespCallback) {
+            pendingRespCallback = null;
+            reject(new Error('命令超时'));
+          }
+        }, action === 'ping' ? 40000 : 15000);
+      });
+    }
+
+    async function doSendSms() {
+      const phone = document.getElementById('smsPhone').value.trim();
+      const content = document.getElementById('smsContent').value.trim();
+      if (!phone) { showToast('请输入目标号码', 'warning'); return; }
+      if (!content) { showToast('请输入短信内容', 'warning'); return; }
+      const btn = document.getElementById('sendSmsBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="loading-spinner"></span> 发送中...';
+      showToast('短信发送请求已发送...', 'info');
+      try {
+        const result = await sendCmd('send_sms', { phone, content });
+        if (result?.success) {
+          showToast('短信发送成功', 'success');
+          document.getElementById('smsPhone').value = '';
+          document.getElementById('smsContent').value = '';
+          document.getElementById('smsCharCount').textContent = '0';
+          addToRecentSms(phone, content);
+        } else {
+          showToast(result?.message || '短信发送失败', 'error');
+        }
+      } catch (e) {
+        showToast(e.message, 'error');
+      }
+      btn.disabled = false;
+      btn.innerHTML = '📨 立即发送';
+    }
+
+    function onScheduleTypeChange() {
+      const type = document.getElementById('scheduleTypeNew').value;
+      document.getElementById('intervalForm').classList.toggle('hidden', type !== 'interval');
+    }
+
+    async function doCreateSchedule() {
+      if (!requireDevice()) return;
+      const phone = document.getElementById('schedulePhone').value.trim();
+      const content = document.getElementById('scheduleContent').value.trim();
+      const scheduledTime = document.getElementById('scheduleTimeNew').value;
+      const scheduleType = document.getElementById('scheduleTypeNew').value;
+      const intervalDays = scheduleType === 'interval' ? parseInt(document.getElementById('scheduleIntervalDays').value || '7') : 0;
+      
+      if (!phone) { showToast('请输入目标号码', 'warning'); return; }
+      if (!content) { showToast('请输入短信内容', 'warning'); return; }
+      if (!scheduledTime) { showToast('请选择发送时间', 'warning'); return; }
+      if (scheduleType === 'interval' && intervalDays < 1) {
+        showToast('间隔天数至少为1', 'warning'); return;
+      }
+      
+      const btn = document.getElementById('createScheduleBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="loading-spinner"></span> 处理中...';
+      
+      const timeParts = scheduledTime.split(':');
+      const hour = parseInt(timeParts[0]) || 0;
+      const minute = parseInt(timeParts[1]) || 0;
+      
+      try {
+        const resp = await fetch('/api/schedule', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeader() },
+          body: JSON.stringify({
+            mac: selectedMac,
+            phone,
+            content,
+            schedule_type: scheduleType,
+            scheduled_time: scheduledTime,
+            hour,
+            minute,
+            interval_days: intervalDays
+          })
+        });
+        const data = await resp.json();
+        
+        if (data.success) {
+          showToast('定时任务已创建', 'success');
+          document.getElementById('schedulePhone').value = '';
+          document.getElementById('scheduleContent').value = '';
+          document.getElementById('scheduleTimeNew').value = '';
+          document.getElementById('scheduleTypeNew').value = 'once';
+          document.getElementById('intervalForm').classList.add('hidden');
+          loadScheduleList();
+        } else {
+          showToast(data.message || '创建失败', 'error');
+        }
+      } catch (e) {
+        showToast('请求失败', 'error');
+      }
+      btn.disabled = false;
+      btn.innerHTML = '📅 创建定时任务';
+    }
+
+    async function loadScheduleList() {
+      if (!selectedMac) return;
+      try {
+        const resp = await fetch(`/api/schedule?mac=${selectedMac}`, { headers: authHeader() });
+        const data = await resp.json();
+        if (data.success) {
+          renderScheduleList(data.tasks);
+        }
+      } catch (e) {
+        console.error('Load schedule list failed:', e);
+      }
+    }
+
+    function renderScheduleList(tasks) {
+      const container = document.getElementById('scheduleList');
+      const countEl = document.getElementById('scheduleCount');
+      countEl.textContent = tasks.length;
+      
+      if (tasks.length === 0) {
+        container.innerHTML = '<div class="text-slate-500 text-sm text-center py-8">暂无定时任务<br><span class="text-xs">在"发送短信"标签页添加定时任务</span></div>';
+        return;
+      }
+      
+      container.innerHTML = tasks.map(task => {
+        const nextRun = new Date(task.next_run_time);
+        const nextTimeStr = nextRun.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        const dateStr = nextRun.toLocaleDateString();
+        let statusText = '';
+        let statusClass = '';
+        if (task.status === 'completed') {
+          statusText = '已完成';
+          statusClass = 'bg-blue-900 text-blue-400';
+        } else if (task.status === 'active') {
+          statusText = '执行中';
+          statusClass = 'bg-green-900 text-green-400';
+        } else if (task.status === 'failed') {
+          statusText = '已失败';
+          statusClass = 'bg-red-900 text-red-400';
+        } else {
+          statusText = '已暂停';
+          statusClass = 'bg-yellow-900 text-yellow-400';
+        }
+        const hour = task.interval_hours || 0;
+        const minute = task.interval_minutes || 0;
+        const taskTimeStr = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+        
+        let intervalText = '';
+        if (task.schedule_type === 'interval') {
+          const days = task.interval_days || 0;
+          intervalText = days > 0 ? `每 ${days} 天 ${taskTimeStr}` : `${taskTimeStr}`;
+        } else {
+          intervalText = '一次性 ' + taskTimeStr;
+        }
+        
+        return `
+          <div class="bg-slate-700 rounded-lg p-3 cursor-pointer hover:bg-slate-600 transition-colors" onclick="openScheduleDetail(${task.id})">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-white font-medium">${task.phone}</span>
+              <span class="text-xs px-2 py-0.5 rounded ${statusClass}">${statusText}</span>
+            </div>
+            <div class="text-sm text-slate-300 truncate">${task.content}</div>
+            <div class="text-xs text-slate-400 mt-1">${intervalText} | 下次: ${dateStr} ${nextTimeStr}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    let currentScheduleId = null;
+
+    async function openScheduleDetail(id) {
+      currentScheduleId = id;
+      try {
+        const resp = await fetch(`/api/schedule/${id}`, { headers: authHeader() });
+        const data = await resp.json();
+        if (data.success) {
+          renderScheduleDetail(data.task, data.history);
+          document.getElementById('scheduleDetailModal').classList.remove('hidden');
+        }
+      } catch (e) {
+        showToast('加载失败', 'error');
+      }
+    }
+
+    function renderScheduleDetail(task, history) {
+      const infoEl = document.getElementById('scheduleDetailInfo');
+      const nextRunDate = new Date(task.next_run_time);
+      const hour = task.interval_hours || 0;
+      const minute = task.interval_minutes || 0;
+      const timeStr = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+      
+      let intervalText = '';
+      if (task.schedule_type === 'interval') {
+        const days = task.interval_days || 0;
+        intervalText = days > 0 ? `每 ${days} 天 ${timeStr}` : timeStr;
+      }
+      
+      let statusHtml = '';
+      if (task.status === 'completed') {
+        statusHtml = '<span class="text-blue-400">已完成</span>';
+      } else if (task.status === 'active') {
+        statusHtml = '<span class="text-green-400">执行中</span>';
+      } else if (task.status === 'failed') {
+        statusHtml = '<span class="text-red-400">已失败</span>';
+      } else {
+        statusHtml = '<span class="text-yellow-400">已暂停</span>';
+      }
+      
+      infoEl.innerHTML = `
+        <div class="grid grid-cols-2 gap-2 text-sm">
+          <div><span class="text-slate-400">目标号码:</span> ${task.phone}</div>
+          <div><span class="text-slate-400">类型:</span> ${task.schedule_type === 'interval' ? '周期发送' : '一次性'}</div>
+          ${task.schedule_type === 'interval' ? `<div><span class="text-slate-400">发送时间:</span> ${timeStr}</div>` : ''}
+          <div><span class="text-slate-400">下次执行:</span> ${nextRunDate.toLocaleDateString()} ${nextRunDate.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+          ${task.schedule_type === 'interval' ? `<div><span class="text-slate-400">发送间隔:</span> ${intervalText}</div>` : ''}
+          <div><span class="text-slate-400">状态:</span> ${statusHtml}</div>
+          <div class="col-span-2"><span class="text-slate-400">内容:</span> ${task.content}</div>
+        </div>
+      `;
+      
+      const pauseBtn = document.getElementById('pauseScheduleBtn');
+      if (task.schedule_type === 'once' && (task.status === 'completed' || task.status === 'failed')) {
+        pauseBtn.classList.add('hidden');
+      } else {
+        pauseBtn.classList.remove('hidden');
+        pauseBtn.innerHTML = task.status === 'active' ? '⏸ 暂停' : '▶ 恢复';
+        pauseBtn.className = task.status === 'active' ? 'btn btn-warning flex-1' : 'btn btn-success flex-1';
+      }
+      
+      const deleteBtn = document.getElementById('deleteScheduleBtn');
+      if (deleteBtn) deleteBtn.classList.remove('hidden');
+      
+      const historyEl = document.getElementById('scheduleHistoryList');
+      if (!history || history.length === 0) {
+        historyEl.innerHTML = '<div class="text-slate-500 text-center py-4">暂无执行记录</div>';
+      } else {
+        historyEl.innerHTML = history.map(h => `
+          <div class="flex items-center justify-between py-1 ${h.status === 'success' ? '' : 'text-red-400'}">
+            <span>${new Date(h.run_time).toLocaleString()}</span>
+            <span class="text-xs px-2 py-0.5 rounded ${h.status === 'success' ? 'bg-green-900 text-green-400' : 'bg-red-900 text-red-400'}">${h.status === 'success' ? '成功' : '失败'}</span>
+          </div>
+          ${h.response ? `<div class="text-xs text-slate-500 ml-4 mb-2">${h.response}</div>` : '<div class="mb-2"></div>'}
+        `).join('');
+      }
+    }
+
+    async function toggleSchedulePause() {
+      if (!currentScheduleId) return;
+      
+      const resp = await fetch(`/api/schedule/${currentScheduleId}`, { headers: authHeader() });
+      const data = await resp.json();
+      if (!data.success) return;
+      
+      const task = data.task;
+      const newStatus = task.status === 'active' ? 'paused' : 'active';
+      
+      try {
+        await fetch(`/api/schedule/${currentScheduleId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', ...authHeader() },
+          body: JSON.stringify({ status: newStatus })
+        });
+        
+        showToast(newStatus === 'paused' ? '任务已暂停' : '任务已恢复', 'success');
+        closeScheduleDetail();
+        loadScheduleList();
+      } catch (e) {
+        showToast('操作失败', 'error');
+      }
+    }
+
+    async function deleteCurrentSchedule() {
+      if (!currentScheduleId) return;
+      if (!confirm('确定删除此定时任务？')) return;
+      
+      try {
+        await fetch(`/api/schedule/${currentScheduleId}`, {
+          method: 'DELETE',
+          headers: authHeader()
+        });
+        
+        showToast('任务已删除', 'success');
+        closeScheduleDetail();
+        loadScheduleList();
+      } catch (e) {
+        showToast('删除失败', 'error');
+      }
+    }
+
+    function closeScheduleDetail() {
+      document.getElementById('scheduleDetailModal').classList.add('hidden');
+      currentScheduleId = null;
+    }
+
+    function addToRecentSms(phone, content) {
+      const now = new Date();
+      const timeStr = now.toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      });
+      recentSmsList.unshift({ phone, content, time: timeStr });
+      if (recentSmsList.length > 10) recentSmsList.pop();
+      renderRecentSms();
+    }
+
+    function renderRecentSms() {
+      const list = document.getElementById('recentSmsList');
+      if (recentSmsList.length === 0) {
+        list.innerHTML = '<div class="text-slate-500 text-sm text-center py-4">暂无发送记录</div>';
+        return;
+      }
+      list.innerHTML = recentSmsList.map(s => `
+        <div class="bg-slate-800 rounded p-2 text-xs">
+          <div class="flex justify-between text-slate-400">
+            <span>${s.phone}</span>
+            <span>${s.time}</span>
+          </div>
+          <div class="text-slate-300 mt-1 truncate">${escapeHtml(s.content)}</div>
+        </div>
+      `).join('');
+    }
+
+    async function doQuery(type) {
+      const labels = { ati: '固件信息', signal: '信号质量', siminfo: 'SIM卡信息', network: '网络状态', wifi: 'WiFi状态' };
+      const resultEl = document.getElementById('queryResult');
+      resultEl.innerHTML = `<div class="text-slate-400 text-sm">正在查询 ${labels[type] || type}...</div>`;
+      showToast(`正在查询 ${labels[type] || type}...`, 'info');
+      try {
+        const result = await sendCmd('query', { type });
+        if (result?.success) {
+          if (type === 'ati' && result.message) {
+            currentFirmwareVersion = result.message.split('|').find(p => p.startsWith('版本='))?.split('=')[1];
+            if (currentFirmwareVersion) {
+              document.getElementById('currentFirmware').textContent = currentFirmwareVersion;
+            }
+          }
+          resultEl.innerHTML = `<div class="text-green-400 text-sm font-medium mb-2">✅ ${labels[type] || type} 查询成功</div>${formatResultMessage(result.message)}`;
+          showToast(`${labels[type] || type} 查询成功`, 'success');
+        } else {
+          resultEl.innerHTML = `<div class="text-red-400 text-sm">❌ 查询失败: ${result?.message || '未知错误'}</div>`;
+          showToast(result?.message || '查询失败', 'error');
+        }
+      } catch (e) {
+        resultEl.innerHTML = `<div class="text-red-400 text-sm">❌ ${e.message}</div>`;
+        showToast(e.message, 'error');
+      }
+    }
+
+    async function doPing() {
+      const btn = document.getElementById('pingBtn');
+      const resultEl = document.getElementById('pingResult');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="loading-spinner"></span> Ping 执行中...';
+      resultEl.innerHTML = '<div class="text-slate-400 text-sm">正在执行 Ping，请稍候（最长等待 35 秒）...</div>';
+      showToast('Ping 测试执行中...', 'info', 5000);
+      try {
+        const result = await sendCmd('ping');
+        btn.disabled = false;
+        btn.innerHTML = '📡 执行 Ping 测试';
+        if (result?.success) {
+          resultEl.innerHTML = `<div class="bg-green-900/30 border border-green-700 rounded-lg p-4"><span class="text-green-400 font-medium">✅ Ping 成功!</span><br><span class="text-slate-300">${escapeHtml(result.message || '')}</span></div>`;
+          showToast('Ping 测试成功', 'success');
+        } else {
+          resultEl.innerHTML = `<div class="bg-red-900/30 border border-red-700 rounded-lg p-4"><span class="text-red-400 font-medium">❌ Ping 失败</span><br><span class="text-slate-300">${escapeHtml(result?.message || '未知错误')}</span></div>`;
+          showToast(result?.message || 'Ping 失败', 'error');
+        }
+      } catch (e) {
+        btn.disabled = false;
+        btn.innerHTML = '📡 执行 Ping 测试';
+        resultEl.innerHTML = `<div class="bg-red-900/30 border border-red-700 rounded-lg p-4"><span class="text-red-400">❌ ${e.message}</span></div>`;
+        showToast(e.message, 'error');
+      }
+    }
+
+    async function doFlightMode(status) {
+      const resultEl = document.getElementById('flightResult');
+      const labels = { '-1': '查询', '0': '关闭', '1': '开启' };
+      showToast(`飞行模式${labels[status] || status}请求已发送...`, 'info');
+      try {
+        const result = await sendCmd('flight_mode', { status });
+        if (result?.success) {
+          const parts = (result.message || '').split('|');
+          let html = '<div class="text-green-400 font-medium mb-2">✅ 操作成功</div><table class="w-full text-sm">';
+          parts.forEach(p => {
+            const [k, ...v] = p.split('=');
+            if (k) html += `<tr><td class="text-slate-400 pr-4 py-1">${k}</td><td class="text-slate-200">${escapeHtml(v.join('='))}</td></tr>`;
+          });
+          html += '</table>';
+          resultEl.innerHTML = html;
+          showToast('飞行模式操作成功', 'success');
+        } else {
+          resultEl.innerHTML = `<div class="text-red-400">❌ 操作失败: ${escapeHtml(result?.message || '未知错误')}</div>`;
+          showToast(result?.message || '操作失败', 'error');
+        }
+      } catch (e) {
+        resultEl.innerHTML = `<div class="text-red-400">❌ ${e.message}</div>`;
+        showToast(e.message, 'error');
+      }
+    }
+
+    function sendAtCmd() {
+      const input = document.getElementById('atCmdInput');
+      const cmd = input.value.trim();
+      if (!cmd) return;
+      input.value = '';
+      atSeq++;
+      addAtLog(`> ${cmd}`, '#ffffff');
+      sendCmd('at', { cmd }).then(result => {
+        if (result?.success) {
+          addAtLog(result.message || 'OK', '#10b981');
+        } else {
+          addAtLog(result?.message || 'ERROR', '#f87171');
+        }
+      }).catch(e => {
+        addAtLog(`ERROR: ${e.message}`, '#f87171');
+      });
+    }
+
+    function quickAt(cmd) {
+      document.getElementById('atCmdInput').value = cmd;
+      sendAtCmd();
+    }
+
+    function addAtLog(msg, color) {
+      const log = document.getElementById('atLog');
+      const line = document.createElement('div');
+      line.innerHTML = `<span style="color:${color}">${escapeHtml(msg)}</span>`;
+      log.appendChild(line);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function clearAtLog() {
+      document.getElementById('atLog').innerHTML = '<span style="color:#6b7280">AT 终端已清空...</span>';
+    }
+
+    function formatResultMessage(msg) {
+      if (!msg) return '<div class="text-slate-300">无详细信息</div>';
+      const parts = msg.split('|');
+      let html = '<table class="w-full text-sm">';
+      parts.forEach(p => {
+        const [k, ...v] = p.split('=');
+        if (k) html += `<tr><td class="text-slate-400 pr-4 py-1 whitespace-nowrap">${escapeHtml(k)}</td><td class="text-slate-200">${escapeHtml(v.join('='))}</td></tr>`;
+      });
+      html += '</table>';
+      return html;
+    }
+
+    async function doOtaCheck() {
+      const latestEl = document.getElementById('latestFirmware');
+      const startBtn = document.getElementById('startOtaBtn');
+      const checkBtn = document.getElementById('checkOtaBtn');
+      
+      checkBtn.disabled = true;
+      checkBtn.innerHTML = '<span class="loading-spinner"></span> 检查中...';
+      latestEl.textContent = '检查中...';
+      
+      try {
+        const result = await sendCmd('ota_check');
+        if (result) {
+          latestOtaVersion = result.version || '?';
+          currentOtaUrl = result.url || '';
+          currentOtaChecksum = result.checksum || '';
+          
+          latestEl.textContent = latestOtaVersion;
+          
+          if (result.needs_update) {
+            startBtn.disabled = false;
+            showToast(`发现新版本: ${latestOtaVersion}`, 'info');
+          } else {
+            latestEl.textContent = latestOtaVersion + ' (已是最新)';
+            startBtn.disabled = true;
+            showToast('当前已是最新版本', 'success');
+          }
+        } else {
+          latestEl.textContent = '检查失败';
+          startBtn.disabled = true;
+        }
+      } catch (e) {
+        latestEl.textContent = '检查失败';
+        showToast('检查更新失败: ' + e.message, 'error');
+      }
+      
+      checkBtn.disabled = false;
+      checkBtn.innerHTML = '🔍 检查更新';
+    }
+
+    async function doOtaStart() {
+      if (!currentOtaUrl) {
+        showToast('请先检查更新', 'warning');
+        return;
+      }
+      
+      const progressEl = document.getElementById('otaProgress');
+      const progressBar = document.getElementById('otaProgressBar');
+      const progressText = document.getElementById('otaProgressText');
+      const resultEl = document.getElementById('otaResult');
+      const startBtn = document.getElementById('startOtaBtn');
+      
+      openConfirm('确认升级', `确定要升级到版本 ${latestOtaVersion} 吗？设备将自动重启。`, async () => {
+        progressEl.classList.remove('hidden');
+        progressBar.style.width = '0%';
+        progressText.textContent = '0%';
+        resultEl.innerHTML = '<div class="text-slate-400 text-sm">正在下载固件...</div>';
+        startBtn.disabled = true;
+        
+        showToast('开始OTA升级，请勿断电...', 'warning', 10000);
+        
+        try {
+          const result = await sendCmdWithWsCallback('ota_start', {
+            version: latestOtaVersion,
+            url: currentOtaUrl,
+            checksum: currentOtaChecksum
+          });
+          
+          if (result.success) {
+            progressBar.style.width = '100%';
+            progressText.textContent = '100%';
+            resultEl.innerHTML = `<div class="bg-green-900/30 border border-green-700 rounded-lg p-4 text-green-400">✅ ${result.message || '升级成功!'}</div>`;
+            showToast('OTA升级成功，设备正在重启...', 'success');
+          } else {
+            resultEl.innerHTML = `<div class="bg-red-900/30 border border-red-700 rounded-lg p-4 text-red-400">❌ ${result.message || '升级失败'}</div>`;
+            showToast(result.message || '升级失败', 'error');
+          }
+        } catch (e) {
+          resultEl.innerHTML = `<div class="bg-red-900/30 border border-red-700 rounded-lg p-4 text-red-400">❌ ${e.message}</div>`;
+          showToast(e.message, 'error');
+        }
+        
+        setTimeout(() => {
+          progressEl.classList.add('hidden');
+          startBtn.disabled = false;
+        }, 5000);
+      });
+    }
+
+    function handleOtaStatus(data) {
+      const progressBar = document.getElementById('otaProgressBar');
+      const progressText = document.getElementById('otaProgressText');
+      const progressEl = document.getElementById('otaProgress');
+      const resultEl = document.getElementById('otaResult');
+      
+      progressEl.classList.remove('hidden');
+      
+      if (data.status === 'downloading') {
+        const match = data.message.match(/(\d+)%/);
+        if (match) {
+          const percent = parseInt(match[1]);
+          progressBar.style.width = percent + '%';
+          progressText.textContent = percent + '%';
+        }
+        resultEl.innerHTML = `<div class="text-slate-400 text-sm">📥 ${data.message}</div>`;
+      } else if (data.status === 'verifying') {
+        resultEl.innerHTML = `<div class="text-blue-400 text-sm">🔐 ${data.message}</div>`;
+      } else if (data.status === 'completed') {
+        progressBar.style.width = '100%';
+        progressText.textContent = '100%';
+        resultEl.innerHTML = `<div class="bg-green-900/30 border border-green-700 rounded-lg p-4 text-green-400">✅ ${data.message}</div>`;
+      } else if (data.status === 'error') {
+        resultEl.innerHTML = `<div class="bg-red-900/30 border border-red-700 rounded-lg p-4 text-red-400">❌ ${data.message}</div>`;
+      }
+    }
+
+    function clearMessages() {
+      messages = [];
+      renderMessages();
+      showToast('消息已清空', 'info');
+    }
+
+    async function deleteSms(id) {
+      if (!confirm('确定要删除这条短信及其推送记录吗？')) return;
+      messages = messages.filter(m => m.id !== id);
+      renderMessages();
+      showToast('短信已删除', 'success');
+    }
+
+    async function retryPushForSms(smsId) {
+      try {
+        const cfg = await fetch('/api/push-config', { credentials: 'include', headers: authHeader() }).then(r => r.json()).catch(() => null);
+        const cfgData = cfg?.config || {};
+        const history = await fetch(`/api/push-history/sms/${smsId}`, { credentials: 'include', headers: authHeader() }).then(r => r.json()).catch(() => null);
+        const records = history?.history || [];
+        const failedChannels = records.filter(r => r.status === 'failed').map(r => r.channel);
+        if (failedChannels.length === 0) {
+          showToast('没有失败的推送渠道', 'warning');
+          return;
+        }
+        let retryCount = 0;
+        for (const channel of failedChannels) {
+          const record = records.find(r => r.channel === channel);
+          if (record) {
+            await fetch(`/api/push-history/${record.id}/retry`, { method: 'POST', credentials: 'include', headers: authHeader() });
+            retryCount++;
+          }
+        }
+        showToast(`已重推 ${retryCount} 个渠道`, 'success');
+        renderMessages();
+      } catch (e) {
+        showToast('重推失败', 'error');
+      }
+    }
+
+    function switchPushTab(tab) {
+      document.querySelectorAll('.tab-btn').forEach(b => {
+        if (b.dataset.ptab) b.classList.remove('active');
+      });
+      document.querySelectorAll(`[data-ptab="${tab}"]`).forEach(b => b.classList.add('active'));
+      document.querySelectorAll('.push-tab-content').forEach(c => c.classList.add('hidden'));
+      const el = document.getElementById(`ptab-${tab}`);
+      if (el) el.classList.remove('hidden');
+    }
+
+    function togglePushCard(id) {
+      const card = document.getElementById(`push-card-${id}`);
+      if (card) {
+        card.classList.toggle('hidden');
+      }
+    }
+
+    async function loadPushConfigToUI() {
+      try {
+        const result = await fetch('/api/push-config', { credentials: 'include', headers: authHeader() });
+        const data = await result.json();
+        if (data?.success && data?.config) {
+          const cfg = data.config;
+          document.getElementById('cfg_tg_en').checked = cfg.telegram?.enabled || false;
+          document.getElementById('cfg_tg_token').value = cfg.telegram?.botToken || '';
+          document.getElementById('cfg_tg_chatid').value = cfg.telegram?.chatId || '';
+          document.getElementById('cfg_dt_en').checked = cfg.dingtalk?.enabled || false;
+          document.getElementById('cfg_dt_url').value = cfg.dingtalk?.webhookUrl || '';
+          document.getElementById('cfg_dt_secret').value = cfg.dingtalk?.secret || '';
+          document.getElementById('cfg_pp_en').checked = cfg.pushplus?.enabled || false;
+          document.getElementById('cfg_pp_token').value = cfg.pushplus?.token || '';
+          document.getElementById('cfg_pp_channel').value = cfg.pushplus?.channel || 'wechat';
+          document.getElementById('cfg_sc_en').checked = cfg.serverchan?.enabled || false;
+          document.getElementById('cfg_sc_key').value = cfg.serverchan?.sendKey || '';
+          document.getElementById('cfg_fs_en').checked = cfg.feishu?.enabled || false;
+          document.getElementById('cfg_fs_url').value = cfg.feishu?.webhookUrl || '';
+          document.getElementById('cfg_fs_secret').value = cfg.feishu?.secret || '';
+          document.getElementById('cfg_bark_en').checked = cfg.bark?.enabled || false;
+          document.getElementById('cfg_bark_url').value = cfg.bark?.barkUrl || '';
+          document.getElementById('cfg_gotify_en').checked = cfg.gotify?.enabled || false;
+          document.getElementById('cfg_gotify_url').value = cfg.gotify?.gotifyUrl || '';
+          document.getElementById('cfg_gotify_token').value = cfg.gotify?.token || '';
+          document.getElementById('cfg_post_en').checked = cfg.postJson?.enabled || false;
+          document.getElementById('cfg_post_url').value = cfg.postJson?.url || '';
+          document.getElementById('cfg_custom_en').checked = cfg.customTemplate?.enabled || false;
+          document.getElementById('cfg_custom_url').value = cfg.customTemplate?.url || '';
+          document.getElementById('cfg_custom_body').value = cfg.customTemplate?.body || '';
+        }
+        loadPushHistory();
+      } catch {}
+    }
+
+    async function loadPushHistory() {
+      try {
+        const result = await fetch('/api/push-history?limit=50', { credentials: 'include', headers: authHeader() });
+        const data = await result.json();
+        const container = document.getElementById('pushHistoryList');
+        const filter = document.getElementById('pushHistoryFilter')?.value || 'all';
+        if (data?.success && data?.history?.length > 0) {
+          const channelNames = { telegram: 'Telegram', dingtalk: '钉钉', pushplus: 'PushPlus', serverchan: 'Server酱', feishu: '飞书', bark: 'Bark', gotify: 'Gotify', postjson: 'POST', custom: '自定义' };
+          const filtered = filter === 'all' ? data.history : data.history.filter(h => h.status === filter);
+          if (filtered.length === 0) {
+            container.innerHTML = '<div class="text-slate-500 text-sm text-center py-4">暂无符合条件的记录</div>';
+            return;
+          }
+          container.innerHTML = filtered.map(h => {
+            const time = formatTimeStr(h.created_at);
+            const statusClass = h.status === 'success' ? 'text-green-400' : h.status === 'failed' ? 'text-red-400' : 'text-yellow-400';
+            const statusText = h.status === 'success' ? '✅' : h.status === 'failed' ? '❌' : '⏳';
+            const retryBtn = h.status === 'failed' ? `<button class="btn btn-warning btn-xs" onclick="retryPush(${h.id})">重推</button>` : '<span class="text-slate-600">-</span>';
+            return `<div class="text-sm border-b border-slate-600 pb-2 mb-2">
+              <div class="flex items-center justify-between">
+                <span class="text-slate-400 w-36">${time}</span>
+                <span class="text-white w-20">${channelNames[h.channel] || h.channel}</span>
+                <span class="text-slate-300 w-24 truncate" title="${h.sender || ''}">${h.sender || '-'}</span>
+                <span class="text-slate-400 w-32 truncate" title="${h.text || ''}">${h.text || '-'}</span>
+                <span class="${statusClass}">${statusText}</span>
+                <span>${retryBtn}</span>
+              </div>
+              ${h.status === 'failed' && h.error_message ? `<div class="text-xs text-red-400 mt-1">错误: ${h.error_message}</div>` : ''}
+            </div>`;
+          }).join('');
+        } else {
+          container.innerHTML = '<div class="text-slate-500 text-sm text-center py-4">暂无推送记录</div>';
+        }
+      } catch (e) {
+        document.getElementById('pushHistoryList').innerHTML = '<div class="text-slate-500 text-sm text-center py-4">加载失败</div>';
+      }
+    }
+
+    async function retryPush(id) {
+      try {
+        const result = await fetch(`/api/push-history/${id}/retry`, { method: 'POST', credentials: 'include', headers: authHeader() });
+        const data = await result.json();
+        if (data?.success) {
+          showToast('重推成功', 'success');
+          loadPushHistory();
+        } else {
+          showToast(data?.message || '重推失败', 'error');
+        }
+      } catch (e) {
+        showToast('重推失败', 'error');
+      }
+    }
+
+    async function savePushConfig() {
+      const config = {
+        telegram: { enabled: document.getElementById('cfg_tg_en').checked, botToken: document.getElementById('cfg_tg_token').value, chatId: document.getElementById('cfg_tg_chatid').value },
+        dingtalk: { enabled: document.getElementById('cfg_dt_en').checked, webhookUrl: document.getElementById('cfg_dt_url').value, secret: document.getElementById('cfg_dt_secret').value },
+        pushplus: { enabled: document.getElementById('cfg_pp_en').checked, token: document.getElementById('cfg_pp_token').value, channel: document.getElementById('cfg_pp_channel').value || 'wechat' },
+        serverchan: { enabled: document.getElementById('cfg_sc_en').checked, sendKey: document.getElementById('cfg_sc_key').value },
+        feishu: { enabled: document.getElementById('cfg_fs_en').checked, webhookUrl: document.getElementById('cfg_fs_url').value, secret: document.getElementById('cfg_fs_secret').value },
+        bark: { enabled: document.getElementById('cfg_bark_en').checked, barkUrl: document.getElementById('cfg_bark_url').value },
+        gotify: { enabled: document.getElementById('cfg_gotify_en').checked, gotifyUrl: document.getElementById('cfg_gotify_url').value, token: document.getElementById('cfg_gotify_token').value },
+        postJson: { enabled: document.getElementById('cfg_post_en').checked, url: document.getElementById('cfg_post_url').value },
+        customTemplate: { enabled: document.getElementById('cfg_custom_en').checked, url: document.getElementById('cfg_custom_url').value, body: document.getElementById('cfg_custom_body').value }
+      };
+      try {
+        const result = await fetch('/api/push-config', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json', ...authHeader() },
+          body: JSON.stringify(config)
+        }).then(r => r.json());
+        if (result?.success) {
+          showToast('配置已自动保存', 'success');
+        }
+      } catch (e) {}
+    }
+
+    function openConfirm(title, body, onConfirm) {
+      document.getElementById('confirmTitle').textContent = title;
+      document.getElementById('confirmBody').textContent = body;
+      pendingConfirm = onConfirm;
+      document.getElementById('confirmModal').classList.remove('hidden');
+    }
+
+    function closeConfirm() {
+      pendingConfirm = null;
+      document.getElementById('confirmModal').classList.add('hidden');
+    }
+
+    function doConfirm() {
+      if (pendingConfirm) pendingConfirm();
+      closeConfirm();
+    }
+
+    function toggleUserMenu() {
+      const menu = document.getElementById('userMenu');
+      menu.classList.toggle('hidden');
+    }
+
+    document.addEventListener('click', (e) => {
+      const menu = document.getElementById('userMenu');
+      const btn = e.target.closest('[onclick="toggleUserMenu()"]');
+      if (!btn && !menu.contains(e.target)) {
+        menu.classList.add('hidden');
+      }
+    });
+
+    function openChangePwdModal() {
+      document.getElementById('userMenu').classList.add('hidden');
+      document.getElementById('pwdOld').value = '';
+      document.getElementById('pwdNew1').value = '';
+      document.getElementById('pwdNew2').value = '';
+      document.getElementById('changePwdModal').classList.remove('hidden');
+    }
+
+    function closeChangePwdModal() {
+      document.getElementById('changePwdModal').classList.add('hidden');
+    }
+
+    function doChangePassword() {
+      const oldPwd = document.getElementById('pwdOld').value;
+      const newPwd1 = document.getElementById('pwdNew1').value;
+      const newPwd2 = document.getElementById('pwdNew2').value;
+      if (!oldPwd) { showToast('请输入当前密码', 'error'); return; }
+      if (!newPwd1 || newPwd1.length < 6) { showToast('新密码至少6位', 'error'); return; }
+      if (newPwd1 !== newPwd2) { showToast('两次新密码不一致', 'error'); return; }
+      const username = localStorage.getItem('sms_admin_user') || 'admin';
+      fetch('/api/password', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Basic ' + btoa(username + ':' + oldPwd) },
+        body: JSON.stringify({ newPassword: newPwd1 })
+      }).then(r => r.json()).then(data => {
+        if (data.success) {
+          showToast('密码修改成功，请重新登录', 'success');
+          closeChangePwdModal();
+          setTimeout(doLogout, 1000);
+        } else {
+          showToast(data.message || '修改失败', 'error');
+        }
+      }).catch(() => { showToast('请求失败', 'error'); });
+    }
+
+    function doLogout() {
+      localStorage.removeItem('sms_admin_user');
+      localStorage.removeItem('sms_admin_pass');
+      document.getElementById('loginOverlay').classList.remove('hidden');
+      document.getElementById('app').querySelectorAll('input,select,textarea').forEach(el => el.value = '');
+      devices = [];
+      messages = [];
+      selectedMac = null;
+      renderDevices();
+      renderMessages();
+      if (ws) { ws.close(); ws = null; }
+      if (serverTimeInterval) clearInterval(serverTimeInterval);
+      document.getElementById('userMenu').classList.add('hidden');
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
