@@ -6,11 +6,27 @@ const PUBLIC_PATHS = [
   '/'
 ];
 
+function parseBasicAuthHeader(authHeader) {
+  if (!authHeader || !authHeader.startsWith('Basic ')) {
+    return null;
+  }
+
+  const base64Credentials = authHeader.slice(6).trim();
+  const credentials = Buffer.from(base64Credentials, 'base64').toString('utf8');
+  const separatorIndex = credentials.indexOf(':');
+
+  if (separatorIndex === -1) {
+    return null;
+  }
+
+  return {
+    username: credentials.slice(0, separatorIndex),
+    password: credentials.slice(separatorIndex + 1)
+  };
+}
+
 function basicAuth(req, res, next) {
   if (PUBLIC_PATHS.some(path => req.path === path || req.path.startsWith('/api/login'))) {
-    return next();
-  }
-  if (req.query.skip === '1') {
     return next();
   }
 
@@ -19,19 +35,26 @@ function basicAuth(req, res, next) {
   if (!authHeader || !authHeader.startsWith('Basic ')) {
     return res.status(401).json({
       success: false,
-      message: 'Authentication required'
+      message: '请先登录'
     });
   }
 
   try {
-    const base64Credentials = authHeader.split(' ')[1];
-    const credentials = Buffer.from(base64Credentials, 'base64').toString('utf8');
-    const [username, password] = credentials.split(':');
+    const parsedCredentials = parseBasicAuthHeader(authHeader);
+
+    if (!parsedCredentials) {
+      return res.status(401).json({
+        success: false,
+        message: '登录请求无效，请重新输入'
+      });
+    }
+
+    const { username, password } = parsedCredentials;
 
     if (!username || !password) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials format'
+        message: '登录请求无效，请重新输入'
       });
     }
 
@@ -42,13 +65,13 @@ function basicAuth(req, res, next) {
 
     return res.status(401).json({
       success: false,
-      message: 'Invalid username or password'
+      message: '账号或密码错误'
     });
   } catch (error) {
     console.error('[Auth] Error:', error.message);
     return res.status(401).json({
       success: false,
-      message: 'Authentication error'
+      message: '登录请求无效，请重新输入'
     });
   }
 }

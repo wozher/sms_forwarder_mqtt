@@ -21,7 +21,7 @@
   <style>
     * { box-sizing: border-box; }
     body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-    .toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+    .toast-container { position: fixed; top: 20px; right: 20px; z-index: 10002; display: flex; flex-direction: column; gap: 8px; }
     .toast { padding: 12px 20px; border-radius: 10px; color: white; font-size: 14px; font-weight: 500; box-shadow: 0 4px 12px rgba(0,0,0,0.2); animation: slideIn 0.3s ease; max-width: 360px; }
     .toast.success { background: #10b981; }
     .toast.error { background: #ef4444; }
@@ -227,6 +227,7 @@
     .btn-gray { background: #475569; color: white; }
     .btn-gray:hover:not(:disabled) { background: #334155; }
     .btn-sm { padding: 6px 12px; font-size: 13px; border-radius: 6px; }
+    .btn-xs { padding: 4px 8px; font-size: 12px; border-radius: 6px; }
     .login-overlay { position: fixed; inset: 0; background: #0f172a; z-index: 10000; align-items: center; justify-content: center; }
   </style>
 </head>
@@ -236,13 +237,14 @@
       <h2 class="text-2xl font-bold text-white text-center mb-6">🔐 登录</h2>
       <div class="form-row">
         <label>用户名</label>
-        <input type="text" id="loginUsername" placeholder="admin" value="admin">
+        <input type="text" id="loginUsername" placeholder="admin" value="admin" onkeydown="handleLoginKeydown(event)">
       </div>
       <div class="form-row">
         <label>密码</label>
-        <input type="password" id="loginPassword" placeholder="admin123">
+        <input type="password" id="loginPassword" placeholder="admin123" onkeydown="handleLoginKeydown(event)">
       </div>
       <button class="btn btn-primary w-full mt-4" id="loginBtn" onclick="doLogin()">登录</button>
+      <p id="loginError" class="text-red-400 text-sm text-center mt-3 min-h-[20px]"></p>
       <p class="text-slate-500 text-sm text-center mt-4">默认账号: admin / admin123</p>
     </div>
   </div>
@@ -359,7 +361,7 @@
 
     <div id="toolboxSection">
       <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
-        <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
           <h2 class="text-lg font-semibold text-white flex items-center gap-2">
             <span>🧰</span> 设备工具箱
             <span id="selectedDeviceLabel" class="text-sm font-normal text-blue-400 ml-2"></span>
@@ -373,7 +375,6 @@
           <button class="tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-700 text-white transition-all" data-tab="ping" onclick="switchTab('ping')">🌐 网络测试</button>
           <button class="tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-700 text-white transition-all" data-tab="flight" onclick="switchTab('flight')">✈️ 飞行模式</button>
           <button class="tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-700 text-white transition-all" data-tab="at" onclick="switchTab('at')">💻 AT终端</button>
-          <button class="tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-700 text-white transition-all" data-tab="ota" onclick="switchTab('ota')">📦 OTA升级</button>
           <button class="tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-700 text-white transition-all" data-tab="schedule" onclick="switchTab('schedule')">⏰ 定时任务</button>
         </div>
 
@@ -504,6 +505,7 @@
                 </div>
               </div>
           </div>
+
         </div>
 
         <div id="tab-sms" class="tab-content hidden">
@@ -534,6 +536,10 @@
         </div>
 
         <div id="tab-query" class="tab-content hidden">
+          <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
+            <div class="text-sm text-slate-400">当前固件版本</div>
+            <div id="currentFirmware" class="px-3 py-1 rounded-full bg-slate-900 border border-slate-700 text-slate-200 font-mono text-sm">-</div>
+          </div>
           <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
             <button class="btn btn-primary" onclick="doQuery('ati')">📋 固件信息</button>
             <button class="btn btn-primary" onclick="doQuery('signal')">📶 信号质量</button>
@@ -583,36 +589,6 @@
             <button class="btn btn-gray btn-sm" onclick="quickAt('AT+COPS?')">AT+COPS?</button>
             <button class="btn btn-gray btn-sm" onclick="quickAt('AT+CEREG?')">AT+CEREG?</button>
             <button class="btn btn-gray btn-sm" onclick="quickAt('AT+CGACT?')">AT+CGACT?</button>
-          </div>
-        </div>
-
-        <div id="tab-ota" class="tab-content hidden">
-          <div class="max-w-lg">
-            <div class="bg-slate-900 rounded-lg p-4 mb-4">
-              <h3 class="text-lg font-medium text-white mb-3">📦 OTA 固件升级</h3>
-              <div class="space-y-3">
-                <div class="flex items-center justify-between">
-                  <span class="text-slate-400 text-sm">当前固件版本:</span>
-                  <span id="currentFirmware" class="text-blue-400 font-mono">-</span>
-                </div>
-                <div class="flex items-center justify-between">
-                  <span class="text-slate-400 text-sm">最新版本:</span>
-                  <span id="latestFirmware" class="text-green-400 font-mono">检查中...</span>
-                </div>
-                <div id="otaProgress" class="hidden">
-                  <div class="text-slate-400 text-sm mb-1">升级进度</div>
-                  <div class="w-full bg-slate-700 rounded-full h-2">
-                    <div id="otaProgressBar" class="bg-blue-500 h-2 rounded-full transition-all" style="width: 0%"></div>
-                  </div>
-                  <div id="otaProgressText" class="text-xs text-slate-500 mt-1 text-right">0%</div>
-                </div>
-              </div>
-            </div>
-            <div class="flex gap-3">
-              <button class="btn btn-primary flex-1" id="checkOtaBtn" onclick="doOtaCheck()">🔍 检查更新</button>
-              <button class="btn btn-success flex-1" id="startOtaBtn" onclick="doOtaStart()" disabled>🚀 开始升级</button>
-            </div>
-            <div id="otaResult" class="mt-4"></div>
           </div>
         </div>
 
@@ -711,12 +687,9 @@
     let currentFilters = { search: '', device: '', status: '' };
     let pushStatusCache = {};
     let atSeq = 0;
+    let pendingRespCallback = null;
     let pendingConfirm = null;
     let serverTimeInterval = null;
-    let pendingRespCallback = null;
-    let latestOtaVersion = null;
-    let currentOtaUrl = null;
-    let currentOtaChecksum = null;
     let currentFirmwareVersion = null;
     let recentSmsList = [];
     let currentPage = 1;
@@ -725,13 +698,14 @@
     let hasMoreMessages = false;
     let newMessagesCount = 0;
 
-    function init() {
-      const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get('skip') === '1') {
-        document.getElementById('loginOverlay').classList.add('hidden');
-        afterLogin();
-        return;
+    function setCurrentFirmwareDisplay(value = '-') {
+      const currentFirmwareEl = document.getElementById('currentFirmware');
+      if (currentFirmwareEl) {
+        currentFirmwareEl.textContent = value;
       }
+    }
+
+    function init() {
       document.getElementById('loginOverlay').classList.remove('hidden');
       showLoginPrompt();
     }
@@ -739,6 +713,7 @@
     function showLoginPrompt() {
       const username = localStorage.getItem('sms_admin_user');
       const password = localStorage.getItem('sms_admin_pass');
+      setLoginError('');
       if (username && password) {
         document.getElementById('loginUsername').value = username;
         document.getElementById('loginPassword').value = password;
@@ -752,9 +727,12 @@
       const username = document.getElementById('loginUsername').value.trim();
       const password = document.getElementById('loginPassword').value;
       const loginBtn = document.getElementById('loginBtn');
+      setLoginError('');
       
       if (!username || !password) {
-        showToast('请输入账号和密码', 'warning');
+        const message = !username && !password ? '请输入账号和密码' : (!username ? '请输入用户名' : '请输入密码');
+        setLoginError(message);
+        showToast(message, 'warning');
         return;
       }
       
@@ -768,7 +746,7 @@
         method: 'POST',
         credentials: 'include',
         headers: {
-          'Authorization': 'Basic ' + btoa(username + ':' + password)
+          'Authorization': buildBasicAuthHeader(username, password)
         }
       }).then(async r => {
         let data = {};
@@ -780,18 +758,57 @@
         
         if (r.ok && data.success) {
           document.getElementById('loginOverlay').classList.add('hidden');
+          setLoginError('');
           afterLogin();
         } else {
           document.getElementById('loginPassword').value = '';
           localStorage.removeItem('sms_admin_pass');
-          showToast(data.message || '账号或密码错误', 'error');
+          const message = data.message || '账号或密码错误';
+          setLoginError(message);
+          showToast(message, 'error');
+          document.getElementById('loginPassword').focus();
         }
       }).catch((e) => {
+        setLoginError('网络错误，请检查服务器连接');
         showToast('网络错误，请检查服务器连接', 'error');
+        document.getElementById('loginPassword').focus();
       }).finally(() => {
         loginBtn.disabled = false;
         loginBtn.innerHTML = '登录';
       });
+    }
+
+    function setLoginError(message) {
+      const loginError = document.getElementById('loginError');
+      if (loginError) {
+        loginError.textContent = normalizeLoginMessage(message);
+      }
+    }
+
+    function normalizeLoginMessage(message) {
+      if (!message) {
+        return '';
+      }
+
+      const normalized = String(message).trim();
+      if (normalized === 'Invalid credentials' || normalized === 'Invalid username or password') {
+        return '账号或密码错误';
+      }
+      if (normalized === 'Authentication required') {
+        return '请输入账号和密码';
+      }
+      if (normalized === 'Authentication error' || normalized === 'Invalid credentials format') {
+        return '登录请求无效，请重新输入';
+      }
+
+      return normalized;
+    }
+
+    function handleLoginKeydown(event) {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        doLogin();
+      }
     }
 
     function afterLogin() {
@@ -820,7 +837,26 @@
     function authHeader() {
       const username = localStorage.getItem('sms_admin_user') || 'admin';
       const password = localStorage.getItem('sms_admin_pass') || '';
-      return { 'Authorization': 'Basic ' + btoa(username + ':' + password) };
+      return { 'Authorization': buildBasicAuthHeader(username, password) };
+    }
+
+    function encodeBase64Utf8(value) {
+      const bytes = new TextEncoder().encode(value);
+      let binary = '';
+      bytes.forEach(byte => {
+        binary += String.fromCharCode(byte);
+      });
+      return btoa(binary);
+    }
+
+    function buildBasicAuthHeader(username, password) {
+      return 'Basic ' + encodeBase64Utf8(`${username}:${password}`);
+    }
+
+    function getWsAuthToken() {
+      const username = localStorage.getItem('sms_admin_user') || 'admin';
+      const password = localStorage.getItem('sms_admin_pass') || '';
+      return encodeBase64Utf8(`${username}:${password}`);
     }
 
     function startServerTime() {
@@ -842,7 +878,7 @@
 
     function connectWS() {
       const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${location.host}/ws`;
+      const wsUrl = `${protocol}//${location.host}/ws?auth=${encodeURIComponent(getWsAuthToken())}`;
       ws = new WebSocket(wsUrl);
       ws.onopen = () => {
         document.getElementById('wsIndicator').innerHTML = '<span class="w-2 h-2 rounded-full bg-green-500 online-dot"></span> <span class="text-green-400">已连接</span>';
@@ -941,10 +977,6 @@
         pendingRespCallback(data);
         pendingRespCallback = null;
       }
-      
-      if (data.action === 'ota') {
-        handleOtaStatus(data);
-      }
     }
 
     function renderDevices() {
@@ -959,9 +991,11 @@
         list.innerHTML = '<div class="text-slate-500 text-sm py-4 text-center col-span-2">暂无设备连接</div>';
         return;
       }
+
+      ensureSelectedDevice();
       
       list.innerHTML = devices.map(d => `
-        <div class="device-card bg-slate-700 rounded-lg p-3 border-2 ${d.online ? 'border-green-600' : 'border-slate-600'} ${selectedMac === d.mac ? 'selected' : ''}" onclick="selectDevice('${d.mac}')">
+        <div class="device-card bg-slate-700 rounded-lg p-3 border-2 ${d.online ? 'border-green-600' : 'border-slate-600'} ${selectedMac === d.mac ? 'selected' : ''}" onclick="selectDevice('${d.mac}', true)">
           <div class="flex items-center justify-between mb-2">
             <div class="flex items-center gap-2">
               <span class="w-2.5 h-2.5 rounded-full ${d.online ? 'bg-green-500 online-dot' : 'bg-slate-500'}"></span>
@@ -975,6 +1009,31 @@
           </div>
         </div>
       `).join('');
+    }
+
+    function getDefaultDevice(preferOnline = true) {
+      const onlineDevices = devices.filter(d => d.online);
+      if (preferOnline && onlineDevices.length > 0) {
+        return onlineDevices[0];
+      }
+      return devices[0] || null;
+    }
+
+    function ensureSelectedDevice(preferOnline = true, silent = true) {
+      const currentDevice = devices.find(d => d.mac === selectedMac);
+      if (currentDevice) {
+        return currentDevice;
+      }
+
+      const fallbackDevice = getDefaultDevice(preferOnline);
+      if (fallbackDevice) {
+        selectDevice(fallbackDevice.mac, false, silent);
+        return fallbackDevice;
+      }
+
+      selectedMac = null;
+      document.getElementById('selectedDeviceLabel').textContent = '暂无可用设备';
+      return null;
     }
 
     async function renderMessages() {
@@ -1336,28 +1395,42 @@
       return div.innerHTML;
     }
 
-    function selectDevice(mac) {
+    function escapeAttr(str) {
+      return escapeHtml(String(str ?? '')).replace(/"/g, '&quot;');
+    }
+
+    function selectDevice(mac, switchToSmsTab = true, silent = false) {
       selectedMac = mac;
       const dev = devices.find(d => d.mac === mac);
       document.getElementById('selectedDeviceLabel').textContent = dev ? `${mac.substring(0, 12)} (${dev.ip || '?'})` : mac.substring(0, 12);
       document.getElementById('toolboxSection').classList.remove('hidden');
       renderDevices();
-      switchTab('sms');
+      if (switchToSmsTab) {
+        switchTab('sms');
+      }
       currentFirmwareVersion = null;
-      document.getElementById('currentFirmware').textContent = '-';
+      setCurrentFirmwareDisplay('-');
+      if (!silent) {
+        showToast(dev ? `已切换到设备 ${mac.substring(0, 12)}` : '已切换设备', 'info', 1800);
+      }
     }
 
     function deselectDevice() {
       selectedMac = null;
-      document.getElementById('selectedDeviceLabel').textContent = '';
+      document.getElementById('selectedDeviceLabel').textContent = '未选择设备';
       renderDevices();
     }
 
-    const deviceTabs = ['sms', 'query', 'ping', 'flight', 'at', 'ota', 'schedule'];
+    const deviceTabs = ['sms', 'query', 'ping', 'flight', 'at', 'schedule'];
 
     function requireDevice() {
-      if (!selectedMac) {
-        showToast('请先选择设备', 'warning');
+      const device = ensureSelectedDevice(true, true);
+      if (!device) {
+        showToast('当前没有可用设备', 'warning');
+        return false;
+      }
+      if (!device.online) {
+        showToast('当前设备离线，请切换到在线设备', 'warning');
         return false;
       }
       return true;
@@ -1365,9 +1438,12 @@
 
     function switchTab(tab) {
       if (deviceTabs.includes(tab) && !selectedMac) {
-        showToast('请先选择设备', 'warning');
-        switchTab('push');
-        return;
+        const device = ensureSelectedDevice(true, true) || ensureSelectedDevice(false, true);
+        if (!device) {
+          showToast('当前没有可用设备', 'warning');
+          switchTab('push');
+          return;
+        }
       }
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       document.querySelectorAll(`.tab-btn[data-tab="${tab}"]`).forEach(b => b.classList.add('active'));
@@ -1381,7 +1457,7 @@
         el.scrollTop = 0;
       }
       if (tab === 'schedule') {
-        loadScheduleList()();
+        loadScheduleList();
       }
     }
 
@@ -1793,7 +1869,7 @@
           if (type === 'ati' && result.message) {
             currentFirmwareVersion = result.message.split('|').find(p => p.startsWith('版本='))?.split('=')[1];
             if (currentFirmwareVersion) {
-              document.getElementById('currentFirmware').textContent = currentFirmwareVersion;
+              setCurrentFirmwareDisplay(currentFirmwareVersion);
             }
           }
           resultEl.innerHTML = `<div class="text-green-400 text-sm font-medium mb-2">✅ ${labels[type] || type} 查询成功</div>${formatResultMessage(result.message)}`;
@@ -1907,121 +1983,6 @@
       return html;
     }
 
-    async function doOtaCheck() {
-      const latestEl = document.getElementById('latestFirmware');
-      const startBtn = document.getElementById('startOtaBtn');
-      const checkBtn = document.getElementById('checkOtaBtn');
-      
-      checkBtn.disabled = true;
-      checkBtn.innerHTML = '<span class="loading-spinner"></span> 检查中...';
-      latestEl.textContent = '检查中...';
-      
-      try {
-        const result = await sendCmd('ota_check');
-        if (result) {
-          latestOtaVersion = result.version || '?';
-          currentOtaUrl = result.url || '';
-          currentOtaChecksum = result.checksum || '';
-          
-          latestEl.textContent = latestOtaVersion;
-          
-          if (result.needs_update) {
-            startBtn.disabled = false;
-            showToast(`发现新版本: ${latestOtaVersion}`, 'info');
-          } else {
-            latestEl.textContent = latestOtaVersion + ' (已是最新)';
-            startBtn.disabled = true;
-            showToast('当前已是最新版本', 'success');
-          }
-        } else {
-          latestEl.textContent = '检查失败';
-          startBtn.disabled = true;
-        }
-      } catch (e) {
-        latestEl.textContent = '检查失败';
-        showToast('检查更新失败: ' + e.message, 'error');
-      }
-      
-      checkBtn.disabled = false;
-      checkBtn.innerHTML = '🔍 检查更新';
-    }
-
-    async function doOtaStart() {
-      if (!currentOtaUrl) {
-        showToast('请先检查更新', 'warning');
-        return;
-      }
-      
-      const progressEl = document.getElementById('otaProgress');
-      const progressBar = document.getElementById('otaProgressBar');
-      const progressText = document.getElementById('otaProgressText');
-      const resultEl = document.getElementById('otaResult');
-      const startBtn = document.getElementById('startOtaBtn');
-      
-      openConfirm('确认升级', `确定要升级到版本 ${latestOtaVersion} 吗？设备将自动重启。`, async () => {
-        progressEl.classList.remove('hidden');
-        progressBar.style.width = '0%';
-        progressText.textContent = '0%';
-        resultEl.innerHTML = '<div class="text-slate-400 text-sm">正在下载固件...</div>';
-        startBtn.disabled = true;
-        
-        showToast('开始OTA升级，请勿断电...', 'warning', 10000);
-        
-        try {
-          const result = await sendCmdWithWsCallback('ota_start', {
-            version: latestOtaVersion,
-            url: currentOtaUrl,
-            checksum: currentOtaChecksum
-          });
-          
-          if (result.success) {
-            progressBar.style.width = '100%';
-            progressText.textContent = '100%';
-            resultEl.innerHTML = `<div class="bg-green-900/30 border border-green-700 rounded-lg p-4 text-green-400">✅ ${result.message || '升级成功!'}</div>`;
-            showToast('OTA升级成功，设备正在重启...', 'success');
-          } else {
-            resultEl.innerHTML = `<div class="bg-red-900/30 border border-red-700 rounded-lg p-4 text-red-400">❌ ${result.message || '升级失败'}</div>`;
-            showToast(result.message || '升级失败', 'error');
-          }
-        } catch (e) {
-          resultEl.innerHTML = `<div class="bg-red-900/30 border border-red-700 rounded-lg p-4 text-red-400">❌ ${e.message}</div>`;
-          showToast(e.message, 'error');
-        }
-        
-        setTimeout(() => {
-          progressEl.classList.add('hidden');
-          startBtn.disabled = false;
-        }, 5000);
-      });
-    }
-
-    function handleOtaStatus(data) {
-      const progressBar = document.getElementById('otaProgressBar');
-      const progressText = document.getElementById('otaProgressText');
-      const progressEl = document.getElementById('otaProgress');
-      const resultEl = document.getElementById('otaResult');
-      
-      progressEl.classList.remove('hidden');
-      
-      if (data.status === 'downloading') {
-        const match = data.message.match(/(\d+)%/);
-        if (match) {
-          const percent = parseInt(match[1]);
-          progressBar.style.width = percent + '%';
-          progressText.textContent = percent + '%';
-        }
-        resultEl.innerHTML = `<div class="text-slate-400 text-sm">📥 ${data.message}</div>`;
-      } else if (data.status === 'verifying') {
-        resultEl.innerHTML = `<div class="text-blue-400 text-sm">🔐 ${data.message}</div>`;
-      } else if (data.status === 'completed') {
-        progressBar.style.width = '100%';
-        progressText.textContent = '100%';
-        resultEl.innerHTML = `<div class="bg-green-900/30 border border-green-700 rounded-lg p-4 text-green-400">✅ ${data.message}</div>`;
-      } else if (data.status === 'error') {
-        resultEl.innerHTML = `<div class="bg-red-900/30 border border-red-700 rounded-lg p-4 text-red-400">❌ ${data.message}</div>`;
-      }
-    }
-
     function clearMessages() {
       messages = [];
       renderMessages();
@@ -2059,16 +2020,6 @@
       } catch (e) {
         showToast('重推失败', 'error');
       }
-    }
-
-    function switchPushTab(tab) {
-      document.querySelectorAll('.tab-btn').forEach(b => {
-        if (b.dataset.ptab) b.classList.remove('active');
-      });
-      document.querySelectorAll(`[data-ptab="${tab}"]`).forEach(b => b.classList.add('active'));
-      document.querySelectorAll('.push-tab-content').forEach(c => c.classList.add('hidden'));
-      const el = document.getElementById(`ptab-${tab}`);
-      if (el) el.classList.remove('hidden');
     }
 
     function togglePushCard(id) {
@@ -2109,61 +2060,7 @@
           document.getElementById('cfg_custom_url').value = cfg.customTemplate?.url || '';
           document.getElementById('cfg_custom_body').value = cfg.customTemplate?.body || '';
         }
-        loadPushHistory();
       } catch {}
-    }
-
-    async function loadPushHistory() {
-      try {
-        const result = await fetch('/api/push-history?limit=50', { credentials: 'include', headers: authHeader() });
-        const data = await result.json();
-        const container = document.getElementById('pushHistoryList');
-        const filter = document.getElementById('pushHistoryFilter')?.value || 'all';
-        if (data?.success && data?.history?.length > 0) {
-          const channelNames = { telegram: 'Telegram', dingtalk: '钉钉', pushplus: 'PushPlus', serverchan: 'Server酱', feishu: '飞书', bark: 'Bark', gotify: 'Gotify', postjson: 'POST', custom: '自定义' };
-          const filtered = filter === 'all' ? data.history : data.history.filter(h => h.status === filter);
-          if (filtered.length === 0) {
-            container.innerHTML = '<div class="text-slate-500 text-sm text-center py-4">暂无符合条件的记录</div>';
-            return;
-          }
-          container.innerHTML = filtered.map(h => {
-            const time = formatTimeStr(h.created_at);
-            const statusClass = h.status === 'success' ? 'text-green-400' : h.status === 'failed' ? 'text-red-400' : 'text-yellow-400';
-            const statusText = h.status === 'success' ? '✅' : h.status === 'failed' ? '❌' : '⏳';
-            const retryBtn = h.status === 'failed' ? `<button class="btn btn-warning btn-xs" onclick="retryPush(${h.id})">重推</button>` : '<span class="text-slate-600">-</span>';
-            return `<div class="text-sm border-b border-slate-600 pb-2 mb-2">
-              <div class="flex items-center justify-between">
-                <span class="text-slate-400 w-36">${time}</span>
-                <span class="text-white w-20">${channelNames[h.channel] || h.channel}</span>
-                <span class="text-slate-300 w-24 truncate" title="${h.sender || ''}">${h.sender || '-'}</span>
-                <span class="text-slate-400 w-32 truncate" title="${h.text || ''}">${h.text || '-'}</span>
-                <span class="${statusClass}">${statusText}</span>
-                <span>${retryBtn}</span>
-              </div>
-              ${h.status === 'failed' && h.error_message ? `<div class="text-xs text-red-400 mt-1">错误: ${h.error_message}</div>` : ''}
-            </div>`;
-          }).join('');
-        } else {
-          container.innerHTML = '<div class="text-slate-500 text-sm text-center py-4">暂无推送记录</div>';
-        }
-      } catch (e) {
-        document.getElementById('pushHistoryList').innerHTML = '<div class="text-slate-500 text-sm text-center py-4">加载失败</div>';
-      }
-    }
-
-    async function retryPush(id) {
-      try {
-        const result = await fetch(`/api/push-history/${id}/retry`, { method: 'POST', credentials: 'include', headers: authHeader() });
-        const data = await result.json();
-        if (data?.success) {
-          showToast('重推成功', 'success');
-          loadPushHistory();
-        } else {
-          showToast(data?.message || '重推失败', 'error');
-        }
-      } catch (e) {
-        showToast('重推失败', 'error');
-      }
     }
 
     async function savePushConfig() {
@@ -2244,7 +2141,7 @@
       fetch('/api/password', {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Basic ' + btoa(username + ':' + oldPwd) },
+        headers: { 'Content-Type': 'application/json', 'Authorization': buildBasicAuthHeader(username, oldPwd) },
         body: JSON.stringify({ newPassword: newPwd1 })
       }).then(r => r.json()).then(data => {
         if (data.success) {

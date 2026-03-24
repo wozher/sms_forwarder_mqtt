@@ -3,7 +3,6 @@ node_modules/
 
 # Data
 data/
-firmware/*.bin
 
 # Logs
 *.log

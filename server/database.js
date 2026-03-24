@@ -51,15 +51,6 @@ function initDatabase() {
       created_at INTEGER DEFAULT (strftime('%s', 'now'))
     );
 
-    CREATE TABLE IF NOT EXISTS ota_firmware (
-      version TEXT PRIMARY KEY,
-      platform TEXT NOT NULL,
-      filename TEXT NOT NULL,
-      size INTEGER DEFAULT 0,
-      checksum TEXT,
-      created_at INTEGER DEFAULT (strftime('%s', 'now'))
-    );
-
     CREATE INDEX IF NOT EXISTS idx_sms_mac ON sms_messages(mac);
     CREATE INDEX IF NOT EXISTS idx_sms_received ON sms_messages(received_at DESC);
     CREATE INDEX IF NOT EXISTS idx_devices_online ON devices(online);
@@ -297,44 +288,6 @@ function changePassword(username, oldPassword, newPassword) {
   return true;
 }
 
-function getLatestFirmware(platform) {
-  return getDatabase().prepare(`
-    SELECT * FROM ota_firmware
-    WHERE platform = ?
-    ORDER BY created_at DESC
-    LIMIT 1
-  `).get(platform);
-}
-
-function insertFirmware(info) {
-  const stmt = getDatabase().prepare(`
-    INSERT OR REPLACE INTO ota_firmware (version, platform, filename, size, checksum, created_at)
-    VALUES (@version, @platform, @filename, @size, @checksum, @created_at)
-  `);
-  stmt.run({
-    version: info.version,
-    platform: info.platform,
-    filename: info.filename,
-    size: info.size || 0,
-    checksum: info.checksum || '',
-    created_at: Date.now()
-  });
-  return true;
-}
-
-function getFirmwareList() {
-  return getDatabase().prepare(`
-    SELECT * FROM ota_firmware ORDER BY created_at DESC
-  `).all();
-}
-
-function deleteFirmware(version, platform) {
-  const result = getDatabase().prepare(`
-    DELETE FROM ota_firmware WHERE version = ? AND platform = ?
-  `).run(version, platform);
-  return result.changes > 0;
-}
-
 function getStats() {
   const smsCount = getSmsCount();
   const deviceList = getDeviceList();
@@ -493,10 +446,6 @@ module.exports = {
   savePushConfig,
   validateUser,
   changePassword,
-  getLatestFirmware,
-  insertFirmware,
-  getFirmwareList,
-  deleteFirmware,
   getStats,
   insertScheduledSms,
   getScheduledSmsList,

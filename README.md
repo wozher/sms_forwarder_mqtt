@@ -6,7 +6,6 @@
 
 - **MQTT 通信**：ESP32 作为 MQTT 瘦客户端，与集中服务端通信
 - **离线队列**：MQTT 断开时自动缓存短信，重连后补发
-- **OTA 无线升级**：支持远程无线更新 ESP32 固件
 - **集中管理**：Node.js 服务端统一管理所有设备
 - **Web 后台**：现代化 Web 界面，实时监控设备状态
 - **实时消息中心**：支持分页、搜索、筛选功能
@@ -21,24 +20,19 @@
 sms_forwarder_mqtt/
 ├── ESP32_Firmware/           # ESP32 固件
 │   ├── ESP32_MQTT_Firmware.ino
-│   ├── partitions.csv        # OTA 分区表
-│   ├── firmware_v1.0.0.bin   # 示例固件
 │   └── wifi_config.h.example # WiFi 配置模板
 ├── server/                   # Node.js 服务端
 │   ├── backend.js            # 主服务
 │   ├── database.js           # SQLite 数据库模块
 │   ├── middleware/auth.js    # Basic Auth 中间件
-│   ├── routes/ota.js         # OTA 路由
 │   ├── package.json
 │   ├── Dockerfile
 │   └── public/
 │       └── index.html        # Web 后台（单文件应用）
-├── data/                     # 数据目录（自动创建）
+├── data/                     # 数据目录（自动创建，需挂载持久化）
 │   └── sms_forwarder.db      # SQLite 数据库
-├── firmware/                 # 固件目录（自动创建）
 ├── docker-compose.yml        # Docker 部署配置
 └── docs/
-    └── README_OTA.md         # OTA 升级详细说明
 ```
 
 ## 快速开始
@@ -70,6 +64,20 @@ docker-compose logs -f
 # 停止
 docker-compose down
 ```
+
+飞牛 Docker 部署时，如果你更新了 `server/package.json` 或 `server/Dockerfile`，请用下面命令重建镜像，确保新依赖已经进容器：
+
+```bash
+docker-compose up -d --build
+```
+
+重启不会丢失数据的前提是保留下面的数据挂载目录，它保存数据库和配置：
+
+```bash
+./data:/app/data
+```
+
+也就是说，正常执行 `docker-compose down`、`docker-compose up -d --build`、飞牛面板里的重启/重建容器，都不会清空短信记录、账号密码和推送配置；真正会导致数据丢失的情况通常只有手动删除宿主机上的 `data` 目录，或者取消这个卷挂载。
 
 ### 3. 访问 Web 后台
 
@@ -119,7 +127,6 @@ npm start
 | 网络测试 | Ping 测试 |
 | 飞行模式 | 开启/关闭飞行模式 |
 | AT终端 | 直接发送 AT 指令 |
-| OTA升级 | 检查并升级固件 |
 | 定时任务 | 创建、暂停、删除定时短信任务 |
 
 ### 4. 定时任务
@@ -144,7 +151,6 @@ npm start
 ```cpp
 #define MQTT_SERVER "192.168.31.197"  // 服务器地址
 #define MQTT_PORT 1883
-#define OTA_SERVER "http://192.168.31.197:34567"
 ```
 
 ### MQTT 命令协议
@@ -156,8 +162,6 @@ npm start
 | `query` | `{type}` | 信息查询 |
 | `flight_mode` | `{status}` | 飞行模式 |
 | `at` | `{cmd}` | AT 指令 |
-| `ota_check` | `{}` | 检查固件更新 |
-| `ota_start` | `{version, url, checksum}` | 开始升级 |
 | `reset` | `{}` | 重启设备 |
 
 ### Query 类型
@@ -179,9 +183,7 @@ npm start
 | `MQTT_PORT` | 1883 | MQTT Broker 端口 |
 | `MQTT_USER` | - | MQTT 用户名（可选） |
 | `MQTT_PASS` | - | MQTT 密码（可选） |
-| `DATA_DIR` | ./data | 数据目录 |
-| `FIRMWARE_DIR` | ./firmware | 固件目录 |
-| `OTA_BASE_URL` | - | OTA 下载基础 URL（可选） |
+| `DATA_DIR` | ./data | 数据目录（容器内建议设为 /app/data） |
 | `TZ` | Asia/Shanghai | 时区 |
 
 ## API 接口
@@ -192,7 +194,7 @@ npm start
 
 | 接口 | 方法 | 说明 |
 |------|------|------|
-| `/api/login` | GET | 登录验证 |
+| `/api/login` | POST | 登录验证 |
 | `/api/password` | POST | 修改密码 |
 
 ### 设备接口
@@ -228,16 +230,6 @@ npm start
 | `/api/schedule/:id` | GET | 任务详情和执行历史 |
 | `/api/schedule/:id` | PUT | 更新任务 |
 | `/api/schedule/:id` | DELETE | 删除任务 |
-
-### OTA 接口
-
-| 接口 | 方法 | 说明 |
-|------|------|------|
-| `/api/ota/version/:platform` | GET | 固件版本信息 |
-| `/api/ota/firmware/:version` | GET | 下载固件文件 |
-| `/api/ota/upload` | POST | 上传固件 |
-| `/api/ota/list` | GET | 固件列表 |
-| `/api/ota/:version` | DELETE | 删除固件 |
 
 ### API 消息接口参数
 
@@ -319,7 +311,6 @@ npm start
 | `sms_messages` | 短信记录 | id, mac, sender, text, phone, timestamp, received_at |
 | `push_configs` | 推送配置 | id(PK=1), config_json |
 | `users` | 用户管理 | username(PK), password_hash, created_at |
-| `ota_firmware` | 固件版本 | version(PK), platform, filename, size, checksum |
 | `scheduled_sms` | 定时任务 | id, mac, phone, content, schedule_type, next_run_time, status |
 | `schedule_history` | 任务执行记录 | id, task_id, run_time, status, response |
 | `push_history` | 推送历史 | id, sms_id, channel, status, error_message |
@@ -346,7 +337,6 @@ services:
       - TZ=Asia/Shanghai
     volumes:
       - ./data:/app/data
-      - ./firmware:/app/firmware
     restart: unless-stopped
 ```
 

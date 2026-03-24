@@ -1,13 +1,8 @@
 #include <Arduino.h>
 #include <WiFi.h>
-#include <WiFiMulti.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <pdulib.h>
-#include <Preferences.h>
-#include <Update.h>
-#include <HTTPClient.h>
-
 #include "wifi_config.h"
 
 #define TXD 3
@@ -20,35 +15,38 @@
 
 #define SERIAL_BUFFER_SIZE 500
 #define MAX_PDU_LENGTH 300
-#define MAX_CONCAT_PARTS 10
+#define MAX_CONCAT_PARTS 20
 #define CONCAT_TIMEOUT_MS 30000
 #define MAX_CONCAT_MESSAGES 5
+#define RECENT_CONCAT_CACHE_SIZE 5
+#define RECENT_CONCAT_IGNORE_MS 120000
 
 #define MQTT_SERVER "192.168.31.197"
 #define MQTT_PORT 1883
 #define MQTT_RECONNECT_INTERVAL 5000
 #define HEARTBEAT_INTERVAL 60000
-
-#define OTA_SERVER "http://192.168.31.197:34567"
 #define CURRENT_FIRMWARE_VERSION "1.0.1"
-#define FIRMWARE_UPGRADE_SIZE 1536 * 1024
 
-Preferences preferences;
-WiFiMulti WiFiMulti;
 PDU pdu = PDU(4096);
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
 
-char serialBuf[SERIAL_BUFFER_SIZE];
-int serialBufLen = 0;
 String phoneNumber = "";
-bool timeSynced = false;
 unsigned long lastHeartbeat = 0;
 unsigned long lastMqttReconnect = 0;
 String deviceMAC = "";
 
 #define OFFLINE_QUEUE_SIZE 10
-StaticJsonDocument<512> offlineQueue[OFFLINE_QUEUE_SIZE];
+#define MQTT_BUFFER_SIZE 4096
+
+struct PendingSms {
+  String sender;
+  String text;
+  String timestamp;
+  String phone;
+};
+
+PendingSms offlineQueue[OFFLINE_QUEUE_SIZE];
 uint8_t queueHead = 0;
 uint8_t queueTail = 0;
 uint8_t queueCount = 0;
@@ -70,12 +68,16 @@ struct ConcatSms {
   SmsPart parts[MAX_CONCAT_PARTS];
 };
 
-ConcatSms concatBuffer[MAX_CONCAT_MESSAGES];
+struct RecentConcatMessage {
+  bool valid;
+  int refNumber;
+  String sender;
+  String timestamp;
+  unsigned long completedAt;
+};
 
-bool pendingOtaUpdate = false;
-String pendingOtaVersion = "";
-String pendingOtaUrl = "";
-String pendingOtaChecksum = "";
+ConcatSms concatBuffer[MAX_CONCAT_MESSAGES];
+RecentConcatMessage recentConcatMessages[RECENT_CONCAT_CACHE_SIZE];
 
 void blink_short(unsigned long gap_time = 500) {
   digitalWrite(LED_BUILTIN, LOW);
@@ -194,13 +196,64 @@ void initConcatBuffer() {
       concatBuffer[i].parts[j].text = "";
     }
   }
+
+  for (int i = 0; i < RECENT_CONCAT_CACHE_SIZE; i++) {
+    recentConcatMessages[i].valid = false;
+    recentConcatMessages[i].refNumber = 0;
+    recentConcatMessages[i].sender = "";
+    recentConcatMessages[i].timestamp = "";
+    recentConcatMessages[i].completedAt = 0;
+  }
 }
 
-int findOrCreateConcatSlot(int refNumber, const char* sender, int totalParts) {
+bool isRecentlyCompletedConcat(int refNumber, const char* sender, const char* timestamp) {
+  unsigned long now = millis();
+  for (int i = 0; i < RECENT_CONCAT_CACHE_SIZE; i++) {
+    if (!recentConcatMessages[i].valid) continue;
+    if (now - recentConcatMessages[i].completedAt > RECENT_CONCAT_IGNORE_MS) {
+      recentConcatMessages[i].valid = false;
+      continue;
+    }
+    if (recentConcatMessages[i].refNumber == refNumber &&
+        recentConcatMessages[i].sender.equals(sender) &&
+        recentConcatMessages[i].timestamp.equals(timestamp)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void rememberCompletedConcat(int refNumber, const char* sender, const char* timestamp) {
+  int slot = -1;
+  unsigned long oldestTime = millis();
+
+  for (int i = 0; i < RECENT_CONCAT_CACHE_SIZE; i++) {
+    if (!recentConcatMessages[i].valid) {
+      slot = i;
+      break;
+    }
+    if (recentConcatMessages[i].completedAt <= oldestTime) {
+      oldestTime = recentConcatMessages[i].completedAt;
+      slot = i;
+    }
+  }
+
+  if (slot >= 0) {
+    recentConcatMessages[slot].valid = true;
+    recentConcatMessages[slot].refNumber = refNumber;
+    recentConcatMessages[slot].sender = String(sender);
+    recentConcatMessages[slot].timestamp = String(timestamp);
+    recentConcatMessages[slot].completedAt = millis();
+  }
+}
+
+int findOrCreateConcatSlot(int refNumber, const char* sender, const char* timestamp, int totalParts) {
   for (int i = 0; i < MAX_CONCAT_MESSAGES; i++) {
     if (concatBuffer[i].inUse &&
         concatBuffer[i].refNumber == refNumber &&
-        concatBuffer[i].sender.equals(sender)) {
+        concatBuffer[i].sender.equals(sender) &&
+        concatBuffer[i].timestamp.equals(timestamp) &&
+        concatBuffer[i].totalParts == totalParts) {
       return i;
     }
   }
@@ -209,6 +262,7 @@ int findOrCreateConcatSlot(int refNumber, const char* sender, int totalParts) {
       concatBuffer[i].inUse = true;
       concatBuffer[i].refNumber = refNumber;
       concatBuffer[i].sender = String(sender);
+      concatBuffer[i].timestamp = String(timestamp);
       concatBuffer[i].totalParts = totalParts;
       concatBuffer[i].receivedParts = 0;
       concatBuffer[i].firstPartTime = millis();
@@ -227,9 +281,11 @@ int findOrCreateConcatSlot(int refNumber, const char* sender, int totalParts) {
       oldestSlot = i;
     }
   }
+  Serial.printf("长短信缓存已满，覆盖最早分段缓存: sender=%s ref=%d\n", concatBuffer[oldestSlot].sender.c_str(), concatBuffer[oldestSlot].refNumber);
   concatBuffer[oldestSlot].inUse = true;
   concatBuffer[oldestSlot].refNumber = refNumber;
   concatBuffer[oldestSlot].sender = String(sender);
+  concatBuffer[oldestSlot].timestamp = String(timestamp);
   concatBuffer[oldestSlot].totalParts = totalParts;
   concatBuffer[oldestSlot].receivedParts = 0;
   concatBuffer[oldestSlot].firstPartTime = millis();
@@ -390,7 +446,26 @@ String getLocalTimeStr() {
   return String(buf);
 }
 
-void enqueueOfflineSMS(const char* sender, const char* text, const char* timestamp) {
+String buildSmsPayload(const char* sender, const char* text, const char* timestamp) {
+  String formattedTime = formatTime(timestamp);
+  if (formattedTime.length() == 0) {
+    formattedTime = getLocalTimeStr();
+  }
+
+  String phone = getPhoneNumber();
+  size_t capacity = JSON_OBJECT_SIZE(4) + formattedTime.length() + phone.length() + strlen(sender) + strlen(text) + 256;
+  DynamicJsonDocument doc(capacity);
+  doc["sender"] = sender;
+  doc["text"] = text;
+  doc["timestamp"] = formattedTime;
+  doc["phone"] = phone;
+
+  String payload;
+  serializeJson(doc, payload);
+  return payload;
+}
+
+bool enqueueOfflineSMS(const char* sender, const char* text, const char* timestamp) {
   if (queueCount >= OFFLINE_QUEUE_SIZE) {
     uint8_t oldHead = queueHead;
     queueHead = (queueHead + 1) % OFFLINE_QUEUE_SIZE;
@@ -398,22 +473,22 @@ void enqueueOfflineSMS(const char* sender, const char* text, const char* timesta
     queueValid[oldHead] = false;
   }
   
-  JsonObject obj = offlineQueue[queueTail].as<JsonObject>();
-  obj["sender"] = sender;
-  obj["text"] = text;
   String ts = formatTime(timestamp);
-  obj["timestamp"] = ts.length() > 0 ? ts : getLocalTimeStr();
-  obj["phone"] = getPhoneNumber();
+  offlineQueue[queueTail].sender = String(sender);
+  offlineQueue[queueTail].text = String(text);
+  offlineQueue[queueTail].timestamp = ts.length() > 0 ? ts : getLocalTimeStr();
+  offlineQueue[queueTail].phone = getPhoneNumber();
   queueValid[queueTail] = true;
   
   queueTail = (queueTail + 1) % OFFLINE_QUEUE_SIZE;
   queueCount++;
   
   Serial.println("[Queue] SMS queued, count: " + String(queueCount));
+  return true;
 }
 
-void flushOfflineQueue() {
-  if (queueCount == 0) return;
+bool flushOfflineQueue() {
+  if (queueCount == 0) return true;
   
   Serial.println("[Queue] Flushing " + String(queueCount) + " queued messages...");
   
@@ -423,27 +498,38 @@ void flushOfflineQueue() {
       queueCount--;
       continue;
     }
-    
-    StaticJsonDocument<512> doc;
-    doc = offlineQueue[queueHead];
-    
-    const char* sender = doc["sender"] | "";
-    const char* text = doc["text"] | "";
-    const char* ts = doc["timestamp"] | "";
-    
+
+    String payload;
+    {
+      size_t capacity = JSON_OBJECT_SIZE(4) + offlineQueue[queueHead].sender.length() + offlineQueue[queueHead].text.length() + offlineQueue[queueHead].timestamp.length() + offlineQueue[queueHead].phone.length() + 256;
+      DynamicJsonDocument doc(capacity);
+      doc["sender"] = offlineQueue[queueHead].sender;
+      doc["text"] = offlineQueue[queueHead].text;
+      doc["timestamp"] = offlineQueue[queueHead].timestamp;
+      doc["phone"] = offlineQueue[queueHead].phone;
+      serializeJson(doc, payload);
+    }
+
     String topic = "sms_forwarder/raw_sms/" + deviceMAC;
-    char buf[512];
-    serializeJson(doc, buf);
-    mqttClient.publish(topic.c_str(), buf);
-    Serial.println("[Queue] Flushed: " + String(buf));
+    bool ok = mqttClient.publish(topic.c_str(), payload.c_str());
+    if (!ok) {
+      Serial.println("[Queue] Flush publish failed, keeping queued SMS");
+      return false;
+    }
+    Serial.println("[Queue] Flushed: " + payload);
     
     queueValid[queueHead] = false;
+    offlineQueue[queueHead].sender = "";
+    offlineQueue[queueHead].text = "";
+    offlineQueue[queueHead].timestamp = "";
+    offlineQueue[queueHead].phone = "";
     queueHead = (queueHead + 1) % OFFLINE_QUEUE_SIZE;
     queueCount--;
     delay(50);
   }
   
   Serial.println("[Queue] All queued messages flushed");
+  return true;
 }
 
 void publishHeartbeat() {
@@ -459,41 +545,39 @@ void publishHeartbeat() {
   Serial.println("[MQTT] Heartbeat sent: " + String(buf));
 }
 
-void publishRawSMS(const char* sender, const char* text, const char* timestamp) {
+bool publishRawSMS(const char* sender, const char* text, const char* timestamp) {
   Serial.println("[SMS] 准备发送短信到服务器...");
   Serial.println("[SMS] sender=" + String(sender) + ", text=" + String(text));
   Serial.println("[SMS] 原始时间戳: " + String(timestamp ? timestamp : "(null)"));
-  
-  StaticJsonDocument<1024> doc;
-  doc["sender"] = sender;
-  doc["text"] = text;
-  String formattedTime = formatTime(timestamp);
-  Serial.println("[SMS] 格式化时间: " + formattedTime);
-  if (formattedTime.length() > 0) {
-    doc["timestamp"] = formattedTime;
-  } else {
-    String localTime = getLocalTimeStr();
-    Serial.println("[SMS] 使用本地时间: " + localTime);
-    doc["timestamp"] = localTime;
-  }
-  doc["phone"] = getPhoneNumber();
+
+  String payload = buildSmsPayload(sender, text, timestamp);
   String topic = "sms_forwarder/raw_sms/" + deviceMAC;
-  char buf[1024];
-  serializeJson(doc, buf);
   Serial.println("[SMS] Topic: " + topic);
-  Serial.println("[SMS] Payload length: " + String(strlen(buf)));
+  Serial.println("[SMS] Payload length: " + String(payload.length()));
+  if (payload.length() >= MQTT_BUFFER_SIZE) {
+    Serial.println("[SMS] Payload exceeds MQTT buffer, storing in offline queue");
+    return enqueueOfflineSMS(sender, text, timestamp);
+  }
   
   if (mqttClient.connected()) {
     Serial.println("[SMS] MQTT已连接，准备发送...");
-    flushOfflineQueue();
+    if (!flushOfflineQueue()) {
+      Serial.println("[SMS] 离线队列刷新失败，当前短信改为入队");
+      return enqueueOfflineSMS(sender, text, timestamp);
+    }
     mqttClient.loop();
     delay(10);
-    boolean result = mqttClient.publish(topic.c_str(), buf);
+    boolean result = mqttClient.publish(topic.c_str(), payload.c_str());
     Serial.println("[SMS] MQTT发送结果: " + String(result ? "成功" : "失败"));
-    Serial.println("[MQTT] SMS published");
+    if (result) {
+      Serial.println("[MQTT] SMS published");
+      return true;
+    }
+    Serial.println("[SMS] MQTT发送失败，转入离线队列");
+    return enqueueOfflineSMS(sender, text, timestamp);
   } else {
     Serial.println("[SMS] MQTT未连接，存入离线队列");
-    enqueueOfflineSMS(sender, text, timestamp);
+    return enqueueOfflineSMS(sender, text, timestamp);
   }
 }
 
@@ -507,17 +591,6 @@ void publishResp(const char* action, bool success, const String& message) {
   serializeJson(doc, buf);
   mqttClient.publish(topic.c_str(), buf);
   Serial.println("[MQTT] Resp sent: " + String(buf));
-}
-
-void publishOtaStatus(const char* status, const String& message) {
-  StaticJsonDocument<256> doc;
-  doc["status"] = status;
-  doc["message"] = message;
-  String topic = "sms_forwarder/ota/" + deviceMAC;
-  char buf[256];
-  serializeJson(doc, buf);
-  mqttClient.publish(topic.c_str(), buf);
-  Serial.println("[OTA] Status: " + String(buf));
 }
 
 void handlePingMQTT() {
@@ -834,133 +907,6 @@ void handleSendSmsMQTT(const String& phone, const String& content) {
   publishResp("send_sms", ok, ok ? "短信发送成功" : "短信发送失败");
 }
 
-void handleOtaCheckMQTT() {
-  Serial.println("[OTA] 检查固件更新...");
-  HTTPClient http;
-  String url = String(OTA_SERVER) + "/api/ota/version/esp32c3";
-  
-  if (http.begin(espClient, url)) {
-    int httpCode = http.GET();
-    if (httpCode == HTTP_CODE_OK) {
-      String payload = http.getString();
-      Serial.println("[OTA] 服务器响应: " + payload);
-      
-      DynamicJsonDocument doc(512);
-      DeserializationError error = deserializeJson(doc, payload);
-      if (!error) {
-        const char* serverVersion = doc["version"] | "";
-        const char* downloadUrl = doc["url"] | "";
-        const char* checksum = doc["checksum"] | "";
-        
-        Serial.println("[OTA] 服务器版本: " + String(serverVersion));
-        Serial.println("[OTA] 当前版本: " + String(CURRENT_FIRMWARE_VERSION));
-        
-        StaticJsonDocument<512> resp;
-        resp["version"] = serverVersion;
-        resp["url"] = downloadUrl;
-        resp["checksum"] = checksum;
-        resp["current_version"] = CURRENT_FIRMWARE_VERSION;
-        resp["needs_update"] = (String(serverVersion) != String(CURRENT_FIRMWARE_VERSION));
-        
-        char buf[512];
-        serializeJson(resp, buf);
-        
-        String topic = "sms_forwarder/resp/" + deviceMAC;
-        mqttClient.publish(topic.c_str(), buf);
-      }
-    } else {
-      Serial.println("[OTA] HTTP错误: " + String(httpCode));
-      publishResp("ota_check", false, "检查失败: HTTP " + String(httpCode));
-    }
-    http.end();
-  } else {
-    publishResp("ota_check", false, "无法连接到OTA服务器");
-  }
-}
-
-void handleOtaStartMQTT(const String& version, const String& url, const String& checksum) {
-  Serial.println("[OTA] 开始升级到 " + version);
-  Serial.println("[OTA] URL: " + url);
-  Serial.println("[OTA] Checksum: " + checksum);
-  
-  publishOtaStatus("downloading", "开始下载固件...");
-  
-  HTTPClient http;
-  if (!http.begin(espClient, url)) {
-    publishOtaStatus("error", "无法连接下载服务器");
-    publishResp("ota_start", false, "无法连接下载服务器");
-    return;
-  }
-  
-  int httpCode = http.GET();
-  if (httpCode != HTTP_CODE_OK) {
-    publishOtaStatus("error", "下载失败: HTTP " + String(httpCode));
-    publishResp("ota_start", false, "下载失败: HTTP " + String(httpCode));
-    http.end();
-    return;
-  }
-  
-  int contentLength = http.getSize();
-  Serial.println("[OTA] 固件大小: " + String(contentLength));
-  
-  if (contentLength <= 0 || contentLength > FIRMWARE_UPGRADE_SIZE) {
-    publishOtaStatus("error", "固件大小无效");
-    publishResp("ota_start", false, "固件大小无效: " + String(contentLength));
-    http.end();
-    return;
-  }
-  
-  publishOtaStatus("downloading", "下载中: 0%");
-  
-  WiFiClient* stream = http.getStreamPtr();
-  size_t written = 0;
-  uint8_t buf[4096];
-  bool canBegin = Update.begin(contentLength);
-  
-  if (!canBegin) {
-    publishOtaStatus("error", "Update.begin失败");
-    publishResp("ota_start", false, "Update.begin失败");
-    http.end();
-    return;
-  }
-  
-  while (http.connected() && (written < contentLength)) {
-    size_t available = stream->available();
-    if (available) {
-      int bytesRead = stream->readBytes(buf, min(available, sizeof(buf)));
-      written += Update.write(buf, bytesRead);
-      
-      int progress = (written * 100) / contentLength;
-      if (progress % 20 == 0) {
-        publishOtaStatus("downloading", "下载中: " + String(progress) + "%");
-      }
-    }
-    delay(1);
-  }
-  
-  http.end();
-  
-  if (written != contentLength) {
-    publishOtaStatus("error", "下载不完整");
-    publishResp("ota_start", false, "下载不完整");
-    return;
-  }
-  
-  publishOtaStatus("verifying", "验证固件...");
-  
-  if (Update.end(true)) {
-    Serial.println("[OTA] 固件写入成功，准备重启...");
-    publishOtaStatus("completed", "升级成功，即将重启");
-    publishResp("ota_start", true, "升级成功，设备即将重启");
-    delay(1000);
-    ESP.restart();
-  } else {
-    String error = Update.errorString();
-    Serial.println("[OTA] 升级失败: " + error);
-    publishOtaStatus("error", "升级失败: " + error);
-    publishResp("ota_start", false, "升级失败: " + error);
-  }
-}
 
 void handleCmdMessage(char* topic, uint8_t* payload, unsigned int length) {
   StaticJsonDocument<512> doc;
@@ -995,15 +941,6 @@ void handleCmdMessage(char* topic, uint8_t* payload, unsigned int length) {
     const char* phone = doc["phone"] | "";
     const char* content = doc["content"] | "";
     handleSendSmsMQTT(String(phone), String(content));
-  }
-  else if (strcmp(action, "ota_check") == 0) {
-    handleOtaCheckMQTT();
-  }
-  else if (strcmp(action, "ota_start") == 0) {
-    const char* version = doc["version"] | "";
-    const char* url = doc["url"] | "";
-    const char* checksum = doc["checksum"] | "";
-    handleOtaStartMQTT(String(version), String(url), String(checksum));
   }
   else if (strcmp(action, "reset") == 0) {
     publishResp("reset", true, "设备即将重启");
@@ -1069,8 +1006,20 @@ void checkSerial1URC() {
         int totalParts = concatInfo[2];
 
         if (totalParts > 1 && partNumber > 0) {
+          if (isRecentlyCompletedConcat(refNumber, pdu.getSender(), pdu.getTimeStamp())) {
+            Serial.printf("忽略已完成长短信的重复分段 %d/%d\n", partNumber, totalParts);
+            state = IDLE;
+            return;
+          }
+
+          if (totalParts > MAX_CONCAT_PARTS) {
+            Serial.printf("长短信分段数超出支持范围: %d/%d，已丢弃\n", partNumber, totalParts);
+            state = IDLE;
+            return;
+          }
+
           Serial.printf("长短信分段 %d/%d\n", partNumber, totalParts);
-          int slot = findOrCreateConcatSlot(refNumber, pdu.getSender(), totalParts);
+          int slot = findOrCreateConcatSlot(refNumber, pdu.getSender(), pdu.getTimeStamp(), totalParts);
           int partIndex = partNumber - 1;
           if (partIndex >= 0 && partIndex < MAX_CONCAT_PARTS) {
             if (!concatBuffer[slot].parts[partIndex].valid) {
@@ -1089,7 +1038,12 @@ void checkSerial1URC() {
           if (concatBuffer[slot].receivedParts >= totalParts) {
             Serial.println("长短信已收齐，合并转发");
             String fullText = assembleConcatSms(slot);
-            publishRawSMS(concatBuffer[slot].sender.c_str(), fullText.c_str(), concatBuffer[slot].timestamp.c_str());
+            bool published = publishRawSMS(concatBuffer[slot].sender.c_str(), fullText.c_str(), concatBuffer[slot].timestamp.c_str());
+            if (published) {
+              rememberCompletedConcat(concatBuffer[slot].refNumber, concatBuffer[slot].sender.c_str(), concatBuffer[slot].timestamp.c_str());
+            } else {
+              Serial.println("长短信发布失败，未写入去重缓存");
+            }
             clearConcatSlot(slot);
           }
         } else {
@@ -1108,9 +1062,7 @@ void checkConcatTimeout() {
   for (int i = 0; i < MAX_CONCAT_MESSAGES; i++) {
     if (concatBuffer[i].inUse) {
       if (now - concatBuffer[i].firstPartTime >= CONCAT_TIMEOUT_MS) {
-        Serial.println("长短信超时，强制转发");
-        String fullText = assembleConcatSms(i);
-        publishRawSMS(concatBuffer[i].sender.c_str(), fullText.c_str(), concatBuffer[i].timestamp.c_str());
+        Serial.printf("长短信超时，丢弃不完整分段 (%d/%d)\n", concatBuffer[i].receivedParts, concatBuffer[i].totalParts);
         clearConcatSlot(i);
       }
     }
@@ -1205,18 +1157,17 @@ void setup() {
   configTime(8 * 3600, 0, "ntp.ntsc.ac.cn", "ntp.aliyun.com", "pool.ntp.org");
   int ntpRetry = 0;
   while (time(nullptr) < 100000 && ntpRetry < 100) { delay(100); ntpRetry++; }
-  if (time(nullptr) >= 100000) { timeSynced = true; Serial.println("NTP时间同步成功"); }
+  if (time(nullptr) >= 100000) { Serial.println("NTP时间同步成功"); }
   else Serial.println("NTP时间同步失败");
 
   mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
-  mqttClient.setBufferSize(1024);
+  mqttClient.setBufferSize(MQTT_BUFFER_SIZE);
   mqttClient.setCallback(mqttCallback);
   mqttReconnect();
 
   digitalWrite(LED_BUILTIN, LOW);
   lastHeartbeat = millis();
   Serial.println("=== 设备启动完成 ===");
-  Serial.println("固件版本: " + String(CURRENT_FIRMWARE_VERSION));
   Serial.println("MQTT Server: " + String(MQTT_SERVER) + ":" + String(MQTT_PORT));
 }
 

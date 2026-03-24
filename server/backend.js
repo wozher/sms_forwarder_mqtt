@@ -15,13 +15,49 @@ dayjs.extend(timezone);
 
 const db = require('./database');
 const { basicAuth } = require('./middleware/auth');
-const otaRouter = require('./routes/ota');
 
 const TZ = 'Asia/Shanghai';
 const PORT = parseInt(process.env.PORT || '3000');
 const MQTT_HOST = process.env.MQTT_HOST || '192.168.31.197';
 const MQTT_PORT = parseInt(process.env.MQTT_PORT || '1883');
 const WS_PATH = '/ws';
+
+function parseBasicAuthHeader(authHeader) {
+  if (!authHeader || !authHeader.startsWith('Basic ')) {
+    return null;
+  }
+
+  const base64Credentials = authHeader.slice(6).trim();
+  const credentials = Buffer.from(base64Credentials, 'base64').toString('utf8');
+  const separatorIndex = credentials.indexOf(':');
+
+  if (separatorIndex === -1) {
+    return null;
+  }
+
+  return {
+    username: credentials.slice(0, separatorIndex),
+    password: credentials.slice(separatorIndex + 1)
+  };
+}
+
+function validateBasicAuthHeader(authHeader) {
+  const parsedCredentials = parseBasicAuthHeader(authHeader);
+  if (!parsedCredentials) {
+    return null;
+  }
+
+  const { username, password } = parsedCredentials;
+  if (!username || !password) {
+    return null;
+  }
+
+  if (!db.validateUser(username, password)) {
+    return null;
+  }
+
+  return { username, password };
+}
 
 function calculateNextRunTime(hour, minute, intervalDays = 0) {
   const nowInTZ = dayjs().tz(TZ);
@@ -68,18 +104,7 @@ db.initDatabase();
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-app.use((req, res, next) => {
-  if (req.files) {
-    for (const key in req.files) {
-      req.files[key].name = Buffer.from(req.files[key].name, 'latin1').toString('utf8');
-    }
-  }
-  next();
-});
-
 app.use(express.static(path.join(__dirname, 'public')));
-
-app.use('/api/ota', otaRouter);
 
 app.post('/api/login', (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -88,32 +113,35 @@ app.post('/api/login', (req, res) => {
   res.setHeader('Surrogate-Control', 'no-store');
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Basic ')) {
-    return res.status(401).json({ success: false, message: 'Authentication required' });
+    return res.status(401).json({ success: false, message: '请输入账号和密码' });
   }
 
   try {
-    const base64Credentials = authHeader.split(' ')[1];
-    const credentials = Buffer.from(base64Credentials, 'base64').toString('utf8');
-    const [username, password] = credentials.split(':');
+    const credentials = validateBasicAuthHeader(authHeader);
 
-    if (db.validateUser(username, password)) {
-      return res.json({ success: true, username, message: 'Login successful' });
+    if (credentials) {
+      return res.json({ success: true, username: credentials.username, message: '登录成功' });
     }
 
-    return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    return res.status(401).json({ success: false, message: '账号或密码错误' });
   } catch (error) {
-    return res.status(401).json({ success: false, message: 'Authentication error' });
+    return res.status(401).json({ success: false, message: '登录请求无效，请重新输入' });
   }
 });
 
 app.post('/api/password', (req, res) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Basic ')) {
-    return res.status(401).json({ success: false, message: 'Unauthorized' });
+    return res.status(401).json({ success: false, message: '请先登录' });
   }
   try {
-    const credentials = Buffer.from(authHeader.split(' ')[1], 'base64').toString('utf8');
-    const [username, oldPassword] = credentials.split(':');
+    const credentials = parseBasicAuthHeader(authHeader);
+    if (!credentials || !credentials.username || !credentials.password) {
+      return res.status(401).json({ success: false, message: '登录请求无效，请重新输入' });
+    }
+
+    const username = credentials.username;
+    const oldPassword = credentials.password;
     const { newPassword } = req.body;
     if (!newPassword || newPassword.length < 6) {
       return res.status(400).json({ success: false, message: '新密码至少6位' });
@@ -123,7 +151,7 @@ app.post('/api/password', (req, res) => {
     }
     return res.status(401).json({ success: false, message: '原密码错误' });
   } catch (error) {
-    return res.status(500).json({ success: false, message: 'Server error' });
+    return res.status(500).json({ success: false, message: '服务器错误' });
   }
 });
 
@@ -135,7 +163,7 @@ app.get('/api/devices', (req, res) => {
     res.json({ success: true, devices });
   } catch (error) {
     console.error('[API] Error getting devices:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
+    res.status(500).json({ success: false, message: '服务器内部错误' });
   }
 });
 
@@ -179,7 +207,7 @@ app.get('/api/messages', (req, res) => {
     });
   } catch (error) {
     console.error('[API] Error getting messages:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
+    res.status(500).json({ success: false, message: '服务器内部错误' });
   }
 });
 
@@ -189,7 +217,7 @@ app.get('/api/stats', (req, res) => {
     res.json({ success: true, stats });
   } catch (error) {
     console.error('[API] Error getting stats:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
+    res.status(500).json({ success: false, message: '服务器内部错误' });
   }
 });
 
@@ -198,18 +226,18 @@ app.post('/api/cmd/:mac', async (req, res) => {
   const { action, ...params } = req.body;
 
   if (!action) {
-    return res.status(400).json({ success: false, message: 'Missing action parameter' });
+    return res.status(400).json({ success: false, message: '缺少操作参数' });
   }
 
   const devices = db.getDeviceList();
   const device = devices.find(d => d.mac === mac);
 
   if (!device) {
-    return res.status(404).json({ success: false, message: 'Device not found' });
+    return res.status(404).json({ success: false, message: '设备不存在' });
   }
 
   if (!device.online) {
-    return res.status(400).json({ success: false, message: 'Device is offline' });
+    return res.status(400).json({ success: false, message: '设备不在线' });
   }
 
   try {
@@ -217,7 +245,7 @@ app.post('/api/cmd/:mac', async (req, res) => {
     res.json({ success: true, result });
   } catch (error) {
     console.error('[API] Command error:', error);
-    res.status(500).json({ success: false, message: error.message || 'Command execution failed' });
+    res.status(500).json({ success: false, message: error.message || '命令执行失败' });
   }
 });
 
@@ -227,7 +255,7 @@ app.get('/api/push-config', (req, res) => {
     res.json({ success: true, config });
   } catch (error) {
     console.error('[API] Error getting push config:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
+    res.status(500).json({ success: false, message: '服务器内部错误' });
   }
 });
 
@@ -235,10 +263,10 @@ app.post('/api/push-config', (req, res) => {
   try {
     const config = req.body;
     db.savePushConfig(config);
-    res.json({ success: true, message: 'Push config saved successfully' });
+    res.json({ success: true, message: '推送配置保存成功' });
   } catch (error) {
     console.error('[API] Error saving push config:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
+    res.status(500).json({ success: false, message: '服务器内部错误' });
   }
 });
 
@@ -249,7 +277,7 @@ app.get('/api/push-history', (req, res) => {
     res.json({ success: true, history });
   } catch (error) {
     console.error('[API] Error getting push history:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
+    res.status(500).json({ success: false, message: '服务器内部错误' });
   }
 });
 
@@ -260,7 +288,7 @@ app.get('/api/push-history/sms/:smsId', (req, res) => {
     res.json({ success: true, history });
   } catch (error) {
     console.error('[API] Error getting push history by smsId:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
+    res.status(500).json({ success: false, message: '服务器内部错误' });
   }
 });
 
@@ -269,11 +297,11 @@ app.post('/api/push-history/:id/retry', (req, res) => {
     const id = parseInt(req.params.id);
     const record = db.getPushHistoryById(id);
     if (!record) {
-      return res.status(404).json({ success: false, message: 'Record not found' });
+      return res.status(404).json({ success: false, message: '记录不存在' });
     }
     const cfg = db.getPushConfig();
     if (!cfg) {
-      return res.status(400).json({ success: false, message: 'Push config not found' });
+      return res.status(400).json({ success: false, message: '推送配置不存在' });
     }
     (async () => {
       try {
@@ -298,7 +326,7 @@ app.post('/api/push-history/:id/retry', (req, res) => {
           await doCustomTemplate(cfg.customTemplate.url, cfg.customTemplate.body, { sender: record.sender, message: record.text, timestamp, phone: record.phone });
         }
         db.updatePushHistoryStatus(id, 'success', '');
-        res.json({ success: true, message: 'Retry successful' });
+        res.json({ success: true, message: '重试成功' });
       } catch (error) {
         db.updatePushHistoryStatus(id, 'failed', error.message);
         res.status(500).json({ success: false, message: error.message });
@@ -306,7 +334,7 @@ app.post('/api/push-history/:id/retry', (req, res) => {
     })();
   } catch (error) {
     console.error('[API] Error retry push:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
+    res.status(500).json({ success: false, message: '服务器内部错误' });
   }
 });
 
@@ -357,7 +385,7 @@ app.post('/api/schedule', (req, res) => {
     res.json({ success: true, id: taskId, message: '定时任务已创建' });
   } catch (error) {
     console.error('[API] Error creating schedule:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
+    res.status(500).json({ success: false, message: '服务器内部错误' });
   }
 });
 
@@ -368,7 +396,7 @@ app.get('/api/schedule', (req, res) => {
     res.json({ success: true, tasks });
   } catch (error) {
     console.error('[API] Error getting schedule list:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
+    res.status(500).json({ success: false, message: '服务器内部错误' });
   }
 });
 
@@ -383,7 +411,7 @@ app.get('/api/schedule/:id', (req, res) => {
     res.json({ success: true, task, history });
   } catch (error) {
     console.error('[API] Error getting schedule:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
+    res.status(500).json({ success: false, message: '服务器内部错误' });
   }
 });
 
@@ -417,7 +445,7 @@ app.put('/api/schedule/:id', (req, res) => {
     res.json({ success: true, message: '任务已更新' });
   } catch (error) {
     console.error('[API] Error updating schedule:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
+    res.status(500).json({ success: false, message: '服务器内部错误' });
   }
 });
 
@@ -433,7 +461,7 @@ app.delete('/api/schedule/:id', (req, res) => {
     res.json({ success: true, message: '任务已删除' });
   } catch (error) {
     console.error('[API] Error deleting schedule:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
+    res.status(500).json({ success: false, message: '服务器内部错误' });
   }
 });
 
@@ -442,15 +470,32 @@ app.get('/', (req, res) => {
 });
 
 app.use((req, res) => {
-  res.status(404).json({ success: false, message: 'Not found' });
+  res.status(404).json({ success: false, message: '接口不存在' });
 });
 
 app.use((err, req, res, next) => {
   console.error('[App] Error:', err);
-  res.status(500).json({ success: false, message: 'Internal server error' });
+  res.status(500).json({ success: false, message: '服务器内部错误' });
 });
 
 wss.on('connection', (ws, req) => {
+  try {
+    const requestUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+    const authParam = requestUrl.searchParams.get('auth');
+    const authHeader = authParam ? `Basic ${authParam}` : null;
+    const credentials = validateBasicAuthHeader(authHeader);
+
+    if (!credentials) {
+      ws.close(1008, '请先登录');
+      return;
+    }
+
+    ws.user = credentials.username;
+  } catch (error) {
+    ws.close(1008, '登录请求无效，请重新输入');
+    return;
+  }
+
   wsClients.add(ws);
   console.log(`[WS] Client connected. Total: ${wsClients.size}`);
 
@@ -513,7 +558,7 @@ function broadcastResp(mac, data) {
   });
 }
 
-function registerRespCallback(mac, callback) {
+function registerRespCallback(mac, callback, timeoutMs = 60000) {
   if (!pendingCmds.has(mac)) {
     pendingCmds.set(mac, []);
   }
@@ -525,16 +570,19 @@ function registerRespCallback(mac, callback) {
       const idx = cbs.indexOf(callback);
       if (idx >= 0) {
         cbs.splice(idx, 1);
-        callback({ action: 'timeout', success: false, message: 'Command timeout' });
+        if (cbs.length === 0) {
+          pendingCmds.delete(mac);
+        }
+        callback({ action: 'timeout', success: false, message: '命令执行超时' });
       }
     }
-  }, 60000);
+  }, timeoutMs);
 }
 
 function sendCmdToDevice(mac, action, params) {
   return new Promise((resolve, reject) => {
     if (!mqttClient || !mqttClient.connected) {
-      return reject(new Error('MQTT client not connected'));
+      return reject(new Error('MQTT 客户端未连接'));
     }
 
     const topic = `sms_forwarder/cmd/${mac}`;
@@ -548,15 +596,18 @@ function sendCmdToDevice(mac, action, params) {
 
       console.log(`[CMD] ${mac} <- ${payloadStr}`);
 
-      const timeout = action === 'ping' ? 40000 : 15000;
+      const timeoutMap = {
+        ping: 40000
+      };
+      const timeout = timeoutMap[action] || 15000;
       const timer = setTimeout(() => {
-        reject(new Error('Command timeout'));
+        reject(new Error('命令执行超时'));
       }, timeout);
 
       registerRespCallback(mac, (resp) => {
         clearTimeout(timer);
         resolve(resp);
-      });
+      }, timeout + 5000);
     });
   });
 }
@@ -788,7 +839,6 @@ function connectMQTT() {
     mqttClient.subscribe('sms_forwarder/heartbeat/+', { qos: 1 });
     mqttClient.subscribe('sms_forwarder/raw_sms/+', { qos: 1 });
     mqttClient.subscribe('sms_forwarder/resp/+', { qos: 1 });
-    mqttClient.subscribe('sms_forwarder/ota/+', { qos: 1 });
     console.log('[MQTT] Subscribed to all device topics');
   });
 
@@ -900,16 +950,6 @@ function connectMQTT() {
           }
 
           broadcastResp(mac, data);
-        }
-        else if (type === 'ota') {
-          let data;
-          try {
-            data = JSON.parse(msgStr);
-          } catch {
-            data = { status: '?', message: msgStr };
-          }
-          console.log(`[OTA] ${mac} | ${data.status} | ${data.message}`);
-          broadcastResp(mac, { action: 'ota', ...data });
         }
       }
     } catch (e) {

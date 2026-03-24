@@ -8,16 +8,18 @@ services:
       - "34567:34567"
     volumes:
       - ./data:/app/data
-      - ./firmware:/app/firmware
     environment:
       - NODE_ENV=production
       - PORT=34567
       - TZ=Asia/Shanghai
       - MQTT_HOST=192.168.31.197
       - MQTT_PORT=1883
+      - MQTT_USER=${MQTT_USER:-}
+      - MQTT_PASS=${MQTT_PASS:-}
+      - DATA_DIR=/app/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "--header", "Authorization: Basic YWRtaW46YWRtaW4xMjM=", "http://localhost:34567/api/devices"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:34567/"]
       interval: 30s
       timeout: 10s
       retries: 3
