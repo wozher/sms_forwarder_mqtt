@@ -1304,8 +1304,8 @@
           document.getElementById('loginPassword').focus();
         }
       }).catch((e) => {
-        setLoginError('网络错误，请检查服务器连接');
-        showToast('网络错误，请检查服务器连接', 'error');
+        setLoginError('网络连接异常，请检查服务状态后重试');
+        showToast('网络连接异常，请检查服务状态后重试', 'error');
         document.getElementById('loginPassword').focus();
       }).finally(() => {
         loginBtn.disabled = false;
@@ -1655,7 +1655,7 @@
       const res = await fetch(`/api/messages?${buildMessageQueryParams(page, filters)}`, { credentials: 'include', headers: authHeader() });
       const data = await res.json();
       if (!data.success || !data.messages) {
-        throw new Error(data.message || '加载消息失败');
+        throw new Error(data.message || '消息列表加载失败，请稍后再试');
       }
       messages = data.messages;
       filteredMessages = [...messages];
@@ -2073,12 +2073,77 @@
       const container = document.getElementById('toastContainer');
       const toast = document.createElement('div');
       toast.className = `toast ${type}`;
-      toast.textContent = message;
+      toast.textContent = normalizeUiMessage(message, type);
       container.appendChild(toast);
       setTimeout(() => {
         toast.classList.add('removing');
         setTimeout(() => toast.remove(), 300);
       }, duration);
+    }
+
+    function normalizeUiMessage(message, type = 'info') {
+      if (!message) {
+        return type === 'success' ? '操作已完成' : '暂时无法完成当前操作';
+      }
+
+      const normalized = String(message).trim();
+      const replacements = {
+        '服务器内部错误': '服务暂时不可用，请稍后重试',
+        '服务器错误': '服务暂时不可用，请稍后重试',
+        '请求失败': '请求未完成，请稍后再试',
+        '加载失败': '内容加载失败，请稍后再试',
+        '删除失败': '删除未完成，请稍后再试',
+        '创建失败': '创建未完成，请稍后再试',
+        '操作失败': '操作未完成，请稍后再试',
+        '命令执行失败': '设备暂时没有响应，请稍后再试',
+        '命令超时': '设备响应超时，请稍后再试',
+        '网络错误，请检查服务器连接': '网络连接异常，请检查服务状态后重试',
+        '设备不在线': '当前设备暂未在线，请切换到在线设备后再试',
+        '请先选择一个在线设备': '请先选择一台在线设备',
+        '当前没有可用设备': '当前还没有可用设备',
+        '当前设备离线，请切换到在线设备': '当前设备暂未在线，请切换到在线设备后再试',
+        '短信发送请求已发送...': '发送请求已提交，正在等待设备处理',
+        '短信发送成功': '短信已发送',
+        '短信发送失败': '短信发送未完成，请稍后再试',
+        '定时任务已创建': '定时任务已创建',
+        '定时任务已创建，系统会按计划自动执行': '定时任务已创建，系统会按计划自动执行',
+        '任务已暂停': '任务已暂停',
+        '任务已恢复': '任务已恢复',
+        '任务已删除': '任务已删除',
+        '推送配置保存成功': '推送设置已保存',
+        '重试成功': '已重新发送',
+        '推送已重新发送': '推送已重新发送',
+        '没有失败的推送渠道': '当前没有需要重试的推送渠道',
+        '重推失败': '重新发送未完成，请稍后再试',
+        '消息已清空': '消息列表已清空',
+        '短信已删除': '短信记录已移除',
+        'Ping 测试执行中...': '网络测试进行中，请稍候',
+        'Ping 测试成功': '网络测试已完成',
+        'Ping 失败': '网络测试未通过',
+        '飞行模式操作成功': '飞行模式设置已更新'
+      };
+
+      if (replacements[normalized]) {
+        return replacements[normalized];
+      }
+
+      if (normalized.startsWith('正在查询 ')) {
+        return normalized.replace('正在查询 ', '正在获取 ');
+      }
+      if (normalized.endsWith(' 查询成功')) {
+        return normalized.replace(' 查询成功', ' 已更新');
+      }
+      if (normalized.startsWith('飞行模式') && normalized.endsWith('请求已发送...')) {
+        return normalized.replace('请求已发送...', '指令已发送，正在等待设备反馈');
+      }
+      if (normalized.startsWith('已切换到设备 ')) {
+        return normalized.replace('已切换到设备 ', '当前设备已切换为 ');
+      }
+      if (normalized.startsWith('已重推 ')) {
+        return normalized.replace('已重推 ', '已重新发送 ').replace(' 个渠道', ' 个渠道');
+      }
+
+      return normalized;
     }
 
     function sendCmd(action, params = {}) {
@@ -2106,7 +2171,7 @@
           if (data.success) {
             resolve(data.result);
           } else {
-            reject(new Error(data.message || '命令执行失败'));
+            reject(new Error(data.message || '设备暂时没有响应，请稍后再试'));
           }
         }).catch(e => reject(e));
       });
@@ -2138,7 +2203,7 @@
         }).then(r => r.json()).then(data => {
           if (!data.success) {
             pendingRespCallback = null;
-            reject(new Error(data.message || '命令执行失败'));
+            reject(new Error(data.message || '设备暂时没有响应，请稍后再试'));
           }
         }).catch(e => {
           pendingRespCallback = null;
@@ -2148,7 +2213,7 @@
         setTimeout(() => {
           if (pendingRespCallback) {
             pendingRespCallback = null;
-            reject(new Error('命令超时'));
+            reject(new Error('设备响应超时，请稍后再试'));
           }
         }, action === 'ping' ? 40000 : 15000);
       });
@@ -2171,7 +2236,7 @@
           document.getElementById('smsContent').value = '';
           document.getElementById('smsCharCount').textContent = '0';
         } else {
-          showToast(result?.message || '短信发送失败', 'error');
+          showToast(result?.message || '短信发送未完成，请稍后再试', 'error');
         }
       } catch (e) {
         showToast(e.message, 'error');
@@ -2216,7 +2281,7 @@
       
       const btn = document.getElementById('createScheduleBtn');
       btn.disabled = true;
-      btn.innerHTML = '<span class="loading-spinner"></span> 处理中...';
+      btn.innerHTML = '<span class="loading-spinner"></span> 创建中...';
       
       const timeParts = scheduledTime.split(':');
       const hour = parseInt(timeParts[0]) || 0;
@@ -2252,10 +2317,10 @@
           onScheduleTypeChange();
           loadScheduleList();
         } else {
-          showToast(data.message || '创建失败', 'error');
+          showToast(data.message || '创建未完成，请稍后再试', 'error');
         }
       } catch (e) {
-        showToast('请求失败', 'error');
+        showToast('请求未完成，请稍后再试', 'error');
       }
       btn.disabled = false;
       btn.innerHTML = '创建定时任务';
@@ -2356,7 +2421,7 @@
           document.getElementById('scheduleDetailModal').classList.remove('hidden');
         }
       } catch (e) {
-        showToast('加载失败', 'error');
+        showToast('任务详情加载失败，请稍后再试', 'error');
       }
     }
 
@@ -2446,7 +2511,7 @@
         closeScheduleDetail();
         loadScheduleList();
       } catch (e) {
-        showToast('操作失败', 'error');
+        showToast('任务更新未完成，请稍后再试', 'error');
       }
     }
 
@@ -2542,8 +2607,8 @@
           resultEl.innerHTML = `<div class="result-card success"><div class="text-green-400 text-sm font-medium mb-2">${labels[type] || type} 查询成功</div>${formatResultMessage(result.message)}</div>`;
           showToast(`${labels[type] || type} 查询成功`, 'success');
         } else {
-          resultEl.innerHTML = `<div class="result-card error"><div class="text-red-400 text-sm">查询失败: ${result?.message || '未知错误'}</div></div>`;
-          showToast(result?.message || '查询失败', 'error');
+          resultEl.innerHTML = `<div class="result-card error"><div class="text-red-400 text-sm">查询未完成：${result?.message || '请稍后重试'}</div></div>`;
+          showToast(result?.message || '查询未完成，请稍后再试', 'error');
         }
       } catch (e) {
         resultEl.innerHTML = `<div class="result-card error"><div class="text-red-400 text-sm">${e.message}</div></div>`;
@@ -2566,8 +2631,8 @@
           resultEl.innerHTML = `<div class="result-card success"><span class="text-green-400 font-medium">Ping 成功</span><br><span class="text-slate-700">${escapeHtml(result.message || '')}</span></div>`;
           showToast('Ping 测试成功', 'success');
         } else {
-          resultEl.innerHTML = `<div class="result-card error"><span class="text-red-400 font-medium">Ping 失败</span><br><span class="text-slate-700">${escapeHtml(result?.message || '未知错误')}</span></div>`;
-          showToast(result?.message || 'Ping 失败', 'error');
+          resultEl.innerHTML = `<div class="result-card error"><span class="text-red-400 font-medium">网络测试未通过</span><br><span class="text-slate-700">${escapeHtml(result?.message || '请稍后重试')}</span></div>`;
+          showToast(result?.message || '网络测试未通过', 'error');
         }
       } catch (e) {
         btn.disabled = false;
@@ -2585,7 +2650,7 @@
         const result = await sendCmd('flight_mode', { status });
         if (result?.success) {
           const parts = (result.message || '').split('|');
-          let html = '<div class="text-green-400 font-medium mb-2">操作成功</div><table class="w-full text-sm">';
+          let html = '<div class="text-green-400 font-medium mb-2">设置已更新</div><table class="w-full text-sm">';
           parts.forEach(p => {
             const [k, ...v] = p.split('=');
             if (k) html += `<tr><td class="text-slate-400 pr-4 py-1">${k}</td><td class="text-slate-900">${escapeHtml(v.join('='))}</td></tr>`;
@@ -2594,8 +2659,8 @@
           resultEl.innerHTML = html;
           showToast('飞行模式操作成功', 'success');
         } else {
-          resultEl.innerHTML = `<div class="text-red-400">操作失败: ${escapeHtml(result?.message || '未知错误')}</div>`;
-          showToast(result?.message || '操作失败', 'error');
+          resultEl.innerHTML = `<div class="text-red-400">设置未完成：${escapeHtml(result?.message || '请稍后重试')}</div>`;
+          showToast(result?.message || '设置未完成，请稍后再试', 'error');
         }
       } catch (e) {
         resultEl.innerHTML = `<div class="text-red-400">${e.message}</div>`;
@@ -2614,10 +2679,10 @@
         if (result?.success) {
           addAtLog(result.message || 'OK', '#10b981');
         } else {
-          addAtLog(result?.message || 'ERROR', '#f87171');
+          addAtLog(result?.message || '指令未执行成功', '#f87171');
         }
       }).catch(e => {
-        addAtLog(`ERROR: ${e.message}`, '#f87171');
+        addAtLog(`执行失败: ${e.message}`, '#f87171');
       });
     }
 
@@ -2685,7 +2750,7 @@
         showToast(`已重推 ${retryCount} 个渠道`, 'success');
         renderMessages();
       } catch (e) {
-        showToast('重推失败', 'error');
+        showToast('重新发送未完成，请稍后再试', 'error');
       }
     }
 
@@ -2818,7 +2883,7 @@
         } else {
           showToast(data.message || '修改失败', 'error');
         }
-      }).catch(() => { showToast('请求失败', 'error'); });
+        }).catch(() => { showToast('请求未完成，请稍后再试', 'error'); });
     }
 
     function doLogout() {
