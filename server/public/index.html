@@ -19,222 +19,652 @@
     }
   </script>
   <style>
+    :root {
+      --bg: #f5f5f7;
+      --bg-soft: #fbfbfd;
+      --card: rgba(255, 255, 255, 0.82);
+      --card-strong: rgba(255, 255, 255, 0.96);
+      --line: rgba(15, 23, 42, 0.08);
+      --line-strong: rgba(15, 23, 42, 0.12);
+      --text: #111827;
+      --muted: #6b7280;
+      --muted-soft: #9ca3af;
+      --blue: #2563eb;
+      --blue-soft: rgba(37, 99, 235, 0.1);
+      --green: #16a34a;
+      --green-soft: rgba(22, 163, 74, 0.12);
+      --amber: #d97706;
+      --amber-soft: rgba(245, 158, 11, 0.12);
+      --red: #dc2626;
+      --red-soft: rgba(220, 38, 38, 0.12);
+      --shadow-sm: 0 10px 30px rgba(15, 23, 42, 0.04);
+      --shadow-md: 0 18px 48px rgba(15, 23, 42, 0.08);
+      --shadow-lg: 0 30px 70px rgba(15, 23, 42, 0.12);
+      --radius: 24px;
+    }
     * { box-sizing: border-box; }
-    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-    .toast-container { position: fixed; top: 20px; right: 20px; z-index: 10002; display: flex; flex-direction: column; gap: 8px; }
-    .toast { padding: 12px 20px; border-radius: 10px; color: white; font-size: 14px; font-weight: 500; box-shadow: 0 4px 12px rgba(0,0,0,0.2); animation: slideIn 0.3s ease; max-width: 360px; }
-    .toast.success { background: #10b981; }
-    .toast.error { background: #ef4444; }
-    .toast.info { background: #3b82f6; }
-    .toast.warning { background: #f59e0b; }
+    html { background: var(--bg); }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(96, 165, 250, 0.16), transparent 30%),
+        radial-gradient(circle at top right, rgba(52, 211, 153, 0.1), transparent 28%),
+        linear-gradient(180deg, #fcfcfd 0%, #f5f5f7 48%, #f1f5f9 100%);
+      letter-spacing: -0.01em;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image: linear-gradient(rgba(255,255,255,0.45) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.45) 1px, transparent 1px);
+      background-size: 40px 40px;
+      mask-image: linear-gradient(180deg, rgba(0,0,0,0.6), transparent 75%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    body > * { position: relative; z-index: 1; }
+    .toast-container { position: fixed; top: 20px; right: 20px; z-index: 10002; display: flex; flex-direction: column; gap: 10px; }
+    .toast {
+      padding: 12px 18px;
+      border-radius: 16px;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: var(--shadow-md);
+      animation: slideIn 0.3s ease;
+      max-width: 360px;
+      backdrop-filter: blur(12px);
+    }
+    .toast.success { background: rgba(22, 163, 74, 0.92); }
+    .toast.error { background: rgba(220, 38, 38, 0.92); }
+    .toast.info { background: rgba(37, 99, 235, 0.92); }
+    .toast.warning { background: rgba(217, 119, 6, 0.92); }
     @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
     @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; transform: translateX(50px); } }
+    @keyframes heroReveal {
+      from { opacity: 0; transform: translateY(18px) scale(0.985); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes sectionReveal {
+      from { opacity: 0; transform: translateY(14px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes panelIn {
+      from { opacity: 0; transform: translateY(10px) scale(0.985); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes modalIn {
+      from { opacity: 0; transform: translateY(16px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
     .toast.removing { animation: fadeOut 0.3s ease forwards; }
-    .device-card { transition: all 0.2s; cursor: pointer; }
-    .device-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.15); }
-    .device-card.selected { border-color: #3b82f6; box-shadow: 0 0 0 2px #3b82f6; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+    @keyframes spin { to { transform: rotate(360deg); } }
     .online-dot { animation: pulse 2s infinite; }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .app-shell { padding-top: 28px; padding-bottom: 40px; }
+    .hero-panel {
+      padding: 28px;
+      border-radius: 32px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.92), rgba(255,255,255,0.8));
+      border: 1px solid rgba(255,255,255,0.72);
+      box-shadow: var(--shadow-lg);
+      backdrop-filter: blur(18px);
+      overflow: hidden;
+      animation: heroReveal 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .hero-panel::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 0% 0%, rgba(96,165,250,0.14), transparent 34%), radial-gradient(circle at 100% 0%, rgba(45, 212, 191, 0.14), transparent 30%);
+      pointer-events: none;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.72);
+      border: 1px solid rgba(15, 23, 42, 0.06);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+      backdrop-filter: blur(10px);
+    }
+    .hero-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.7);
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      box-shadow: var(--shadow-sm);
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .section-card {
+      background: var(--card);
+      border: 1px solid rgba(255,255,255,0.72);
+      border-radius: 28px;
+      box-shadow: var(--shadow-md);
+      backdrop-filter: blur(18px);
+      animation: sectionReveal 0.48s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .subtle-panel {
+      background: rgba(255,255,255,0.72);
+      border: 1px solid rgba(15, 23, 42, 0.06);
+      border-radius: 24px;
+      box-shadow: var(--shadow-sm);
+    }
+    .settings-card {
+      background: rgba(255,255,255,0.78);
+      border: 1px solid rgba(15, 23, 42, 0.06);
+      border-radius: 24px;
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+    }
+    .settings-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px 18px;
+    }
+    .settings-row + .settings-row { border-top: 1px solid rgba(15, 23, 42, 0.06); }
+    .settings-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .settings-desc {
+      margin-top: 4px;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .content-card {
+      background: rgba(255,255,255,0.88);
+      border: 1px solid rgba(15, 23, 42, 0.06);
+      border-radius: 24px;
+      box-shadow: var(--shadow-sm);
+      padding: 18px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+    .content-card:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-md);
+      border-color: rgba(37, 99, 235, 0.1);
+    }
+    .section-kicker {
+      color: var(--muted-soft);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 11px;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    .service-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+    .service-note {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+    .result-card {
+      background: rgba(255,255,255,0.8);
+      border: 1px solid rgba(15, 23, 42, 0.06);
+      border-radius: 20px;
+      padding: 16px;
+      box-shadow: var(--shadow-sm);
+    }
+    .result-card.success { background: rgba(240, 253, 244, 0.92); border-color: rgba(22, 163, 74, 0.14); }
+    .result-card.error { background: rgba(254, 242, 242, 0.92); border-color: rgba(220, 38, 38, 0.14); }
+    .quick-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .quick-actions .btn { box-shadow: none; }
+    .metric-card {
+      padding: 22px;
+      border-radius: 24px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.94), rgba(255,255,255,0.84));
+      border: 1px solid rgba(255,255,255,0.75);
+      box-shadow: var(--shadow-sm);
+    }
+    .metric-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .metric-value {
+      font-size: clamp(1.75rem, 4vw, 2.5rem);
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.1;
+      margin-top: 12px;
+    }
+    .metric-note {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .section-heading {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+    .eyebrow {
+      color: var(--muted-soft);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 11px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .section-heading h2, .section-heading h3 {
+      margin: 0;
+      color: var(--text);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .section-heading p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .toolbar-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .tab-strip {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+    .tab-strip::-webkit-scrollbar { display: none; }
+    .tab-strip .tab-btn { flex: 0 0 auto; white-space: nowrap; }
+    .input-action-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .device-card {
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+      cursor: pointer;
+      background: rgba(255,255,255,0.82);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      box-shadow: var(--shadow-sm);
+    }
+    .device-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+    .device-card.selected { border-color: rgba(37, 99, 235, 0.45); box-shadow: 0 0 0 4px rgba(37,99,235,0.08), var(--shadow-md); }
     .msg-scroll { scroll-behavior: smooth; }
-    .msg-scroll::-webkit-scrollbar { width: 6px; }
-    .msg-scroll::-webkit-scrollbar-track { background: transparent; }
-    .msg-scroll::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
-    .at-log { background: #0a0e17; color: #10b981; font-family: 'Courier New', Courier, monospace; font-size: 13px; min-height: 200px; max-height: 320px; overflow-y: auto; padding: 12px; border-radius: 10px; white-space: pre-wrap; word-break: break-all; }
-    .at-log::-webkit-scrollbar { width: 6px; }
-    .at-log::-webkit-scrollbar-track { background: #0a0e17; }
-    .at-log::-webkit-scrollbar-thumb { background: #10b981; border-radius: 3px; }
-    .tab-btn.active { background: #1e40af; color: white; }
+    .msg-scroll::-webkit-scrollbar, .at-log::-webkit-scrollbar { width: 8px; }
+    .msg-scroll::-webkit-scrollbar-track, .at-log::-webkit-scrollbar-track { background: transparent; }
+    .msg-scroll::-webkit-scrollbar-thumb, .at-log::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.65); border-radius: 999px; }
+    .at-log {
+      background: #0f172a;
+      color: #d1fae5;
+      font-family: "SF Mono", "Consolas", "Liberation Mono", monospace;
+      font-size: 13px;
+      min-height: 220px;
+      max-height: 320px;
+      overflow-y: auto;
+      padding: 14px;
+      border-radius: 18px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+    }
+    .tab-btn.active {
+      background: #fff;
+      color: var(--text);
+      box-shadow: 0 8px 22px rgba(15, 23, 42, 0.08);
+      border-color: rgba(15, 23, 42, 0.08);
+    }
+    .tab-btn {
+      transition: transform 0.18s ease, background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+    .tab-btn:hover { transform: translateY(-1px); }
     .tab-content { display: none; }
-    .tab-content:not(.hidden) { display: block; }
+    .tab-content:not(.hidden) {
+      display: block;
+      animation: panelIn 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+      transform-origin: top center;
+    }
+    .tab-content.tab-enter {
+      animation: panelIn 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+    }
     .push-card { transition: all 0.15s; }
     .msg-card {
-      background: #1e293b;
-      border: 1px solid #334155;
-      border-radius: 12px;
+      background: rgba(255,255,255,0.94);
+      border: 1px solid var(--line);
+      border-radius: 22px;
       overflow: hidden;
-      transition: all 0.2s;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+      box-shadow: var(--shadow-sm);
     }
     .msg-card:hover {
       transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-      border-color: #475569;
+      box-shadow: var(--shadow-md);
+      border-color: rgba(37, 99, 235, 0.16);
+    }
+    .msg-grid > .msg-card,
+    #deviceList > .device-card,
+    #scheduleList > * ,
+    #recentSmsList > * {
+      animation: sectionReveal 0.36s cubic-bezier(0.22, 1, 0.36, 1);
     }
     .msg-card-header {
-      padding: 10px 12px;
-      border-bottom: 1px solid #334155;
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(15, 23, 42, 0.06);
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background: rgba(15,23,42,0.5);
+      background: linear-gradient(180deg, rgba(249,250,251,0.9), rgba(255,255,255,0.72));
     }
-    .msg-card-body {
-      padding: 12px;
-      min-height: 80px;
-    }
+    .msg-card-body { padding: 16px; min-height: 96px; }
     .msg-card-footer {
-      padding: 8px 12px;
-      background: #0f172a;
-      border-top: 1px solid #334155;
+      padding: 12px 16px;
+      background: rgba(248,250,252,0.9);
+      border-top: 1px solid rgba(15, 23, 42, 0.06);
       display: flex;
       justify-content: space-between;
       align-items: center;
       flex-wrap: wrap;
-      gap: 4px;
+      gap: 10px;
     }
     .msg-card-text {
       font-size: 14px;
-      color: #e2e8f0;
-      line-height: 1.6;
+      color: #334155;
+      line-height: 1.7;
       overflow: hidden;
       display: -webkit-box;
       -webkit-line-clamp: 3;
       -webkit-box-orient: vertical;
-      word-break: break-all;
+      word-break: break-word;
     }
-    .msg-card-text.expanded {
-      -webkit-line-clamp: unset;
-    }
+    .msg-card-text.expanded { -webkit-line-clamp: unset; }
     .push-badge {
       display: inline-flex;
       align-items: center;
-      gap: 3px;
-      padding: 3px 8px;
-      border-radius: 6px;
+      gap: 4px;
+      padding: 5px 10px;
+      border-radius: 999px;
       font-size: 11px;
-      font-weight: 500;
+      font-weight: 600;
+      border: 1px solid transparent;
     }
-    .push-badge.success { background: rgba(16,185,129,0.2); color: #10b981; }
-    .push-badge.failed { background: rgba(239,68,68,0.2); color: #ef4444; }
-    .push-badge.pending { background: rgba(100,116,139,0.3); color: #94a3b8; }
+    .push-badge.success { background: var(--green-soft); color: var(--green); border-color: rgba(22,163,74,0.16); }
+    .push-badge.failed { background: var(--red-soft); color: var(--red); border-color: rgba(220,38,38,0.16); }
+    .push-badge.pending { background: rgba(148,163,184,0.14); color: #64748b; border-color: rgba(148,163,184,0.16); }
     .msg-card-empty {
-      grid-column: 1 / -1;
-      padding: 40px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 20px;
+      min-height: 100%;
+      color: var(--muted);
     }
+    .msg-panel { display: flex; flex-direction: column; gap: 18px; }
+    .msg-viewport {
+      background: rgba(255,255,255,0.46);
+      border: 1px solid rgba(15, 23, 42, 0.06);
+      border-radius: 24px;
+      padding: 16px;
+      min-height: 560px;
+      max-height: 560px;
+      overflow-y: auto;
+    }
+    .msg-grid { display: grid; grid-template-columns: repeat(1, minmax(0, 1fr)); gap: 14px; align-content: start; min-height: 100%; }
+    @media (min-width: 768px) { .msg-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (min-width: 1280px) { .msg-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    .msg-pagination { min-height: 98px; }
     .pagination-container {
-      grid-column: 1 / -1;
       display: flex;
       flex-direction: column;
       align-items: center;
       gap: 12px;
-      padding: 20px;
-      margin-top: 16px;
-      background: rgba(15,23,42,0.3);
-      border-radius: 12px;
+      padding: 16px 20px;
+      background: rgba(255,255,255,0.62);
+      border: 1px solid rgba(15,23,42,0.05);
+      border-radius: 22px;
     }
-    .pagination-info {
-      font-size: 13px;
-      color: #94a3b8;
-    }
-    .pagination-controls {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
+    .pagination-info, .pagination-jump-inline { font-size: 13px; color: var(--muted); }
+    .pagination-controls { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center; }
     .pagination-btn {
       min-width: 36px;
-      height: 32px;
-      padding: 0 8px;
-      background: rgba(51,65,85,0.5);
-      border: 1px solid #334155;
-      border-radius: 6px;
-      color: #cbd5e1;
+      height: 34px;
+      padding: 0 10px;
+      background: rgba(255,255,255,0.9);
+      border: 1px solid rgba(15,23,42,0.08);
+      border-radius: 999px;
+      color: #475569;
       font-size: 13px;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.18s ease;
     }
-    .pagination-btn:hover:not(:disabled) {
-      background: rgba(51,65,85,0.8);
-      border-color: #475569;
-    }
-    .pagination-btn:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-    }
-    .pagination-btn.active {
-      background: #3b82f6;
-      border-color: #3b82f6;
-      color: #fff;
-    }
-    .pagination-ellipsis {
-      padding: 0 8px;
-      color: #64748b;
-    }
-    .pagination-jump {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 13px;
-      color: #94a3b8;
-    }
-    .pagination-jump-inline {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      margin-left: 8px;
-      font-size: 13px;
-      color: #94a3b8;
-      white-space: nowrap;
-      flex-shrink: 0;
-    }
+    .pagination-btn:hover:not(:disabled) { background: #fff; border-color: rgba(37,99,235,0.2); color: var(--text); }
+    .pagination-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .pagination-btn.active { background: var(--text); border-color: var(--text); color: #fff; }
+    .pagination-ellipsis { padding: 0 8px; color: var(--muted-soft); }
     .pagination-input {
-      width: 50px;
-      height: 28px;
+      width: 54px;
+      height: 30px;
       padding: 0 8px;
-      background: rgba(30,41,59,0.8);
-      border: 1px solid #334155;
-      border-radius: 6px;
-      color: #e2e8f0;
+      background: rgba(255,255,255,0.9);
+      border: 1px solid rgba(15,23,42,0.08);
+      border-radius: 999px;
+      color: var(--text);
       font-size: 13px;
       text-align: center;
     }
-    .pagination-input:focus {
-      outline: none;
-      border-color: #3b82f6;
-    }
+    .pagination-input:focus { outline: none; border-color: rgba(37,99,235,0.35); box-shadow: 0 0 0 4px rgba(37,99,235,0.08); }
     .push-card.disabled { opacity: 0.5; }
     .config-section { display: none; }
     .config-section.active { display: block; }
-    .loading-spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.6s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
-    .modal { background: #1e293b; border-radius: 16px; padding: 24px; max-width: 500px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.4); border: 1px solid #334155; }
+    .loading-spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.35); border-top-color: white; border-radius: 50%; animation: spin 0.6s linear infinite; }
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(244, 246, 248, 0.75);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(20px);
+      animation: sectionReveal 0.18s ease;
+    }
+    .modal {
+      background: rgba(255,255,255,0.9);
+      border-radius: 28px;
+      padding: 26px;
+      max-width: 500px;
+      width: 90%;
+      box-shadow: var(--shadow-lg);
+      border: 1px solid rgba(255,255,255,0.72);
+      animation: modalIn 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+    }
     input[type="text"], input[type="password"], input[type="number"], input[type="time"], select, textarea {
-      background: #0f172a !important; border: 1px solid #334155; color: #e2e8f0 !important; border-radius: 8px; padding: 8px 12px; font-size: 14px; width: 100%; transition: border-color 0.2s;
+      background: rgba(255,255,255,0.92) !important;
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      color: var(--text) !important;
+      border-radius: 16px;
+      padding: 10px 14px;
+      font-size: 14px;
+      width: 100%;
+      transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
     }
-    input[type="time"]::-webkit-calendar-picker-indicator {
-      filter: invert(1);
-      cursor: pointer;
+    textarea { min-height: 96px; }
+    input::placeholder, textarea::placeholder { color: #9ca3af; }
+    input[type="time"]::-webkit-calendar-picker-indicator { filter: none; cursor: pointer; opacity: 0.7; }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: rgba(37,99,235,0.35);
+      box-shadow: 0 0 0 4px rgba(37,99,235,0.08);
+      background: #fff !important;
     }
-    input:focus, select:focus, textarea:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.2); }
-    label { display: block; font-size: 13px; font-weight: 500; color: #94a3b8; margin-bottom: 4px; }
-    .form-row { margin-bottom: 14px; }
+    label { display: block; font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 6px; letter-spacing: 0.01em; }
+    .form-row { margin-bottom: 16px; }
     .form-row\.mb-2 { margin-bottom: 8px; }
     label.\!text-xs { font-size: 11px; }
-    .btn { padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.15s; border: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .btn-primary { background: #3b82f6; color: white; }
-    .btn-primary:hover:not(:disabled) { background: #2563eb; }
-    .btn-danger { background: #ef4444; color: white; }
-    .btn-danger:hover:not(:disabled) { background: #dc2626; }
-    .btn-warning { background: #f59e0b; color: white; }
-    .btn-warning:hover:not(:disabled) { background: #d97706; }
-    .btn-success { background: #10b981; color: white; }
-    .btn-success:hover:not(:disabled) { background: #059669; }
-    .btn-purple { background: #8b5cf6; color: white; }
-    .btn-purple:hover:not(:disabled) { background: #7c3aed; }
-    .btn-gray { background: #475569; color: white; }
-    .btn-gray:hover:not(:disabled) { background: #334155; }
-    .btn-sm { padding: 6px 12px; font-size: 13px; border-radius: 6px; }
-    .btn-xs { padding: 4px 8px; font-size: 12px; border-radius: 6px; }
-    .login-overlay { position: fixed; inset: 0; background: #0f172a; z-index: 10000; align-items: center; justify-content: center; }
+    .btn {
+      padding: 10px 16px;
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+      border: 1px solid transparent;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      box-shadow: var(--shadow-sm);
+    }
+    .btn:hover:not(:disabled) { transform: translateY(-1px); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
+    .btn-primary { background: var(--text); color: white; }
+    .btn-primary:hover:not(:disabled) { background: #1f2937; }
+    .btn-danger { background: #fff; color: var(--red); border-color: rgba(220,38,38,0.14); }
+    .btn-danger:hover:not(:disabled) { background: rgba(220,38,38,0.06); }
+    .btn-warning { background: #fff; color: var(--amber); border-color: rgba(245,158,11,0.16); }
+    .btn-warning:hover:not(:disabled) { background: rgba(245,158,11,0.07); }
+    .btn-success { background: #fff; color: var(--green); border-color: rgba(22,163,74,0.16); }
+    .btn-success:hover:not(:disabled) { background: rgba(22,163,74,0.07); }
+    .btn-purple { background: rgba(37,99,235,0.08); color: var(--blue); border-color: rgba(37,99,235,0.12); }
+    .btn-purple:hover:not(:disabled) { background: rgba(37,99,235,0.12); }
+    .btn-gray { background: rgba(255,255,255,0.72); color: #334155; border-color: rgba(15,23,42,0.08); }
+    .btn-gray:hover:not(:disabled) { background: #fff; }
+    .btn-sm { padding: 7px 12px; font-size: 13px; }
+    .btn-xs { padding: 5px 10px; font-size: 12px; }
+    .btn-chip { background: rgba(255,255,255,0.78); color: #475569; border-color: rgba(15,23,42,0.08); box-shadow: none; }
+    .btn-chip:hover:not(:disabled) { background: #fff; color: var(--text); }
+    .toolbox-device-select { min-width: 260px; max-width: min(100%, 420px); font-size: 13px; padding: 8px 12px; }
+    .msg-party-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1px solid transparent;
+    }
+    .msg-party-badge.sender { background: rgba(37,99,235,0.08); color: #1d4ed8; border-color: rgba(37,99,235,0.14); }
+    .msg-party-badge.receiver { background: rgba(20,184,166,0.08); color: #0f766e; border-color: rgba(20,184,166,0.14); }
+    .login-overlay {
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(circle at top left, rgba(96,165,250,0.18), transparent 32%),
+        radial-gradient(circle at bottom right, rgba(45,212,191,0.16), transparent 30%),
+        rgba(245,245,247,0.92);
+      z-index: 10000;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(22px);
+    }
+    .glass-card {
+      background: rgba(255,255,255,0.84);
+      border: 1px solid rgba(255,255,255,0.74);
+      box-shadow: var(--shadow-lg);
+      backdrop-filter: blur(18px);
+      animation: modalIn 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .bg-slate-900, .bg-slate-800, .bg-slate-700 { background: transparent !important; }
+    .border-slate-700, .border-slate-600 { border-color: rgba(15, 23, 42, 0.08) !important; }
+    .text-white, .text-slate-100, .text-slate-200 { color: var(--text) !important; }
+    .text-slate-300 { color: #475569 !important; }
+    .text-slate-400 { color: var(--muted) !important; }
+    .text-slate-500 { color: var(--muted-soft) !important; }
+    .hover\:bg-slate-700:hover, .hover\:bg-slate-600:hover { background: rgba(15,23,42,0.04) !important; }
+    .bg-blue-900 { background: rgba(37,99,235,0.1) !important; }
+    .text-blue-400 { color: #2563eb !important; }
+    .bg-green-900 { background: rgba(22,163,74,0.1) !important; }
+    .text-green-400 { color: #16a34a !important; }
+    .bg-red-900 { background: rgba(220,38,38,0.1) !important; }
+    .text-red-400 { color: #dc2626 !important; }
+    .bg-yellow-900 { background: rgba(245,158,11,0.12) !important; }
+    .text-yellow-400 { color: #d97706 !important; }
+    .bg-cyan-900 { background: rgba(8,145,178,0.1) !important; }
+    .text-cyan-300 { color: #0891b2 !important; }
+    .bg-indigo-900 { background: rgba(79,70,229,0.1) !important; }
+    .text-indigo-300 { color: #4f46e5 !important; }
+    @media (max-width: 767px) {
+      .app-shell { padding-top: 18px; padding-bottom: 24px; }
+      .hero-panel { padding: 22px; border-radius: 28px; }
+      .section-card { border-radius: 24px; }
+      .content-card, .settings-card, .subtle-panel { border-radius: 20px; }
+      .metric-card { padding: 18px; }
+      .metric-value { font-size: 1.85rem; }
+      .section-heading { gap: 12px; margin-bottom: 16px; }
+      .section-heading h2, .section-heading h3 { font-size: 1.35rem; }
+      .section-heading p { font-size: 13px; }
+      .toolbar-row { flex-direction: column; align-items: stretch; }
+      .toolbar-row > * { width: 100%; }
+      .toolbar-row .btn, .toolbar-row select, .toolbar-row input { width: 100% !important; }
+      .toolbar-row span { width: auto; }
+      .toolbox-device-select { min-width: 0; max-width: 100%; width: 100%; }
+      .tab-strip { padding-bottom: 2px; margin-inline: -4px; padding-inline: 4px; }
+      .tab-strip .tab-btn { padding-inline: 14px; }
+      .msg-viewport { min-height: 460px; max-height: none; border-radius: 20px; padding: 12px; }
+      .msg-card, .device-card { border-radius: 18px; }
+      .msg-card-header, .msg-card-body, .msg-card-footer { padding-inline: 14px; }
+      .settings-row { flex-direction: column; align-items: flex-start; padding: 14px 16px; }
+      .input-action-row { flex-direction: column; align-items: stretch; }
+      .input-action-row .btn, .input-action-row input { width: 100%; }
+      .quick-actions { gap: 6px; }
+      .quick-actions .btn { width: calc(50% - 3px); justify-content: center; }
+      .modal { width: calc(100% - 24px); padding: 20px; border-radius: 24px; max-height: calc(100vh - 24px); overflow-y: auto; }
+      .modal-actions { flex-direction: column; }
+      .modal-actions .btn { width: 100%; }
+      .msg-viewport { min-height: 460px; max-height: none; }
+      .pagination-jump-inline { margin-left: 0; }
+      .pagination-controls { gap: 8px; }
+      .pagination-jump-inline { width: 100%; justify-content: center; flex-wrap: wrap; }
+      #userMenu { right: 0; left: auto; min-width: 10rem; }
+    }
+    @media (max-width: 479px) {
+      .hero-panel { padding: 18px; }
+      .metric-card { padding: 16px; }
+      .content-card { padding: 15px; }
+      .quick-actions .btn { width: 100%; }
+      .msg-party-badge { width: 100%; justify-content: center; }
+      .msg-card-footer { align-items: stretch; }
+      .msg-card-footer > * { width: 100%; }
+      .msg-card-footer .btn { width: 100%; }
+    }
   </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen">
+<body class="min-h-screen">
   <div id="loginOverlay" class="login-overlay flex hidden">
-    <div class="bg-slate-800 rounded-xl border border-slate-700 p-8 w-full max-w-sm">
-      <h2 class="text-2xl font-bold text-white text-center mb-6">🔐 登录</h2>
+    <div class="glass-card rounded-[32px] p-8 w-full max-w-sm">
+      <div class="text-center mb-8">
+        <div class="eyebrow">短信转发控制台</div>
+        <h2 class="text-3xl font-semibold text-slate-900 tracking-tight">轻一点，也更好用。</h2>
+        <p class="text-slate-500 text-sm mt-3">连接设备、查看消息、统一管理转发流程。</p>
+      </div>
       <div class="form-row">
         <label>用户名</label>
         <input type="text" id="loginUsername" placeholder="admin" value="admin" onkeydown="handleLoginKeydown(event)">
@@ -245,13 +675,13 @@
       </div>
       <button class="btn btn-primary w-full mt-4" id="loginBtn" onclick="doLogin()">登录</button>
       <p id="loginError" class="text-red-400 text-sm text-center mt-3 min-h-[20px]"></p>
-      <p class="text-slate-500 text-sm text-center mt-4">默认账号: admin / admin123</p>
+      <p class="text-slate-500 text-sm text-center mt-5">默认账号: admin / admin123</p>
     </div>
   </div>
 
   <div id="changePwdModal" class="fixed inset-0 bg-black/60 z-[10001] hidden flex items-center justify-center">
-    <div class="bg-slate-800 rounded-xl border border-slate-700 p-8 w-full max-w-sm">
-      <h2 class="text-xl font-bold text-white text-center mb-6">🔑 修改密码</h2>
+    <div class="glass-card rounded-[28px] p-8 w-full max-w-sm">
+      <h2 class="text-xl font-semibold text-slate-900 text-center mb-6">修改密码</h2>
       <div class="form-row">
         <label>当前密码</label>
         <input type="password" id="pwdOld" placeholder="输入当前密码">
@@ -271,236 +701,279 @@
     </div>
   </div>
 
-  <div id="app" class="max-w-7xl mx-auto p-4">
-    <header class="flex items-center justify-between mb-6">
-      <div>
-        <h1 class="text-2xl font-bold text-white">📱 短信转发器管理后台</h1>
-        <p class="text-slate-400 text-sm mt-1" id="serverStatus">连接中...</p>
-      </div>
-      <div class="flex items-center gap-3">
-        <div id="wsIndicator" class="flex items-center gap-2 text-sm text-slate-400">
-          <span class="w-2 h-2 rounded-full bg-slate-500"></span> WebSocket
+  <div id="app" class="max-w-7xl mx-auto p-4 app-shell">
+    <header class="hero-panel mb-6 relative">
+      <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6 relative z-10">
+        <div class="max-w-2xl">
+          <div class="hero-badge mb-5">短信转发器 · 控制中心</div>
+          <h1 class="text-4xl lg:text-5xl font-semibold text-slate-900 tracking-tight">设备与消息的极简控制台</h1>
+          <p class="text-slate-500 text-base lg:text-lg mt-4 max-w-xl">用更轻的界面查看设备状态、接收短信、切换工具操作，让后台体验更像产品页而不是工具页。</p>
+          <p class="text-slate-500 text-sm mt-4" id="serverStatus">连接中...</p>
         </div>
-        <div class="relative">
-          <button class="btn btn-gray btn-sm" onclick="toggleUserMenu()">👤 <span id="userDisplayName">admin</span> ▼</button>
-          <div id="userMenu" class="hidden absolute right-0 mt-2 w-40 bg-slate-800 border border-slate-700 rounded-lg shadow-xl overflow-hidden z-50">
-            <button class="w-full text-left px-4 py-2.5 text-sm text-slate-200 hover:bg-slate-700 transition-colors" onclick="openChangePwdModal()">🔑 修改密码</button>
-            <div class="border-t border-slate-700"></div>
-            <button class="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-slate-700 transition-colors" onclick="doLogout()">🚪 退出登录</button>
+        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3 lg:justify-end">
+          <div id="wsIndicator" class="hero-status">
+            <span class="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
+            <span>实时连接</span>
+          </div>
+          <div class="relative">
+            <button class="btn btn-gray btn-sm" onclick="toggleUserMenu()">账号 <span id="userDisplayName">admin</span></button>
+            <div id="userMenu" class="hidden absolute right-0 mt-2 w-40 glass-card rounded-2xl shadow-xl overflow-hidden z-50">
+              <button class="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition-colors" onclick="openChangePwdModal()">修改密码</button>
+              <div class="border-t border-slate-200"></div>
+              <button class="w-full text-left px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition-colors" onclick="doLogout()">退出登录</button>
+            </div>
           </div>
         </div>
       </div>
     </header>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-      <div class="lg:col-span-1">
-        <div class="bg-slate-800 rounded-xl border border-slate-700 p-4 h-full">
-          <h2 class="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-            <span>📊</span> 系统统计
-          </h2>
-          <div class="space-y-3">
-            <div class="flex items-center justify-between py-2 border-b border-slate-700">
-              <span class="text-slate-400 text-sm">在线设备</span>
-              <span id="statOnline" class="text-green-400 font-bold">0</span>
-            </div>
-            <div class="flex items-center justify-between py-2 border-b border-slate-700">
-              <span class="text-slate-400 text-sm">离线设备</span>
-              <span id="statOffline" class="text-slate-400 font-bold">0</span>
-            </div>
-            <div class="flex items-center justify-between py-2 border-b border-slate-700">
-              <span class="text-slate-400 text-sm">短信总数</span>
-              <span id="statSms" class="text-blue-400 font-bold">0</span>
-            </div>
-            <div class="flex items-center justify-between py-2">
-              <span class="text-slate-400 text-sm">服务器时间</span>
-              <span id="serverTime" class="text-yellow-400 font-mono text-sm">--:--:--</span>
-            </div>
-          </div>
-        </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+      <div class="metric-card">
+        <div class="metric-label">在线设备</div>
+        <div id="statOnline" class="metric-value text-green-500">0</div>
+        <div class="metric-note">当前保持连接的设备数量</div>
       </div>
-      <div class="lg:col-span-2">
-        <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
-          <h2 class="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-            <span>📡</span> 在线设备
-            <span id="deviceCount" class="text-sm font-normal text-slate-400 ml-2">(0)</span>
-          </h2>
-          <div id="deviceList" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div class="text-slate-500 text-sm py-4 text-center col-span-2">暂无设备连接</div>
-          </div>
-        </div>
+      <div class="metric-card">
+        <div class="metric-label">离线设备</div>
+        <div id="statOffline" class="metric-value text-slate-500">0</div>
+        <div class="metric-note">等待恢复连接或需要检查</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">短信总量</div>
+        <div id="statSms" class="metric-value text-blue-500">0</div>
+        <div class="metric-note">累计接收的短信总量</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">当前时间</div>
+        <div id="serverTime" class="metric-value text-amber-500 font-mono text-[1.5rem] lg:text-[2rem]">--:--:--</div>
+        <div class="metric-note">本地控制台当前时间</div>
       </div>
     </div>
 
-    <div class="bg-slate-800 rounded-xl border border-slate-700 p-4 mb-6">
-      <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
-        <h2 class="text-lg font-semibold text-white flex items-center gap-2">
-          <span>💬</span> 实时消息中心
-          <span id="msgCount" class="text-sm font-normal text-slate-400 ml-2">(0)</span>
-        </h2>
-        <div class="flex items-center gap-2 flex-wrap">
-          <div class="relative">
-            <input type="text" id="msgSearchInput" placeholder="🔍 搜索内容/号码..." 
-                   class="!w-48 !text-sm !py-1.5 !px-3" oninput="filterMessages()">
+    <div class="grid grid-cols-1 xl:grid-cols-[360px_minmax(0,1fr)] gap-6 mb-6">
+      <section class="section-card p-5 lg:p-6 h-full">
+        <div class="section-heading">
+          <div>
+            <div class="eyebrow">设备总览</div>
+            <h2 class="text-2xl">设备概览 <span id="deviceCount" class="text-base font-medium text-slate-400 ml-1">(0)</span></h2>
+            <p>查看在线状态、IP、手机号与信号强度。</p>
           </div>
-          <select id="msgDeviceFilter" class="!w-32 !text-sm !py-1.5 !bg-slate-900 !w-auto" onchange="filterMessages()">
-            <option value="">全部设备</option>
-          </select>
-          <select id="msgStatusFilter" class="!w-28 !text-sm !py-1.5 !bg-slate-900 !w-auto" onchange="filterMessages()">
-            <option value="">全部</option>
-            <option value="success">成功</option>
-            <option value="failed">失败</option>
-            <option value="pending">推送中</option>
-          </select>
-          <button class="btn btn-gray btn-sm" onclick="resetFilters()">🔄 刷新</button>
         </div>
-      </div>
-      <div id="msgContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-        <div class="text-slate-500 text-sm text-center py-8 col-span-full">暂无短信记录</div>
-      </div>
+        <div id="deviceList" class="grid grid-cols-1 gap-3">
+          <div class="text-slate-500 text-sm py-8 text-center">暂无设备连接</div>
+        </div>
+      </section>
+
+      <section class="section-card p-5 lg:p-6">
+        <div class="section-heading flex-wrap">
+          <div>
+            <div class="eyebrow">消息中心</div>
+            <h2 class="text-2xl">实时消息中心 <span id="msgCount" class="text-base font-medium text-slate-400 ml-1">(0)</span></h2>
+            <p>统一查看短信收件箱、推送状态和筛选结果。</p>
+          </div>
+          <div class="toolbar-row">
+            <div class="relative">
+              <input type="text" id="msgSearchInput" placeholder="搜索内容 / 号码" class="!w-52 !text-sm" oninput="filterMessages()">
+            </div>
+            <select id="msgDeviceFilter" class="!w-auto !text-sm" onchange="filterMessages()">
+              <option value="">全部设备</option>
+            </select>
+            <select id="msgStatusFilter" class="!w-auto !text-sm" onchange="filterMessages()">
+              <option value="">全部状态</option>
+              <option value="success">成功</option>
+              <option value="failed">失败</option>
+              <option value="pending">推送中</option>
+            </select>
+            <button class="btn btn-gray btn-sm" onclick="resetFilters()">刷新</button>
+          </div>
+        </div>
+        <div class="msg-panel">
+          <div id="msgViewport" class="msg-viewport msg-scroll">
+            <div id="msgContainer" class="msg-grid">
+              <div class="text-slate-500 text-sm text-center py-8 msg-card-empty">暂无短信记录</div>
+            </div>
+          </div>
+          <div id="msgPagination" class="msg-pagination"></div>
+        </div>
+      </section>
     </div>
 
     <div id="toolboxSection">
-      <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
-        <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
-          <h2 class="text-lg font-semibold text-white flex items-center gap-2">
-            <span>🧰</span> 设备工具箱
-            <span id="selectedDeviceLabel" class="text-sm font-normal text-blue-400 ml-2"></span>
-          </h2>
+      <div class="section-card p-5 lg:p-6">
+        <div class="section-heading flex-wrap">
+          <div>
+            <div class="eyebrow">设备操作</div>
+            <h2 class="text-2xl">设备工具箱</h2>
+            <p>按当前设备切换推送、发送、查询、网络测试与任务管理。</p>
+          </div>
+        <div class="toolbar-row w-full sm:w-auto">
+          <span class="text-sm text-slate-400 whitespace-nowrap">当前设备</span>
+          <select id="toolboxDeviceSelect" class="toolbox-device-select" onchange="handleToolboxDeviceChange(this.value)">
+            <option value="">暂无可用设备</option>
+          </select>
         </div>
+      </div>
 
-        <div class="flex flex-wrap gap-2 mb-4 border-b border-slate-700 pb-3">
-          <button class="tab-btn active px-4 py-2 rounded-lg text-sm font-medium bg-slate-700 text-white transition-all" data-tab="push" onclick="switchTab('push')">📨 推送配置</button>
-          <button class="tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-700 text-white transition-all" data-tab="sms" onclick="switchTab('sms')">📤 发送短信</button>
-          <button class="tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-700 text-white transition-all" data-tab="query" onclick="switchTab('query')">📊 信息查询</button>
-          <button class="tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-700 text-white transition-all" data-tab="ping" onclick="switchTab('ping')">🌐 网络测试</button>
-          <button class="tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-700 text-white transition-all" data-tab="flight" onclick="switchTab('flight')">✈️ 飞行模式</button>
-          <button class="tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-700 text-white transition-all" data-tab="at" onclick="switchTab('at')">💻 AT终端</button>
-          <button class="tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-700 text-white transition-all" data-tab="schedule" onclick="switchTab('schedule')">⏰ 定时任务</button>
+        <div class="tab-strip mb-6 p-2 rounded-full bg-white/60 border border-slate-200">
+          <button class="tab-btn active px-4 py-2 rounded-full text-sm font-medium text-slate-500 border border-transparent transition-all" data-tab="push" onclick="switchTab('push')">推送配置</button>
+          <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium text-slate-500 border border-transparent transition-all" data-tab="sms" onclick="switchTab('sms')">发送短信</button>
+          <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium text-slate-500 border border-transparent transition-all" data-tab="query" onclick="switchTab('query')">信息查询</button>
+          <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium text-slate-500 border border-transparent transition-all" data-tab="ping" onclick="switchTab('ping')">网络测试</button>
+          <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium text-slate-500 border border-transparent transition-all" data-tab="flight" onclick="switchTab('flight')">飞行模式</button>
+          <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium text-slate-500 border border-transparent transition-all" data-tab="at" onclick="switchTab('at')">AT</button>
+          <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium text-slate-500 border border-transparent transition-all" data-tab="schedule" onclick="switchTab('schedule')">定时任务</button>
         </div>
 
         <div id="tab-push" class="tab-content">
-          <h3 class="text-lg font-medium text-white mb-4">📨 全局推送配置</h3>
+          <h3 class="text-lg font-semibold text-slate-900 mb-4">全局推送配置</h3>
           
           <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-            <div class="bg-slate-700 rounded-lg overflow-hidden">
-                <div class="flex items-center justify-between p-3 cursor-pointer hover:bg-slate-600" onclick="togglePushCard('tg')">
-                  <span class="font-medium text-white flex items-center gap-2">📱 Telegram</span>
+            <div class="bg-white/70 rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
+                <div class="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50" onclick="togglePushCard('tg')">
+                  <div class="service-meta">
+                    <span class="font-medium text-slate-900">Telegram</span>
+                    <span class="service-note">适合个人通知和即时提醒</span>
+                  </div>
                   <div class="flex items-center gap-2">
                     <input type="checkbox" id="cfg_tg_en" class="w-auto" onclick="event.stopPropagation();savePushConfig()">
                     <span class="text-slate-400">▼</span>
                   </div>
                 </div>
-                <div id="push-card-tg" class="hidden px-4 pb-3 space-y-2 border-t border-slate-600">
-                  <div class="form-row !mb-2"><label class="!text-xs">Bot Token</label><input type="text" id="cfg_tg_token" placeholder="12345678:ABC..." onchange="savePushConfig()"></div>
-                  <div class="form-row !mb-2"><label class="!text-xs">Chat ID</label><input type="text" id="cfg_tg_chatid" placeholder="123456789" onchange="savePushConfig()"></div>
+                <div id="push-card-tg" class="hidden px-4 pb-4 space-y-2 border-t border-slate-200">
+                  <div class="form-row !mb-2"><label class="!text-xs">机器人令牌</label><input type="text" id="cfg_tg_token" placeholder="12345678:ABC..." onchange="savePushConfig()"></div>
+                  <div class="form-row !mb-2"><label class="!text-xs">会话 ID</label><input type="text" id="cfg_tg_chatid" placeholder="123456789" onchange="savePushConfig()"></div>
                 </div>
               </div>
 
-              <div class="bg-slate-700 rounded-lg overflow-hidden">
-                <div class="flex items-center justify-between p-3 cursor-pointer hover:bg-slate-600" onclick="togglePushCard('dt')">
-                  <span class="font-medium text-white flex items-center gap-2">🔔 钉钉</span>
+              <div class="bg-white/70 rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
+                <div class="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50" onclick="togglePushCard('dt')">
+                  <div class="service-meta">
+                    <span class="font-medium text-slate-900">钉钉</span>
+                    <span class="service-note">适合团队群消息同步</span>
+                  </div>
                   <div class="flex items-center gap-2">
                     <input type="checkbox" id="cfg_dt_en" class="w-auto" onclick="event.stopPropagation();savePushConfig()">
                     <span class="text-slate-400">▼</span>
                   </div>
                 </div>
-                <div id="push-card-dt" class="hidden px-4 pb-3 space-y-2 border-t border-slate-600">
-                  <div class="form-row !mb-2"><label class="!text-xs">Webhook URL</label><input type="text" id="cfg_dt_url" placeholder="https://oapi.dingtalk.com/..." onchange="savePushConfig()"></div>
-                  <div class="form-row !mb-2"><label class="!text-xs">Secret</label><input type="text" id="cfg_dt_secret" placeholder="SEC..." onchange="savePushConfig()"></div>
+                <div id="push-card-dt" class="hidden px-4 pb-4 space-y-2 border-t border-slate-200">
+                  <div class="form-row !mb-2"><label class="!text-xs">Webhook 地址</label><input type="text" id="cfg_dt_url" placeholder="https://oapi.dingtalk.com/..." onchange="savePushConfig()"></div>
+                  <div class="form-row !mb-2"><label class="!text-xs">签名密钥</label><input type="text" id="cfg_dt_secret" placeholder="SEC..." onchange="savePushConfig()"></div>
                 </div>
               </div>
 
-              <div class="bg-slate-700 rounded-lg overflow-hidden">
-                <div class="flex items-center justify-between p-3 cursor-pointer hover:bg-slate-600" onclick="togglePushCard('pp')">
-                  <span class="font-medium text-white flex items-center gap-2">📣 PushPlus</span>
+              <div class="bg-white/70 rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
+                <div class="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50" onclick="togglePushCard('pp')">
+                  <div class="service-meta">
+                    <span class="font-medium text-slate-900">PushPlus</span>
+                    <span class="service-note">适合微信生态内的快捷提醒</span>
+                  </div>
                   <div class="flex items-center gap-2">
                     <input type="checkbox" id="cfg_pp_en" class="w-auto" onclick="event.stopPropagation();savePushConfig()">
                     <span class="text-slate-400">▼</span>
                   </div>
                 </div>
-                <div id="push-card-pp" class="hidden px-4 pb-3 space-y-2 border-t border-slate-600">
-                  <div class="form-row !mb-2"><label class="!text-xs">Token</label><input type="text" id="cfg_pp_token" placeholder="pushplus token" onchange="savePushConfig()"></div>
-                  <div class="form-row !mb-2"><label class="!text-xs">渠道</label><input type="text" id="cfg_pp_channel" placeholder="wechat" value="wechat" onchange="savePushConfig()"></div>
+                <div id="push-card-pp" class="hidden px-4 pb-4 space-y-2 border-t border-slate-200">
+                  <div class="form-row !mb-2"><label class="!text-xs">访问令牌</label><input type="text" id="cfg_pp_token" placeholder="pushplus token" onchange="savePushConfig()"></div>
+                  <div class="form-row !mb-2"><label class="!text-xs">推送渠道</label><input type="text" id="cfg_pp_channel" placeholder="wechat" value="wechat" onchange="savePushConfig()"></div>
                 </div>
               </div>
 
-              <div class="bg-slate-700 rounded-lg overflow-hidden">
-                <div class="flex items-center justify-between p-3 cursor-pointer hover:bg-slate-600" onclick="togglePushCard('sc')">
-                  <span class="font-medium text-white flex items-center gap-2">🖊 Server酱</span>
+              <div class="bg-white/70 rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
+                <div class="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50" onclick="togglePushCard('sc')">
+                  <div class="service-meta">
+                    <span class="font-medium text-slate-900">Server酱</span>
+                    <span class="service-note">适合公众号渠道消息提醒</span>
+                  </div>
                   <div class="flex items-center gap-2">
                     <input type="checkbox" id="cfg_sc_en" class="w-auto" onclick="event.stopPropagation();savePushConfig()">
                     <span class="text-slate-400">▼</span>
                   </div>
                 </div>
-                <div id="push-card-sc" class="hidden px-4 pb-3 space-y-2 border-t border-slate-600">
-                  <div class="form-row !mb-2"><label class="!text-xs">SendKey</label><input type="text" id="cfg_sc_key" placeholder="SCT..." onchange="savePushConfig()"></div>
+                <div id="push-card-sc" class="hidden px-4 pb-4 space-y-2 border-t border-slate-200">
+                  <div class="form-row !mb-2"><label class="!text-xs">发送密钥</label><input type="text" id="cfg_sc_key" placeholder="SCT..." onchange="savePushConfig()"></div>
                 </div>
               </div>
 
-              <div class="bg-slate-700 rounded-lg overflow-hidden">
-                <div class="flex items-center justify-between p-3 cursor-pointer hover:bg-slate-600" onclick="togglePushCard('fs')">
-                  <span class="font-medium text-white flex items-center gap-2">🦜 飞书</span>
+              <div class="bg-white/70 rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
+                <div class="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50" onclick="togglePushCard('fs')">
+                  <div class="service-meta">
+                    <span class="font-medium text-slate-900">飞书</span>
+                    <span class="service-note">适合企业协作消息联动</span>
+                  </div>
                   <div class="flex items-center gap-2">
                     <input type="checkbox" id="cfg_fs_en" class="w-auto" onclick="event.stopPropagation();savePushConfig()">
                     <span class="text-slate-400">▼</span>
                   </div>
                 </div>
-                <div id="push-card-fs" class="hidden px-4 pb-3 space-y-2 border-t border-slate-600">
-                  <div class="form-row !mb-2"><label class="!text-xs">Webhook URL</label><input type="text" id="cfg_fs_url" placeholder="https://open.feishu.cn/..." onchange="savePushConfig()"></div>
-                  <div class="form-row !mb-2"><label class="!text-xs">Secret</label><input type="text" id="cfg_fs_secret" placeholder="签名密钥" onchange="savePushConfig()"></div>
+                <div id="push-card-fs" class="hidden px-4 pb-4 space-y-2 border-t border-slate-200">
+                  <div class="form-row !mb-2"><label class="!text-xs">Webhook 地址</label><input type="text" id="cfg_fs_url" placeholder="https://open.feishu.cn/..." onchange="savePushConfig()"></div>
+                  <div class="form-row !mb-2"><label class="!text-xs">签名密钥</label><input type="text" id="cfg_fs_secret" placeholder="签名密钥" onchange="savePushConfig()"></div>
                 </div>
               </div>
 
-              <div class="bg-slate-700 rounded-lg overflow-hidden">
-                <div class="flex items-center justify-between p-3 cursor-pointer hover:bg-slate-600" onclick="togglePushCard('bark')">
-                  <span class="font-medium text-white flex items-center gap-2">🍎 Bark</span>
+              <div class="bg-white/70 rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
+                <div class="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50" onclick="togglePushCard('bark')">
+                  <div class="service-meta">
+                    <span class="font-medium text-slate-900">Bark</span>
+                    <span class="service-note">适合 iPhone 端的一对一提醒</span>
+                  </div>
                   <div class="flex items-center gap-2">
                     <input type="checkbox" id="cfg_bark_en" class="w-auto" onclick="event.stopPropagation();savePushConfig()">
                     <span class="text-slate-400">▼</span>
                   </div>
                 </div>
-                <div id="push-card-bark" class="hidden px-4 pb-3 space-y-2 border-t border-slate-600">
-                  <div class="form-row !mb-2"><label class="!text-xs">Bark URL</label><input type="text" id="cfg_bark_url" placeholder="https://api.day.app/your_key" onchange="savePushConfig()"></div>
+                <div id="push-card-bark" class="hidden px-4 pb-4 space-y-2 border-t border-slate-200">
+                  <div class="form-row !mb-2"><label class="!text-xs">Bark 地址</label><input type="text" id="cfg_bark_url" placeholder="https://api.day.app/your_key" onchange="savePushConfig()"></div>
                 </div>
               </div>
 
-              <div class="bg-slate-700 rounded-lg overflow-hidden">
-                <div class="flex items-center justify-between p-3 cursor-pointer hover:bg-slate-600" onclick="togglePushCard('gotify')">
-                  <span class="font-medium text-white flex items-center gap-2">🔊 Gotify</span>
+              <div class="bg-white/70 rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
+                <div class="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50" onclick="togglePushCard('gotify')">
+                  <div class="service-meta">
+                    <span class="font-medium text-slate-900">Gotify</span>
+                    <span class="service-note">适合自托管消息中心接入</span>
+                  </div>
                   <div class="flex items-center gap-2">
                     <input type="checkbox" id="cfg_gotify_en" class="w-auto" onclick="event.stopPropagation();savePushConfig()">
                     <span class="text-slate-400">▼</span>
                   </div>
                 </div>
-                <div id="push-card-gotify" class="hidden px-4 pb-3 space-y-2 border-t border-slate-600">
-                  <div class="form-row !mb-2"><label class="!text-xs">Gotify URL</label><input type="text" id="cfg_gotify_url" placeholder="https://gotify.example.com" onchange="savePushConfig()"></div>
-                  <div class="form-row !mb-2"><label class="!text-xs">App Token</label><input type="text" id="cfg_gotify_token" placeholder="A..." onchange="savePushConfig()"></div>
+                <div id="push-card-gotify" class="hidden px-4 pb-4 space-y-2 border-t border-slate-200">
+                  <div class="form-row !mb-2"><label class="!text-xs">Gotify 地址</label><input type="text" id="cfg_gotify_url" placeholder="https://gotify.example.com" onchange="savePushConfig()"></div>
+                  <div class="form-row !mb-2"><label class="!text-xs">应用令牌</label><input type="text" id="cfg_gotify_token" placeholder="A..." onchange="savePushConfig()"></div>
                 </div>
               </div>
 
-              <div class="bg-slate-700 rounded-lg overflow-hidden">
-                <div class="flex items-center justify-between p-3 cursor-pointer hover:bg-slate-600" onclick="togglePushCard('post')">
-                  <span class="font-medium text-white flex items-center gap-2">📤 POST JSON</span>
+              <div class="bg-white/70 rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
+                <div class="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50" onclick="togglePushCard('post')">
+                  <div class="service-meta">
+                    <span class="font-medium text-slate-900">POST JSON</span>
+                    <span class="service-note">适合对接你自己的业务接口</span>
+                  </div>
                   <div class="flex items-center gap-2">
                     <input type="checkbox" id="cfg_post_en" class="w-auto" onclick="event.stopPropagation();savePushConfig()">
                     <span class="text-slate-400">▼</span>
                   </div>
                 </div>
-                <div id="push-card-post" class="hidden px-4 pb-3 space-y-2 border-t border-slate-600">
-                  <div class="form-row !mb-2"><label class="!text-xs">POST URL</label><input type="text" id="cfg_post_url" placeholder="https://your-server.com/webhook" onchange="savePushConfig()"></div>
+                <div id="push-card-post" class="hidden px-4 pb-4 space-y-2 border-t border-slate-200">
+                  <div class="form-row !mb-2"><label class="!text-xs">POST 地址</label><input type="text" id="cfg_post_url" placeholder="https://your-server.com/webhook" onchange="savePushConfig()"></div>
                 </div>
               </div>
 
-              <div class="bg-slate-700 rounded-lg overflow-hidden">
-                <div class="flex items-center justify-between p-3 cursor-pointer hover:bg-slate-600" onclick="togglePushCard('custom')">
-                  <span class="font-medium text-white flex items-center gap-2">⚙️ 自定义模板</span>
+              <div class="bg-white/70 rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
+                <div class="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50" onclick="togglePushCard('custom')">
+                  <div class="service-meta">
+                    <span class="font-medium text-slate-900">自定义模板</span>
+                    <span class="service-note">适合按你的字段格式自由拼装</span>
+                  </div>
                   <div class="flex items-center gap-2">
                     <input type="checkbox" id="cfg_custom_en" class="w-auto" onclick="event.stopPropagation();savePushConfig()">
                     <span class="text-slate-400">▼</span>
                   </div>
                 </div>
-                <div id="push-card-custom" class="hidden px-4 pb-3 space-y-2 border-t border-slate-600">
-                  <div class="form-row !mb-2"><label class="!text-xs">URL</label><input type="text" id="cfg_custom_url" placeholder="https://..." onchange="savePushConfig()"></div>
+                <div id="push-card-custom" class="hidden px-4 pb-4 space-y-2 border-t border-slate-200">
+                  <div class="form-row !mb-2"><label class="!text-xs">请求地址</label><input type="text" id="cfg_custom_url" placeholder="https://..." onchange="savePushConfig()"></div>
                   <div class="form-row !mb-2"><label class="!text-xs">模板</label><textarea id="cfg_custom_body" rows="2" placeholder='{"sender":"{sender}","text":"{message}"}' onchange="savePushConfig()"></textarea></div>
                 </div>
               </div>
@@ -511,23 +984,28 @@
         <div id="tab-sms" class="tab-content hidden">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <div class="form-row">
-                <label>目标号码</label>
-                <input type="text" id="smsPhone" placeholder="13800138000">
+              <div class="content-card">
+                <div class="section-kicker">手动发送</div>
+                <div class="form-row">
+                  <label>目标号码</label>
+                  <input type="text" id="smsPhone" placeholder="13800138000">
+                </div>
+                <div class="form-row">
+                  <label>短信内容</label>
+                  <textarea id="smsContent" rows="4" placeholder="请输入短信内容..."></textarea>
+                  <div class="text-right text-xs text-slate-500 mt-1"><span id="smsCharCount">0</span> 字符</div>
+                </div>
+                <button class="btn btn-primary w-full" id="sendSmsBtn" onclick="doSendSms()">立即发送</button>
               </div>
-              <div class="form-row">
-                <label>短信内容</label>
-                <textarea id="smsContent" rows="4" placeholder="请输入短信内容..."></textarea>
-                <div class="text-right text-xs text-slate-500 mt-1"><span id="smsCharCount">0</span> 字符</div>
-              </div>
-              <button class="btn btn-primary w-full" id="sendSmsBtn" onclick="doSendSms()">📨 立即发送</button>
             </div>
             <div>
-              <div class="bg-slate-900 rounded-lg p-4 h-full">
+               <div class="content-card h-full">
+                <div class="section-kicker">发送记录</div>
                 <div class="flex items-center justify-between mb-2">
-                  <span class="text-sm font-medium text-slate-300">📋 最近发送</span>
+                   <span class="text-sm font-medium text-slate-700">全部设备发送记录</span>
+                  <button class="btn btn-gray btn-sm" onclick="loadOutboundSmsHistory()">刷新</button>
                 </div>
-                <div id="recentSmsList" class="space-y-2 max-h-52 overflow-y-auto">
+                <div id="recentSmsList" class="space-y-2 max-h-72 overflow-y-auto">
                   <div class="text-slate-500 text-sm text-center py-4">暂无发送记录</div>
                 </div>
               </div>
@@ -536,67 +1014,86 @@
         </div>
 
         <div id="tab-query" class="tab-content hidden">
-          <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
-            <div class="text-sm text-slate-400">当前固件版本</div>
-            <div id="currentFirmware" class="px-3 py-1 rounded-full bg-slate-900 border border-slate-700 text-slate-200 font-mono text-sm">-</div>
-          </div>
-          <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
-            <button class="btn btn-primary" onclick="doQuery('ati')">📋 固件信息</button>
-            <button class="btn btn-primary" onclick="doQuery('signal')">📶 信号质量</button>
-            <button class="btn btn-purple" onclick="doQuery('siminfo')">💳 SIM卡信息</button>
-            <button class="btn btn-purple" onclick="doQuery('network')">🌍 网络状态</button>
-            <button class="btn btn-gray" onclick="doQuery('wifi')">📡 WiFi状态</button>
-          </div>
-          <div id="queryResult" class="bg-slate-900 rounded-lg p-4 min-h-16">
-            <div class="text-slate-500 text-sm">点击上方按钮查询模组信息...</div>
+          <div class="content-card">
+            <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
+               <div>
+                <div class="section-kicker mb-2">信息查询</div>
+                <div class="text-sm text-slate-400">当前固件版本</div>
+               </div>
+               <div id="currentFirmware" class="px-3 py-1 rounded-full bg-white border border-slate-200 text-slate-700 font-mono text-sm shadow-sm">-</div>
+            </div>
+            <div class="quick-actions mb-4">
+              <button class="btn btn-primary" onclick="doQuery('ati')">固件信息</button>
+              <button class="btn btn-primary" onclick="doQuery('signal')">信号质量</button>
+              <button class="btn btn-purple" onclick="doQuery('siminfo')">SIM 卡信息</button>
+              <button class="btn btn-purple" onclick="doQuery('network')">网络状态</button>
+              <button class="btn btn-gray" onclick="doQuery('wifi')">WiFi 状态</button>
+            </div>
+            <div id="queryResult" class="result-card min-h-16">
+              <div class="text-slate-500 text-sm">点击上方按钮查询模组信息...</div>
+            </div>
           </div>
         </div>
 
         <div id="tab-ping" class="tab-content hidden">
-          <div class="max-w-md">
-            <p class="text-slate-400 text-sm mb-4">点击下方按钮执行 Ping 测试（向 8.8.8.8 发送 ICMP 包，消耗极少量流量）。</p>
-            <button class="btn btn-warning w-full text-lg py-3" id="pingBtn" onclick="doPing()">📡 执行 Ping 测试</button>
+          <div class="content-card max-w-xl">
+            <div class="section-kicker">网络测试</div>
+             <p class="text-slate-400 text-sm mb-4">点击下方按钮执行 Ping 测试（向 8.8.8.8 发送 ICMP 包，消耗极少量流量）。</p>
+            <button class="btn btn-warning w-full text-lg py-3" id="pingBtn" onclick="doPing()">执行 Ping 测试</button>
             <div id="pingResult" class="mt-4"></div>
           </div>
         </div>
 
         <div id="tab-flight" class="tab-content hidden">
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <button class="btn btn-danger py-3" id="flightOnBtn" onclick="doFlightMode(1)">✈️ 开启飞行模式</button>
-            <button class="btn btn-success py-3" id="flightOffBtn" onclick="doFlightMode(0)">🟢 关闭飞行模式</button>
-            <button class="btn btn-gray py-3" id="flightQueryBtn" onclick="doFlightMode(-1)">🔍 查询当前状态</button>
-          </div>
-          <div id="flightResult" class="mt-4 bg-slate-900 rounded-lg p-4">
-            <div class="text-slate-500 text-sm">点击上方按钮操作...</div>
+          <div class="content-card">
+            <div class="section-kicker">飞行模式</div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <button class="btn btn-danger py-3" id="flightOnBtn" onclick="doFlightMode(1)">开启飞行模式</button>
+              <button class="btn btn-success py-3" id="flightOffBtn" onclick="doFlightMode(0)">关闭飞行模式</button>
+              <button class="btn btn-gray py-3" id="flightQueryBtn" onclick="doFlightMode(-1)">查询当前状态</button>
+            </div>
+            <div id="flightResult" class="result-card mt-4">
+              <div class="text-slate-500 text-sm">点击上方按钮操作...</div>
+            </div>
           </div>
         </div>
 
         <div id="tab-at" class="tab-content hidden">
-          <div class="mb-3">
-            <div class="flex gap-2 mb-2">
+          <div class="content-card mb-3">
+            <div class="section-kicker">AT 终端</div>
+            <div class="input-action-row mb-2">
               <input type="text" id="atCmdInput" placeholder="输入 AT 指令，如: AT+CSQ" onkeydown="if(event.key==='Enter')sendAtCmd()">
               <button class="btn btn-primary" id="atSendBtn" onclick="sendAtCmd()">发送</button>
               <button class="btn btn-gray" onclick="clearAtLog()">清空</button>
             </div>
-          </div>
-          <div id="atLog" class="at-log"><span style="color:#6b7280">AT 终端就绪，输入指令后按发送...</span></div>
-          <div class="mt-2 flex flex-wrap gap-2">
-            <button class="btn btn-gray btn-sm" onclick="quickAt('ATI')">ATI</button>
-            <button class="btn btn-gray btn-sm" onclick="quickAt('AT+CSQ')">AT+CSQ</button>
-            <button class="btn btn-gray btn-sm" onclick="quickAt('AT+CIMI')">AT+CIMI</button>
-            <button class="btn btn-gray btn-sm" onclick="quickAt('AT+ICCID')">AT+ICCID</button>
-            <button class="btn btn-gray btn-sm" onclick="quickAt('AT+CNUM')">AT+CNUM</button>
-            <button class="btn btn-gray btn-sm" onclick="quickAt('AT+COPS?')">AT+COPS?</button>
-            <button class="btn btn-gray btn-sm" onclick="quickAt('AT+CEREG?')">AT+CEREG?</button>
-            <button class="btn btn-gray btn-sm" onclick="quickAt('AT+CGACT?')">AT+CGACT?</button>
+            <div id="atLog" class="at-log mt-4"><span style="color:#6b7280">AT 终端就绪，输入指令后按发送...</span></div>
+            <div class="quick-actions mt-3">
+              <button class="btn btn-chip btn-sm" onclick="quickAt('ATI')">ATI</button>
+              <button class="btn btn-chip btn-sm" onclick="quickAt('AT+CSQ')">AT+CSQ</button>
+              <button class="btn btn-chip btn-sm" onclick="quickAt('AT+CIMI')">AT+CIMI</button>
+              <button class="btn btn-chip btn-sm" onclick="quickAt('AT+ICCID')">AT+ICCID</button>
+              <button class="btn btn-chip btn-sm" onclick="quickAt('AT+CNUM')">AT+CNUM</button>
+              <button class="btn btn-chip btn-sm" onclick="quickAt('AT+COPS?')">AT+COPS?</button>
+              <button class="btn btn-chip btn-sm" onclick="quickAt('AT+CEREG?')">AT+CEREG?</button>
+              <button class="btn btn-chip btn-sm" onclick="quickAt('AT+CGACT?')">AT+CGACT?</button>
+            </div>
           </div>
         </div>
 
         <div id="tab-schedule" class="tab-content hidden">
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div>
-              <div class="bg-slate-800 rounded-lg p-4">
-                <h3 class="text-lg font-medium text-white mb-4">📝 新建定时任务</h3>
+               <div class="content-card">
+                 <div class="section-kicker">新建任务</div>
+                 <h3 class="text-lg font-medium text-slate-900 mb-4">新建定时任务</h3>
+                <div class="form-row">
+                  <label>任务类型</label>
+                  <select id="scheduleTaskType" onchange="onScheduleTypeChange()">
+                    <option value="sms">定时发送短信</option>
+                    <option value="traffic">定时消耗流量</option>
+                  </select>
+                </div>
+                <div id="scheduleSmsFields">
                 <div class="form-row">
                   <label>目标号码</label>
                   <input type="text" id="schedulePhone" placeholder="13800138000">
@@ -605,8 +1102,15 @@
                   <label>短信内容</label>
                   <textarea id="scheduleContent" rows="3" placeholder="请输入短信内容..."></textarea>
                 </div>
+                </div>
+                <div id="scheduleTrafficFields" class="hidden">
+                  <div class="form-row">
+                    <label>目标流量 (KB)</label>
+                    <input type="number" id="scheduleTrafficKb" min="1" max="10240" value="128" placeholder="1-10240">
+                  </div>
+                </div>
                 <div class="form-row">
-                  <label>发送类型</label>
+                  <label>执行类型</label>
                   <select id="scheduleTypeNew" onchange="onScheduleTypeChange()">
                     <option value="once">一次性发送</option>
                     <option value="interval">周期发送</option>
@@ -619,22 +1123,23 @@
                 <div id="intervalForm" class="hidden">
                   <div class="form-row">
                     <label>发送间隔</label>
-                    <div class="flex items-center gap-2 flex-wrap">
-                      <span>每</span>
-                      <input type="number" id="scheduleIntervalDays" value="7" min="1" max="365" style="width: 70px">
-                      <span>天</span>
-                      <span>执行，时间固定为首日</span>
-                    </div>
-                  </div>
-                </div>
-                <button class="btn btn-primary w-full mt-2" id="createScheduleBtn" onclick="doCreateSchedule()">📅 创建定时任务</button>
-              </div>
-            </div>
-            <div>
-              <div class="bg-slate-800 rounded-lg p-4">
+                      <div class="toolbar-row">
+                        <span class="text-slate-500">每</span>
+                        <input type="number" id="scheduleIntervalDays" value="7" min="1" max="365" style="width: 70px">
+                        <span class="text-slate-500">天</span>
+                       <span class="text-slate-400 text-sm">执行，时间固定为首日</span>
+                     </div>
+                   </div>
+                 </div>
+                 <button class="btn btn-primary w-full mt-2" id="createScheduleBtn" onclick="doCreateSchedule()">创建定时任务</button>
+               </div>
+             </div>
+             <div>
+               <div class="content-card">
+                 <div class="section-kicker">任务列表</div>
                 <div class="flex items-center justify-between mb-3">
-                  <span class="font-medium text-white">📋 任务列表 (<span id="scheduleCount">0</span>)</span>
-                  <button class="btn btn-gray btn-sm" onclick="loadScheduleList()">🔄 刷新</button>
+                   <span class="font-medium text-slate-900">任务列表 (<span id="scheduleCount">0</span>)</span>
+                  <button class="btn btn-gray btn-sm" onclick="loadScheduleList()">刷新</button>
                 </div>
                 <div id="scheduleList" class="space-y-2 max-h-[400px] overflow-y-auto">
                   <div class="text-slate-500 text-sm text-center py-8">暂无定时任务</div>
@@ -650,26 +1155,26 @@
   <div id="scheduleDetailModal" class="modal-overlay hidden">
     <div class="modal" style="max-width: 550px;">
       <div class="flex items-center justify-between mb-4">
-        <h3 class="text-xl font-bold text-white">⏰ 任务详情</h3>
-        <button class="text-slate-400 hover:text-white text-2xl leading-none" onclick="closeScheduleDetail()">&times;</button>
+        <h3 class="text-xl font-semibold text-slate-900">任务详情</h3>
+        <button class="text-slate-400 hover:text-slate-900 text-2xl leading-none" onclick="closeScheduleDetail()">&times;</button>
       </div>
-      <div id="scheduleDetailInfo" class="bg-slate-900 rounded-lg p-4 mb-4">
+      <div id="scheduleDetailInfo" class="bg-white/70 rounded-2xl p-4 mb-4 border border-slate-200 shadow-sm">
       </div>
-      <h4 class="text-sm font-medium text-slate-300 mb-2">📋 执行历史</h4>
-      <div id="scheduleHistoryList" class="bg-slate-900 rounded-lg p-3 space-y-1 max-h-48 overflow-y-auto text-sm">
+      <h4 class="text-sm font-medium text-slate-600 mb-2">执行历史</h4>
+      <div id="scheduleHistoryList" class="bg-white/70 rounded-2xl p-3 space-y-1 max-h-48 overflow-y-auto text-sm border border-slate-200 shadow-sm">
       </div>
-      <div class="flex gap-2 mt-4">
-        <button id="pauseScheduleBtn" class="btn btn-warning flex-1" onclick="toggleSchedulePause()">⏸ 暂停</button>
-        <button id="deleteScheduleBtn" class="btn btn-danger flex-1" onclick="deleteCurrentSchedule()">🗑 删除</button>
+      <div class="modal-actions mt-4">
+        <button id="pauseScheduleBtn" class="btn btn-warning flex-1" onclick="toggleSchedulePause()">暂停</button>
+        <button id="deleteScheduleBtn" class="btn btn-danger flex-1" onclick="deleteCurrentSchedule()">删除</button>
       </div>
     </div>
   </div>
 
   <div id="confirmModal" class="modal-overlay hidden">
     <div class="modal text-center">
-      <h3 class="text-xl font-bold text-white mb-2" id="confirmTitle">确认操作</h3>
+      <h3 class="text-xl font-semibold text-slate-900 mb-2" id="confirmTitle">确认操作</h3>
       <p class="text-slate-400 mb-4" id="confirmBody"></p>
-      <div class="flex gap-3 justify-center">
+      <div class="modal-actions justify-center">
         <button class="btn btn-gray" onclick="closeConfirm()">取消</button>
         <button class="btn btn-danger" id="confirmBtn" onclick="doConfirm()">确认</button>
       </div>
@@ -691,13 +1196,13 @@
     let pendingConfirm = null;
     let serverTimeInterval = null;
     let currentFirmwareVersion = null;
-    let recentSmsList = [];
+    let outboundSmsList = [];
     let currentPage = 1;
     let totalMessagesCount = 0;
     let totalPages = 1;
     let hasMoreMessages = false;
     let newMessagesCount = 0;
-
+    const MESSAGE_PAGE_SIZE = 6;
     function setCurrentFirmwareDisplay(value = '-') {
       const currentFirmwareEl = document.getElementById('currentFirmware');
       if (currentFirmwareEl) {
@@ -902,25 +1407,13 @@
       if (data.type === 'init') {
         devices = data.devices || [];
         try {
-          const res = await fetch('/api/messages?page=1&pageSize=10', { credentials: 'include', headers: authHeader() });
-          const msgData = await res.json();
-          if (msgData.success && msgData.messages) {
-            messages = msgData.messages;
-            totalMessagesCount = msgData.pagination?.total || messages.length;
-            totalPages = msgData.pagination?.totalPages || 1;
-            hasMoreMessages = msgData.pagination?.hasMore || false;
-          } else {
-            messages = data.messages || [];
-            totalMessagesCount = messages.length;
-            totalPages = 1;
-            hasMoreMessages = messages.length >= 10;
-          }
+          await loadMessagesPage(1, currentFilters);
         } catch (e) {
           console.error('获取消息列表失败:', e);
           messages = data.messages || [];
           totalMessagesCount = messages.length;
           totalPages = 1;
-          hasMoreMessages = messages.length >= 10;
+          hasMoreMessages = messages.length >= MESSAGE_PAGE_SIZE;
         }
         currentPage = 1;
         newMessagesCount = 0;
@@ -931,28 +1424,23 @@
         devices = data.devices || [];
         renderDevices();
       } else if (data.type === 'sms') {
-        messages.unshift(data.sms);
-        if (messages.length > 200) messages.pop();
-        clearPushStatusCache();
-        
-        if (currentFilters.search || currentFilters.device || currentFilters.status) {
-          filteredMessages = messages.filter(m => {
-            const matchSearch = !currentFilters.search || 
-              ((m.text && m.text.toLowerCase().includes(currentFilters.search)) ||
-               (m.sender && m.sender.includes(currentFilters.search)) ||
-               (m.phone && m.phone.includes(currentFilters.search)));
-            const matchDevice = !currentFilters.device || m.mac === currentFilters.device;
-            return matchSearch && matchDevice;
-          });
-        } else {
-          filteredMessages = [...messages];
+        if (data.sms?.direction === 'outbound') {
+          outboundSmsList.unshift(data.sms);
+          if (outboundSmsList.length > 20) outboundSmsList.pop();
+          renderRecentSms();
         }
-        
-        if (currentPage > 1) {
+        clearPushStatusCache();
+        const hasFilter = !!(currentFilters.search || currentFilters.device || currentFilters.status);
+        if (currentPage > 1 || hasFilter) {
           newMessagesCount++;
           updateNewMsgIndicator();
         } else {
-          renderMessageCards();
+          try {
+            await loadMessagesPage(1, currentFilters);
+            renderMessageCards();
+          } catch (e) {
+            console.error('刷新第一页消息失败:', e);
+          }
         }
         loadStats();
       } else if (data.type === 'resp') {
@@ -960,13 +1448,13 @@
       } else if (data.type === 'schedule') {
         const { event, data: eventData } = data;
         if (event === 'executed') {
-          showToast(`⏰ ${eventData.message}`, 'info');
+          showToast(eventData.message, 'info');
           loadScheduleList();
         } else if (event === 'completed') {
-          showToast(`✅ ${eventData.message}`, 'success');
+          showToast(eventData.message, 'success');
           loadScheduleList();
         } else if (event === 'failed') {
-          showToast(`❌ ${eventData.message}`, 'error');
+          showToast(eventData.message, 'error');
           loadScheduleList();
         }
       }
@@ -979,6 +1467,24 @@
       }
     }
 
+    function getSignalStrengthInfo(rssi) {
+      const value = Number(rssi);
+      if (!Number.isFinite(value)) {
+        return { text: '-', title: '无信号数据' };
+      }
+
+      const percent = Math.max(0, Math.min(100, Math.round(((value + 110) / 60) * 100)));
+      let level = '较弱';
+      if (value >= -65) level = '很强';
+      else if (value >= -75) level = '良好';
+      else if (value >= -85) level = '一般';
+
+      return {
+        text: `${level} (${percent}%)`,
+        title: `${value} dBm`
+      };
+    }
+
     function renderDevices() {
       const list = document.getElementById('deviceList');
       const online = devices.filter(d => d.online);
@@ -988,27 +1494,93 @@
       document.getElementById('statOffline').textContent = offline.length;
       
       if (devices.length === 0) {
-        list.innerHTML = '<div class="text-slate-500 text-sm py-4 text-center col-span-2">暂无设备连接</div>';
+        updateToolboxDeviceSelector();
+        list.innerHTML = '<div class="text-slate-500 text-sm py-8 text-center">暂无设备连接</div>';
         return;
       }
 
       ensureSelectedDevice();
+      updateToolboxDeviceSelector();
       
-      list.innerHTML = devices.map(d => `
-        <div class="device-card bg-slate-700 rounded-lg p-3 border-2 ${d.online ? 'border-green-600' : 'border-slate-600'} ${selectedMac === d.mac ? 'selected' : ''}" onclick="selectDevice('${d.mac}', true)">
-          <div class="flex items-center justify-between mb-2">
-            <div class="flex items-center gap-2">
-              <span class="w-2.5 h-2.5 rounded-full ${d.online ? 'bg-green-500 online-dot' : 'bg-slate-500'}"></span>
-              <span class="font-mono text-xs text-slate-300">${d.mac.substring(0, 12)}</span>
+      list.innerHTML = devices.map(d => {
+        const signalInfo = getSignalStrengthInfo(d.rssi);
+        return `
+          <div class="device-card p-4 ${selectedMac === d.mac ? 'selected' : ''}" onclick="selectDevice('${d.mac}', true)">
+            <div class="flex items-start justify-between mb-3 gap-3">
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="w-2.5 h-2.5 rounded-full ${d.online ? 'bg-green-500 online-dot' : 'bg-slate-500'}"></span>
+                <span class="font-mono text-xs text-slate-500 truncate">${d.mac.substring(0, 12)}</span>
+              </div>
+              <span class="text-xs px-2.5 py-1 rounded-full ${d.online ? 'bg-green-900 text-green-400' : 'bg-slate-100 text-slate-500'}">${d.online ? '在线' : '离线'}</span>
             </div>
-            <span class="text-xs ${d.online ? 'text-green-400' : 'text-slate-500'}">${d.online ? '在线' : '离线'}</span>
+            <div class="space-y-2 text-sm text-slate-500">
+              <div class="flex items-center justify-between gap-3"><span>IP</span><span class="text-slate-900 text-right">${d.ip || '-'}</span></div>
+              <div class="flex items-center justify-between gap-3"><span>手机号</span><span class="text-slate-900 text-right">${d.phone || '-'}</span></div>
+              <div class="flex items-center justify-between gap-3"><span>信号强度</span><span class="text-slate-900 text-right" title="${escapeAttr(signalInfo.title)}">${escapeHtml(signalInfo.text)}</span></div>
+            </div>
           </div>
-          <div class="space-y-1 text-xs text-slate-400">
-            <div>IP: <span class="text-slate-200">${d.ip || '-'}</span></div>
-            ${d.rssi ? `<div>RSSI: <span class="text-slate-200">${d.rssi} dBm</span></div>` : ''}
-          </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
+    }
+
+    function getToolboxDeviceLabel(device) {
+      const macShort = (device.mac || '').substring(0, 12);
+      const phone = device.phone || '-';
+      const status = device.online ? '在线' : '离线';
+      return `${macShort} | ${phone} | ${status}`;
+    }
+
+    function getScheduleDeviceLabel(mac) {
+      const device = devices.find(d => d.mac === mac);
+      if (!device) return mac || '-';
+      const macShort = (device.mac || '').substring(0, 12);
+      return device.phone ? `${device.phone} | ${macShort}` : macShort;
+    }
+
+    function updateToolboxDeviceSelector() {
+      const select = document.getElementById('toolboxDeviceSelect');
+      if (!select) return;
+      const previousValue = select.value;
+
+      if (devices.length === 0) {
+        select.innerHTML = '<option value="">暂无可用设备</option>';
+        select.value = '';
+        select.disabled = true;
+        return;
+      }
+
+      select.disabled = false;
+      select.innerHTML = devices.map(d =>
+        `<option value="${escapeAttr(d.mac)}">${escapeHtml(getToolboxDeviceLabel(d))}</option>`
+      ).join('');
+
+      if (selectedMac && devices.some(d => d.mac === selectedMac)) {
+        select.value = selectedMac;
+      } else if (previousValue && devices.some(d => d.mac === previousValue)) {
+        select.value = previousValue;
+      }
+    }
+
+    function handleToolboxDeviceChange(mac) {
+      if (!mac) return;
+      if (mac === selectedMac) return;
+      selectDevice(mac, false);
+    }
+
+    function isDeviceRoaming(device) {
+      return !!(device && device.status && device.status.network && device.status.network.roaming);
+    }
+
+    function getSelectedDevice() {
+      if (!selectedMac) return null;
+      return devices.find(d => d.mac === selectedMac) || null;
+    }
+
+    function ensureTrafficAllowed(operationLabel = '该操作') {
+      const device = getSelectedDevice();
+      if (device && isDeviceRoaming(device)) {
+        throw new Error(`设备处于漫游状态，已禁止${operationLabel}`);
+      }
     }
 
     function getDefaultDevice(preferOnline = true) {
@@ -1032,8 +1604,36 @@
       }
 
       selectedMac = null;
-      document.getElementById('selectedDeviceLabel').textContent = '暂无可用设备';
+      updateToolboxDeviceSelector();
       return null;
+    }
+
+    function buildMessageQueryParams(page = 1, filters = currentFilters) {
+      const params = new URLSearchParams({ page: String(page), pageSize: String(MESSAGE_PAGE_SIZE) });
+      if (filters.search) params.append('search', filters.search);
+      if (filters.device) params.append('device', filters.device);
+      if (filters.status) params.append('status', filters.status);
+      return params;
+    }
+
+    function scrollMessageViewportToTop() {
+      const viewport = document.getElementById('msgViewport');
+      if (viewport) viewport.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    async function loadMessagesPage(page = 1, filters = currentFilters) {
+      const res = await fetch(`/api/messages?${buildMessageQueryParams(page, filters)}`, { credentials: 'include', headers: authHeader() });
+      const data = await res.json();
+      if (!data.success || !data.messages) {
+        throw new Error(data.message || '加载消息失败');
+      }
+      messages = data.messages;
+      filteredMessages = [...messages];
+      totalMessagesCount = data.pagination?.total || messages.length;
+      totalPages = data.pagination?.totalPages || 1;
+      hasMoreMessages = data.pagination?.hasMore || false;
+      currentPage = data.pagination?.page || page;
+      return data;
     }
 
     async function renderMessages() {
@@ -1048,29 +1648,15 @@
       currentFilters.device = document.getElementById('msgDeviceFilter').value;
       currentFilters.status = document.getElementById('msgStatusFilter').value;
       
-      const params = new URLSearchParams({ page: 1, pageSize: 10 });
-      if (currentFilters.search) params.append('search', currentFilters.search);
-      if (currentFilters.device) params.append('device', currentFilters.device);
-      if (currentFilters.status) params.append('status', currentFilters.status);
-      
       try {
-        const res = await fetch(`/api/messages?${params}`, { credentials: 'include', headers: authHeader() });
-        const data = await res.json();
-        
-        if (data.success && data.messages) {
-          messages = data.messages;
-          filteredMessages = [...messages];
-          totalMessagesCount = data.pagination?.total || messages.length;
-          totalPages = data.pagination?.totalPages || 1;
-          hasMoreMessages = data.pagination?.hasMore || false;
-          currentPage = 1;
-        }
+        await loadMessagesPage(1, currentFilters);
       } catch (e) {
         console.error('筛选消息失败:', e);
       }
       
       newMessagesCount = 0;
       updateNewMsgIndicator();
+      scrollMessageViewportToTop();
       renderMessageCards();
     }
 
@@ -1085,31 +1671,25 @@
       updateNewMsgIndicator();
       
       try {
-        const res = await fetch('/api/messages?page=1&pageSize=10', { credentials: 'include', headers: authHeader() });
-        const data = await res.json();
-        
-        if (data.success && data.messages) {
-          messages = data.messages;
-          filteredMessages = [...messages];
-          totalMessagesCount = data.pagination?.total || messages.length;
-          totalPages = data.pagination?.totalPages || 1;
-          hasMoreMessages = data.pagination?.hasMore || false;
-        }
+        await loadMessagesPage(1, currentFilters);
       } catch (e) {
         console.error('重置筛选失败:', e);
       }
       
+      scrollMessageViewportToTop();
       renderMessageCards();
     }
 
     async function renderMessageCards() {
       const container = document.getElementById('msgContainer');
+      const paginationEl = document.getElementById('msgPagination');
       const hasFilter = currentFilters.search || currentFilters.device || currentFilters.status;
       
       updateDeviceFilterOptions();
       
       if (filteredMessages.length === 0) {
-        container.innerHTML = `<div class="text-slate-500 text-sm text-center py-8 msg-card-empty">${hasFilter ? '没有匹配的消息记录' : '暂无短信记录'}</div>` + getPaginationHtml();
+        container.innerHTML = `<div class="text-slate-500 text-sm text-center py-8 msg-card-empty">${hasFilter ? '没有匹配的消息记录' : '暂无短信记录'}</div>`;
+        paginationEl.innerHTML = getPaginationHtml();
         document.getElementById('msgCount').textContent = '(0)';
         return;
       }
@@ -1149,8 +1729,8 @@
           const s = pushStatus[ch];
           const name = channelNames[ch] || ch;
           if (!s || s.status === 'pending') return `<span class="push-badge pending" title="推送中">${name}...</span>`;
-          if (s.status === 'success') return `<span class="push-badge success" title="推送成功">✅ ${name}</span>`;
-          if (s.status === 'failed') return `<span class="push-badge failed" title="${s.error || '推送失败'}">❌ ${name}</span>`;
+          if (s.status === 'success') return `<span class="push-badge success" title="推送成功">${name}</span>`;
+          if (s.status === 'failed') return `<span class="push-badge failed" title="${s.error || '推送失败'}">${name}</span>`;
           return '';
         }).join(' ');
         
@@ -1158,6 +1738,7 @@
         
         const isOnline = devices.some(d => d.mac === m.mac && d.online);
         const senderDisplay = formatPhone(m.sender);
+        const receiverDisplay = m.phone ? String(m.phone) : '-';
         const timeStr = formatTimeStr(m.receivedAt || m.timestamp);
         const isLongText = m.text && m.text.length > 80;
         const deviceMac = m.mac || '';
@@ -1172,23 +1753,24 @@
           </div>
           <div class="msg-card-body">
             <div class="flex items-center gap-2 mb-2 flex-wrap">
-              <span class="text-xs bg-green-900/50 text-green-300 px-2 py-0.5 rounded">📱 ${escapeHtml(senderDisplay)}</span>
-              ${m.phone ? `<span class="text-xs text-slate-500">→ ${escapeHtml(m.phone)}</span>` : ''}
+              <span class="msg-party-badge sender">发件人 ${escapeHtml(senderDisplay)}</span>
+              <span class="msg-party-badge receiver">收件人 ${escapeHtml(receiverDisplay)}</span>
             </div>
             <div class="msg-card-text">${escapeHtml(m.text||'')}</div>
-            ${isLongText ? `<button class="text-xs text-blue-400 mt-1 hover:underline" onclick="event.stopPropagation();this.previousElementSibling.classList.toggle('expanded');this.textContent=this.previousElementSibling.classList.contains('expanded')?'收起':'展开全部'">展开全部</button>` : ''}
+            ${isLongText ? `<button class="text-xs text-blue-400 mt-2 hover:underline" onclick="event.stopPropagation();this.previousElementSibling.classList.toggle('expanded');this.textContent=this.previousElementSibling.classList.contains('expanded')?'收起':'展开全部'">展开全部</button>` : ''}
           </div>
           <div class="msg-card-footer">
-            <div class="flex flex-wrap gap-1">${statusHtml || '<span class="text-slate-500 text-xs">未配置推送</span>'}</div>
+            <div class="flex flex-wrap gap-1.5">${statusHtml || '<span class="text-slate-500 text-xs">未配置推送</span>'}</div>
             <div class="flex items-center gap-2">
-              ${hasFailed ? `<button class="btn btn-warning btn-xs" onclick="event.stopPropagation();retryPushForSms(${m.id});delete pushStatusCache[${m.id}]">🔄 重推</button>` : ''}
+              ${hasFailed ? `<button class="btn btn-warning btn-xs" onclick="event.stopPropagation();retryPushForSms(${m.id});delete pushStatusCache[${m.id}]">重推</button>` : ''}
             </div>
           </div>
         </div>`);
       }
       
       document.getElementById('msgCount').textContent = `(${totalMessagesCount})`;
-      container.innerHTML = (cards.length > 0 ? cards.join('') : '<div class="text-slate-500 text-sm text-center py-8 msg-card-empty">没有匹配的消息记录</div>') + getPaginationHtml();
+      container.innerHTML = cards.length > 0 ? cards.join('') : '<div class="text-slate-500 text-sm text-center py-8 msg-card-empty">没有匹配的消息记录</div>';
+      paginationEl.innerHTML = getPaginationHtml();
     }
     
     function getPaginationHtml() {
@@ -1255,25 +1837,10 @@
       newMessagesCount = 0;
       updateNewMsgIndicator();
       
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      
       try {
-        const params = new URLSearchParams({ page: page, pageSize: 10 });
-        if (currentFilters.search) params.append('search', currentFilters.search);
-        if (currentFilters.device) params.append('device', currentFilters.device);
-        if (currentFilters.status) params.append('status', currentFilters.status);
-        
-        const res = await fetch(`/api/messages?${params}`, { credentials: 'include', headers: authHeader() });
-        const data = await res.json();
-        
-        if (data.success && data.messages) {
-          messages = data.messages;
-          filteredMessages = [...messages];
-          totalMessagesCount = data.pagination?.total || messages.length;
-          totalPages = data.pagination?.totalPages || 1;
-          hasMoreMessages = data.pagination?.hasMore || false;
-          renderMessageCards();
-        }
+        await loadMessagesPage(page, currentFilters);
+        scrollMessageViewportToTop();
+        renderMessageCards();
       } catch (e) {
         console.error('跳转页面失败:', e);
       }
@@ -1297,8 +1864,8 @@
         el.id = 'newMsgIndicator';
         el.className = 'hidden';
         el.innerHTML = `<div class="fixed bottom-24 right-6 z-50 cursor-pointer" onclick="scrollToTop()">
-          <div class="bg-blue-600 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 hover:bg-blue-700 transition-colors">
-            <span>⬆</span>
+          <div class="glass-card text-slate-900 px-4 py-2 rounded-full shadow-lg flex items-center gap-2 hover:bg-white transition-colors">
+            <span>↑</span>
             <span id="newMsgCount">0</span>
             <span>条新消息</span>
           </div>
@@ -1316,11 +1883,14 @@
     }
     
     function scrollToTop() {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      currentPage = 1;
       newMessagesCount = 0;
       updateNewMsgIndicator();
-      renderMessageCards();
+      if (currentPage === 1) {
+        scrollMessageViewportToTop();
+        renderMessageCards();
+        return;
+      }
+      goToPage(1);
     }
 
     function updateDeviceFilterOptions() {
@@ -1338,10 +1908,7 @@
 
     function formatPhone(phone) {
       if (!phone) return '-';
-      if (phone.length > 7) {
-        return phone.substring(0, 3) + '****' + phone.substring(phone.length - 4);
-      }
-      return phone;
+      return String(phone);
     }
 
     function clearPushStatusCache() {
@@ -1402,7 +1969,7 @@
     function selectDevice(mac, switchToSmsTab = true, silent = false) {
       selectedMac = mac;
       const dev = devices.find(d => d.mac === mac);
-      document.getElementById('selectedDeviceLabel').textContent = dev ? `${mac.substring(0, 12)} (${dev.ip || '?'})` : mac.substring(0, 12);
+      updateToolboxDeviceSelector();
       document.getElementById('toolboxSection').classList.remove('hidden');
       renderDevices();
       if (switchToSmsTab) {
@@ -1417,11 +1984,11 @@
 
     function deselectDevice() {
       selectedMac = null;
-      document.getElementById('selectedDeviceLabel').textContent = '未选择设备';
+      updateToolboxDeviceSelector();
       renderDevices();
     }
 
-    const deviceTabs = ['sms', 'query', 'ping', 'flight', 'at', 'schedule'];
+    const deviceTabs = ['sms', 'query', 'status', 'selftest', 'ping', 'flight', 'at', 'schedule'];
 
     function requireDevice() {
       const device = ensureSelectedDevice(true, true);
@@ -1449,15 +2016,22 @@
       document.querySelectorAll(`.tab-btn[data-tab="${tab}"]`).forEach(b => b.classList.add('active'));
       document.querySelectorAll('.tab-content').forEach(c => {
         c.classList.add('hidden');
+        c.classList.remove('tab-enter');
         c.scrollTop = 0;
       });
       const el = document.getElementById(`tab-${tab}`);
       if (el) {
         el.classList.remove('hidden');
+        el.classList.add('tab-enter');
         el.scrollTop = 0;
+        requestAnimationFrame(() => {
+          setTimeout(() => el.classList.remove('tab-enter'), 320);
+        });
       }
       if (tab === 'schedule') {
         loadScheduleList();
+      } else if (tab === 'sms') {
+        loadOutboundSmsHistory();
       }
     }
 
@@ -1482,6 +2056,10 @@
         const dev = devices.find(d => d.mac === selectedMac);
         if (!dev?.online) {
           reject(new Error('设备不在线'));
+          return;
+        }
+        if (action === 'consume_traffic' && isDeviceRoaming(dev)) {
+          reject(new Error('设备处于漫游状态，已禁止执行消耗流量的操作'));
           return;
         }
         
@@ -1558,19 +2136,23 @@
           document.getElementById('smsPhone').value = '';
           document.getElementById('smsContent').value = '';
           document.getElementById('smsCharCount').textContent = '0';
-          addToRecentSms(phone, content);
         } else {
           showToast(result?.message || '短信发送失败', 'error');
         }
       } catch (e) {
         showToast(e.message, 'error');
+      } finally {
+        loadOutboundSmsHistory();
       }
       btn.disabled = false;
-      btn.innerHTML = '📨 立即发送';
+      btn.innerHTML = '立即发送';
     }
 
     function onScheduleTypeChange() {
+      const taskType = document.getElementById('scheduleTaskType').value;
       const type = document.getElementById('scheduleTypeNew').value;
+      document.getElementById('scheduleSmsFields').classList.toggle('hidden', taskType !== 'sms');
+      document.getElementById('scheduleTrafficFields').classList.toggle('hidden', taskType !== 'traffic');
       document.getElementById('intervalForm').classList.toggle('hidden', type !== 'interval');
     }
 
@@ -1578,12 +2160,21 @@
       if (!requireDevice()) return;
       const phone = document.getElementById('schedulePhone').value.trim();
       const content = document.getElementById('scheduleContent').value.trim();
+      const taskType = document.getElementById('scheduleTaskType').value;
+      const trafficKb = parseInt(document.getElementById('scheduleTrafficKb').value || '0', 10);
       const scheduledTime = document.getElementById('scheduleTimeNew').value;
       const scheduleType = document.getElementById('scheduleTypeNew').value;
       const intervalDays = scheduleType === 'interval' ? parseInt(document.getElementById('scheduleIntervalDays').value || '7') : 0;
       
-      if (!phone) { showToast('请输入目标号码', 'warning'); return; }
-      if (!content) { showToast('请输入短信内容', 'warning'); return; }
+      if (taskType === 'sms') {
+        if (!phone) { showToast('请输入目标号码', 'warning'); return; }
+        if (!content) { showToast('请输入短信内容', 'warning'); return; }
+      } else {
+        if (!Number.isFinite(trafficKb) || trafficKb < 1 || trafficKb > 10240) {
+          showToast('目标流量需在 1-10240KB 之间', 'warning');
+          return;
+        }
+      }
       if (!scheduledTime) { showToast('请选择发送时间', 'warning'); return; }
       if (scheduleType === 'interval' && intervalDays < 1) {
         showToast('间隔天数至少为1', 'warning'); return;
@@ -1603,8 +2194,10 @@
           headers: { 'Content-Type': 'application/json', ...authHeader() },
           body: JSON.stringify({
             mac: selectedMac,
-            phone,
-            content,
+            task_type: taskType,
+            phone: taskType === 'sms' ? phone : '-',
+            content: taskType === 'sms' ? content : '[TRAFFIC_TASK]',
+            traffic_kb: taskType === 'traffic' ? trafficKb : 0,
             schedule_type: scheduleType,
             scheduled_time: scheduledTime,
             hour,
@@ -1618,9 +2211,11 @@
           showToast('定时任务已创建', 'success');
           document.getElementById('schedulePhone').value = '';
           document.getElementById('scheduleContent').value = '';
+          document.getElementById('scheduleTrafficKb').value = '128';
+          document.getElementById('scheduleTaskType').value = 'sms';
           document.getElementById('scheduleTimeNew').value = '';
           document.getElementById('scheduleTypeNew').value = 'once';
-          document.getElementById('intervalForm').classList.add('hidden');
+          onScheduleTypeChange();
           loadScheduleList();
         } else {
           showToast(data.message || '创建失败', 'error');
@@ -1629,13 +2224,12 @@
         showToast('请求失败', 'error');
       }
       btn.disabled = false;
-      btn.innerHTML = '📅 创建定时任务';
+      btn.innerHTML = '创建定时任务';
     }
 
     async function loadScheduleList() {
-      if (!selectedMac) return;
       try {
-        const resp = await fetch(`/api/schedule?mac=${selectedMac}`, { headers: authHeader() });
+        const resp = await fetch('/api/schedule', { headers: authHeader() });
         const data = await resp.json();
         if (data.success) {
           renderScheduleList(data.tasks);
@@ -1651,7 +2245,7 @@
       countEl.textContent = tasks.length;
       
       if (tasks.length === 0) {
-        container.innerHTML = '<div class="text-slate-500 text-sm text-center py-8">暂无定时任务<br><span class="text-xs">在"发送短信"标签页添加定时任务</span></div>';
+        container.innerHTML = '<div class="text-slate-500 text-sm text-center py-8">暂无定时任务<br><span class="text-xs">可创建定时短信或定时流量消耗任务</span></div>';
         return;
       }
       
@@ -1685,15 +2279,32 @@
         } else {
           intervalText = '一次性 ' + taskTimeStr;
         }
+
+        const taskType = task.task_type === 'traffic' ? 'traffic' : 'sms';
+        const deviceLabel = getScheduleDeviceLabel(task.mac);
+        const targetLabel = taskType === 'traffic'
+          ? `流量 ${task.traffic_kb || 0}KB`
+          : task.phone;
+        const detailLabel = taskType === 'traffic'
+          ? '定时流量消耗任务'
+          : (task.content || '');
+        const typeBadge = taskType === 'traffic'
+          ? '<span class="text-[10px] px-1.5 py-0.5 rounded bg-cyan-900 text-cyan-300">流量</span>'
+          : '<span class="text-[10px] px-1.5 py-0.5 rounded bg-indigo-900 text-indigo-300">短信</span>';
         
         return `
-          <div class="bg-slate-700 rounded-lg p-3 cursor-pointer hover:bg-slate-600 transition-colors" onclick="openScheduleDetail(${task.id})">
-            <div class="flex items-center justify-between mb-1">
-              <span class="text-white font-medium">${task.phone}</span>
+          <div class="settings-card cursor-pointer hover:bg-white transition-colors" onclick="openScheduleDetail(${task.id})">
+            <div class="settings-row">
+              <div class="min-w-0">
+                <span class="text-slate-900 font-medium flex items-center gap-2">${targetLabel}${typeBadge}</span>
+                <div class="text-xs text-slate-400 truncate mt-1">设备: ${escapeHtml(deviceLabel)}</div>
+              </div>
               <span class="text-xs px-2 py-0.5 rounded ${statusClass}">${statusText}</span>
             </div>
-            <div class="text-sm text-slate-300 truncate">${task.content}</div>
-            <div class="text-xs text-slate-400 mt-1">${intervalText} | 下次: ${dateStr} ${nextTimeStr}</div>
+            <div class="px-4 pb-4">
+              <div class="text-sm text-slate-600 truncate">${detailLabel}</div>
+              <div class="text-xs text-slate-400 mt-2">${intervalText} | 下次: ${dateStr} ${nextTimeStr}</div>
+            </div>
           </div>
         `;
       }).join('');
@@ -1718,6 +2329,7 @@
     function renderScheduleDetail(task, history) {
       const infoEl = document.getElementById('scheduleDetailInfo');
       const nextRunDate = new Date(task.next_run_time);
+      const deviceLabel = getScheduleDeviceLabel(task.mac);
       const hour = task.interval_hours || 0;
       const minute = task.interval_minutes || 0;
       const timeStr = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
@@ -1739,24 +2351,24 @@
         statusHtml = '<span class="text-yellow-400">已暂停</span>';
       }
       
-      infoEl.innerHTML = `
-        <div class="grid grid-cols-2 gap-2 text-sm">
-          <div><span class="text-slate-400">目标号码:</span> ${task.phone}</div>
-          <div><span class="text-slate-400">类型:</span> ${task.schedule_type === 'interval' ? '周期发送' : '一次性'}</div>
-          ${task.schedule_type === 'interval' ? `<div><span class="text-slate-400">发送时间:</span> ${timeStr}</div>` : ''}
-          <div><span class="text-slate-400">下次执行:</span> ${nextRunDate.toLocaleDateString()} ${nextRunDate.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
-          ${task.schedule_type === 'interval' ? `<div><span class="text-slate-400">发送间隔:</span> ${intervalText}</div>` : ''}
-          <div><span class="text-slate-400">状态:</span> ${statusHtml}</div>
-          <div class="col-span-2"><span class="text-slate-400">内容:</span> ${task.content}</div>
-        </div>
-      `;
+        infoEl.innerHTML = `
+          <div class="settings-card">
+            <div class="settings-row"><div><div class="settings-title">任务类型</div><div class="settings-desc">${task.task_type === 'traffic' ? '定时流量消耗' : '定时短信'}</div></div><div>${statusHtml}</div></div>
+            <div class="settings-row"><div><div class="settings-title">执行方式</div><div class="settings-desc">${task.schedule_type === 'interval' ? '周期执行' : '一次性'}</div></div><div class="text-sm text-slate-500">${task.schedule_type === 'interval' ? intervalText : timeStr}</div></div>
+            <div class="settings-row"><div><div class="settings-title">所属设备</div><div class="settings-desc">${escapeHtml(deviceLabel)}</div></div><div class="text-sm text-slate-500">${nextRunDate.toLocaleDateString()}</div></div>
+            ${task.task_type === 'traffic'
+              ? `<div class="settings-row"><div><div class="settings-title">目标流量</div><div class="settings-desc">${task.traffic_kb || 0} KB</div></div><div class="text-sm text-slate-500">下次 ${nextRunDate.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div></div>`
+              : `<div class="settings-row"><div><div class="settings-title">目标号码</div><div class="settings-desc">${task.phone}</div></div><div class="text-sm text-slate-500">下次 ${nextRunDate.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div></div>`}
+            ${task.task_type === 'traffic' ? '' : `<div class="settings-row"><div><div class="settings-title">任务内容</div><div class="settings-desc">${task.content}</div></div></div>`}
+          </div>
+        `;
       
       const pauseBtn = document.getElementById('pauseScheduleBtn');
       if (task.schedule_type === 'once' && (task.status === 'completed' || task.status === 'failed')) {
         pauseBtn.classList.add('hidden');
       } else {
         pauseBtn.classList.remove('hidden');
-        pauseBtn.innerHTML = task.status === 'active' ? '⏸ 暂停' : '▶ 恢复';
+        pauseBtn.innerHTML = task.status === 'active' ? '暂停' : '恢复';
         pauseBtn.className = task.status === 'active' ? 'btn btn-warning flex-1' : 'btn btn-success flex-1';
       }
       
@@ -1765,14 +2377,16 @@
       
       const historyEl = document.getElementById('scheduleHistoryList');
       if (!history || history.length === 0) {
-        historyEl.innerHTML = '<div class="text-slate-500 text-center py-4">暂无执行记录</div>';
-      } else {
-        historyEl.innerHTML = history.map(h => `
-          <div class="flex items-center justify-between py-1 ${h.status === 'success' ? '' : 'text-red-400'}">
-            <span>${new Date(h.run_time).toLocaleString()}</span>
-            <span class="text-xs px-2 py-0.5 rounded ${h.status === 'success' ? 'bg-green-900 text-green-400' : 'bg-red-900 text-red-400'}">${h.status === 'success' ? '成功' : '失败'}</span>
+          historyEl.innerHTML = '<div class="text-slate-500 text-center py-4">暂无执行记录</div>';
+        } else {
+          historyEl.innerHTML = history.map(h => `
+          <div class="settings-card mb-2">
+            <div class="settings-row ${h.status === 'success' ? '' : 'text-red-400'}">
+              <span>${new Date(h.run_time).toLocaleString()}</span>
+              <span class="text-xs px-2 py-0.5 rounded ${h.status === 'success' ? 'bg-green-900 text-green-400' : 'bg-red-900 text-red-400'}">${h.status === 'success' ? '成功' : '失败'}</span>
+            </div>
+            ${h.response ? `<div class="px-4 pb-4 text-xs text-slate-500">${h.response}</div>` : ''}
           </div>
-          ${h.response ? `<div class="text-xs text-slate-500 ml-4 mb-2">${h.response}</div>` : '<div class="mb-2"></div>'}
         `).join('');
       }
     }
@@ -1825,43 +2439,62 @@
       currentScheduleId = null;
     }
 
-    function addToRecentSms(phone, content) {
-      const now = new Date();
-      const timeStr = now.toLocaleString('zh-CN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false
-      });
-      recentSmsList.unshift({ phone, content, time: timeStr });
-      if (recentSmsList.length > 10) recentSmsList.pop();
+    async function loadOutboundSmsHistory() {
+      try {
+        const params = new URLSearchParams({ page: 1, pageSize: 20, direction: 'outbound' });
+        const res = await fetch(`/api/messages?${params}`, { credentials: 'include', headers: authHeader() });
+        const data = await res.json();
+        if (data.success && data.messages) {
+          outboundSmsList = data.messages;
+        }
+      } catch (e) {
+        console.error('加载发送记录失败:', e);
+      }
       renderRecentSms();
+    }
+
+    function getOutboundSourceLabel(source) {
+      if (source === 'schedule') return '定时';
+      if (source === 'manual') return '手动';
+      return '系统';
+    }
+
+    function getOutboundStatusClass(status) {
+      if (status === 'success') return 'text-green-400';
+      if (status === 'failed') return 'text-red-400';
+      return 'text-yellow-400';
     }
 
     function renderRecentSms() {
       const list = document.getElementById('recentSmsList');
-      if (recentSmsList.length === 0) {
+      if (outboundSmsList.length === 0) {
         list.innerHTML = '<div class="text-slate-500 text-sm text-center py-4">暂无发送记录</div>';
         return;
       }
-      list.innerHTML = recentSmsList.map(s => `
-        <div class="bg-slate-800 rounded p-2 text-xs">
-          <div class="flex justify-between text-slate-400">
-            <span>${s.phone}</span>
-            <span>${s.time}</span>
+      list.innerHTML = outboundSmsList.map(s => {
+        const deviceLabel = getScheduleDeviceLabel(s.mac);
+        const timeStr = formatTimeStr(s.receivedAt || s.timestamp);
+        const errorHtml = s.errorMessage ? `<div class="text-red-400 mt-2 truncate">失败原因: ${escapeHtml(s.errorMessage)}</div>` : '';
+        return `
+        <div class="bg-white/80 rounded-2xl p-3 text-xs border border-slate-200 shadow-sm">
+          <div class="flex justify-between text-slate-400 gap-2">
+            <span class="truncate">${escapeHtml(deviceLabel)} -> ${escapeHtml(s.phone || '-')}</span>
+            <span>${escapeHtml(timeStr)}</span>
           </div>
-          <div class="text-slate-300 mt-1 truncate">${escapeHtml(s.content)}</div>
-        </div>
-      `).join('');
+          <div class="flex justify-between mt-2">
+            <span class="text-slate-500">${escapeHtml(getOutboundSourceLabel(s.source))}</span>
+            <span class="${getOutboundStatusClass(s.status)}">${escapeHtml(s.status || 'pending')}</span>
+          </div>
+          <div class="text-slate-700 mt-2 truncate leading-5">${escapeHtml(s.text || '')}</div>
+          ${errorHtml}
+        </div>`;
+      }).join('');
     }
 
     async function doQuery(type) {
       const labels = { ati: '固件信息', signal: '信号质量', siminfo: 'SIM卡信息', network: '网络状态', wifi: 'WiFi状态' };
       const resultEl = document.getElementById('queryResult');
-      resultEl.innerHTML = `<div class="text-slate-400 text-sm">正在查询 ${labels[type] || type}...</div>`;
+          resultEl.innerHTML = `<div class="result-card"><div class="text-slate-500 text-sm">正在查询 ${labels[type] || type}...</div></div>`;
       showToast(`正在查询 ${labels[type] || type}...`, 'info');
       try {
         const result = await sendCmd('query', { type });
@@ -1872,14 +2505,14 @@
               setCurrentFirmwareDisplay(currentFirmwareVersion);
             }
           }
-          resultEl.innerHTML = `<div class="text-green-400 text-sm font-medium mb-2">✅ ${labels[type] || type} 查询成功</div>${formatResultMessage(result.message)}`;
+          resultEl.innerHTML = `<div class="result-card success"><div class="text-green-400 text-sm font-medium mb-2">${labels[type] || type} 查询成功</div>${formatResultMessage(result.message)}</div>`;
           showToast(`${labels[type] || type} 查询成功`, 'success');
         } else {
-          resultEl.innerHTML = `<div class="text-red-400 text-sm">❌ 查询失败: ${result?.message || '未知错误'}</div>`;
+          resultEl.innerHTML = `<div class="result-card error"><div class="text-red-400 text-sm">查询失败: ${result?.message || '未知错误'}</div></div>`;
           showToast(result?.message || '查询失败', 'error');
         }
       } catch (e) {
-        resultEl.innerHTML = `<div class="text-red-400 text-sm">❌ ${e.message}</div>`;
+        resultEl.innerHTML = `<div class="result-card error"><div class="text-red-400 text-sm">${e.message}</div></div>`;
         showToast(e.message, 'error');
       }
     }
@@ -1889,23 +2522,23 @@
       const resultEl = document.getElementById('pingResult');
       btn.disabled = true;
       btn.innerHTML = '<span class="loading-spinner"></span> Ping 执行中...';
-      resultEl.innerHTML = '<div class="text-slate-400 text-sm">正在执行 Ping，请稍候（最长等待 35 秒）...</div>';
+      resultEl.innerHTML = '<div class="result-card"><div class="text-slate-500 text-sm">正在执行 Ping，请稍候（最长等待 35 秒）...</div></div>';
       showToast('Ping 测试执行中...', 'info', 5000);
       try {
         const result = await sendCmd('ping');
         btn.disabled = false;
-        btn.innerHTML = '📡 执行 Ping 测试';
+        btn.innerHTML = '执行 Ping 测试';
         if (result?.success) {
-          resultEl.innerHTML = `<div class="bg-green-900/30 border border-green-700 rounded-lg p-4"><span class="text-green-400 font-medium">✅ Ping 成功!</span><br><span class="text-slate-300">${escapeHtml(result.message || '')}</span></div>`;
+          resultEl.innerHTML = `<div class="result-card success"><span class="text-green-400 font-medium">Ping 成功</span><br><span class="text-slate-700">${escapeHtml(result.message || '')}</span></div>`;
           showToast('Ping 测试成功', 'success');
         } else {
-          resultEl.innerHTML = `<div class="bg-red-900/30 border border-red-700 rounded-lg p-4"><span class="text-red-400 font-medium">❌ Ping 失败</span><br><span class="text-slate-300">${escapeHtml(result?.message || '未知错误')}</span></div>`;
+          resultEl.innerHTML = `<div class="result-card error"><span class="text-red-400 font-medium">Ping 失败</span><br><span class="text-slate-700">${escapeHtml(result?.message || '未知错误')}</span></div>`;
           showToast(result?.message || 'Ping 失败', 'error');
         }
       } catch (e) {
         btn.disabled = false;
-        btn.innerHTML = '📡 执行 Ping 测试';
-        resultEl.innerHTML = `<div class="bg-red-900/30 border border-red-700 rounded-lg p-4"><span class="text-red-400">❌ ${e.message}</span></div>`;
+        btn.innerHTML = '执行 Ping 测试';
+        resultEl.innerHTML = `<div class="result-card error"><span class="text-red-400">${e.message}</span></div>`;
         showToast(e.message, 'error');
       }
     }
@@ -1918,20 +2551,20 @@
         const result = await sendCmd('flight_mode', { status });
         if (result?.success) {
           const parts = (result.message || '').split('|');
-          let html = '<div class="text-green-400 font-medium mb-2">✅ 操作成功</div><table class="w-full text-sm">';
+          let html = '<div class="text-green-400 font-medium mb-2">操作成功</div><table class="w-full text-sm">';
           parts.forEach(p => {
             const [k, ...v] = p.split('=');
-            if (k) html += `<tr><td class="text-slate-400 pr-4 py-1">${k}</td><td class="text-slate-200">${escapeHtml(v.join('='))}</td></tr>`;
+            if (k) html += `<tr><td class="text-slate-400 pr-4 py-1">${k}</td><td class="text-slate-900">${escapeHtml(v.join('='))}</td></tr>`;
           });
           html += '</table>';
           resultEl.innerHTML = html;
           showToast('飞行模式操作成功', 'success');
         } else {
-          resultEl.innerHTML = `<div class="text-red-400">❌ 操作失败: ${escapeHtml(result?.message || '未知错误')}</div>`;
+          resultEl.innerHTML = `<div class="text-red-400">操作失败: ${escapeHtml(result?.message || '未知错误')}</div>`;
           showToast(result?.message || '操作失败', 'error');
         }
       } catch (e) {
-        resultEl.innerHTML = `<div class="text-red-400">❌ ${e.message}</div>`;
+        resultEl.innerHTML = `<div class="text-red-400">${e.message}</div>`;
         showToast(e.message, 'error');
       }
     }
@@ -1972,12 +2605,12 @@
     }
 
     function formatResultMessage(msg) {
-      if (!msg) return '<div class="text-slate-300">无详细信息</div>';
+      if (!msg) return '<div class="text-slate-500">无详细信息</div>';
       const parts = msg.split('|');
       let html = '<table class="w-full text-sm">';
       parts.forEach(p => {
         const [k, ...v] = p.split('=');
-        if (k) html += `<tr><td class="text-slate-400 pr-4 py-1 whitespace-nowrap">${escapeHtml(k)}</td><td class="text-slate-200">${escapeHtml(v.join('='))}</td></tr>`;
+        if (k) html += `<tr><td class="text-slate-400 pr-4 py-1 whitespace-nowrap">${escapeHtml(k)}</td><td class="text-slate-900">${escapeHtml(v.join('='))}</td></tr>`;
       });
       html += '</table>';
       return html;
