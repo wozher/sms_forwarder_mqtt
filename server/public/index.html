@@ -219,6 +219,35 @@
       color: var(--muted);
       line-height: 1.4;
     }
+    .panel-note {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 140px;
+      padding: 24px 16px;
+      text-align: center;
+      color: var(--muted);
+      border: 1px dashed rgba(148, 163, 184, 0.35);
+      border-radius: 22px;
+      background: rgba(255,255,255,0.5);
+    }
+    .empty-state strong {
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .empty-state span {
+      font-size: 12px;
+      color: var(--muted-soft);
+      line-height: 1.5;
+    }
     .result-card {
       background: rgba(255,255,255,0.8);
       border: 1px solid rgba(15, 23, 42, 0.06);
@@ -760,7 +789,7 @@
           </div>
         </div>
         <div id="deviceList" class="grid grid-cols-1 gap-3">
-          <div class="text-slate-500 text-sm py-8 text-center">暂无设备连接</div>
+          <div class="empty-state"><strong>暂无设备连接</strong><span>设备上线后会在这里显示状态、号码与信号信息。</span></div>
         </div>
       </section>
 
@@ -790,7 +819,7 @@
         <div class="msg-panel">
           <div id="msgViewport" class="msg-viewport msg-scroll">
             <div id="msgContainer" class="msg-grid">
-              <div class="text-slate-500 text-sm text-center py-8 msg-card-empty">暂无短信记录</div>
+              <div class="empty-state msg-card-empty"><strong>暂无短信记录</strong><span>新短信到达后，会自动出现在这里并显示推送状态。</span></div>
             </div>
           </div>
           <div id="msgPagination" class="msg-pagination"></div>
@@ -804,7 +833,7 @@
           <div>
             <div class="eyebrow">设备操作</div>
             <h2 class="text-2xl">设备工具箱</h2>
-            <p>按当前设备切换推送、发送、查询、网络测试与任务管理。</p>
+            <p>围绕当前设备完成推送配置、短信发送、状态查询与自动化任务管理。</p>
           </div>
         <div class="toolbar-row w-full sm:w-auto">
           <span class="text-sm text-slate-400 whitespace-nowrap">当前设备</span>
@@ -826,6 +855,7 @@
 
         <div id="tab-push" class="tab-content">
           <h3 class="text-lg font-semibold text-slate-900 mb-4">全局推送配置</h3>
+          <p class="panel-note mb-4">按渠道开启提醒方式，保存后新短信会自动按你的配置分发到对应平台。</p>
           
           <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             <div class="bg-white/70 rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
@@ -1006,7 +1036,7 @@
                   <button class="btn btn-gray btn-sm" onclick="loadOutboundSmsHistory()">刷新</button>
                 </div>
                 <div id="recentSmsList" class="space-y-2 max-h-72 overflow-y-auto">
-                  <div class="text-slate-500 text-sm text-center py-4">暂无发送记录</div>
+                  <div class="empty-state"><strong>暂无发送记录</strong><span>发送成功后，这里会按时间展示各设备的最近记录。</span></div>
                 </div>
               </div>
             </div>
@@ -1030,7 +1060,7 @@
               <button class="btn btn-gray" onclick="doQuery('wifi')">WiFi 状态</button>
             </div>
             <div id="queryResult" class="result-card min-h-16">
-              <div class="text-slate-500 text-sm">点击上方按钮查询模组信息...</div>
+              <div class="panel-note">选择上方任意项目后，这里会展示当前设备的查询结果。</div>
             </div>
           </div>
         </div>
@@ -1038,7 +1068,7 @@
         <div id="tab-ping" class="tab-content hidden">
           <div class="content-card max-w-xl">
             <div class="section-kicker">网络测试</div>
-             <p class="text-slate-400 text-sm mb-4">点击下方按钮执行 Ping 测试（向 8.8.8.8 发送 ICMP 包，消耗极少量流量）。</p>
+             <p class="panel-note mb-4">用于快速验证设备网络是否可达，会向公共地址发送一次轻量测试请求。</p>
             <button class="btn btn-warning w-full text-lg py-3" id="pingBtn" onclick="doPing()">执行 Ping 测试</button>
             <div id="pingResult" class="mt-4"></div>
           </div>
@@ -1053,7 +1083,7 @@
               <button class="btn btn-gray py-3" id="flightQueryBtn" onclick="doFlightMode(-1)">查询当前状态</button>
             </div>
             <div id="flightResult" class="result-card mt-4">
-              <div class="text-slate-500 text-sm">点击上方按钮操作...</div>
+              <div class="panel-note">你可以在这里查看飞行模式的切换结果和当前状态反馈。</div>
             </div>
           </div>
         </div>
@@ -1066,7 +1096,7 @@
               <button class="btn btn-primary" id="atSendBtn" onclick="sendAtCmd()">发送</button>
               <button class="btn btn-gray" onclick="clearAtLog()">清空</button>
             </div>
-            <div id="atLog" class="at-log mt-4"><span style="color:#6b7280">AT 终端就绪，输入指令后按发送...</span></div>
+            <div id="atLog" class="at-log mt-4"><span style="color:#6b7280">AT 终端已就绪，输入指令后即可查看设备响应。</span></div>
             <div class="quick-actions mt-3">
               <button class="btn btn-chip btn-sm" onclick="quickAt('ATI')">ATI</button>
               <button class="btn btn-chip btn-sm" onclick="quickAt('AT+CSQ')">AT+CSQ</button>
@@ -1141,9 +1171,9 @@
                    <span class="font-medium text-slate-900">任务列表 (<span id="scheduleCount">0</span>)</span>
                   <button class="btn btn-gray btn-sm" onclick="loadScheduleList()">刷新</button>
                 </div>
-                <div id="scheduleList" class="space-y-2 max-h-[400px] overflow-y-auto">
-                  <div class="text-slate-500 text-sm text-center py-8">暂无定时任务</div>
-                </div>
+                 <div id="scheduleList" class="space-y-2 max-h-[400px] overflow-y-auto">
+                  <div class="empty-state"><strong>暂无定时任务</strong><span>创建后可在这里集中查看状态、下次执行时间和历史记录。</span></div>
+                 </div>
               </div>
             </div>
           </div>
@@ -1495,7 +1525,7 @@
       
       if (devices.length === 0) {
         updateToolboxDeviceSelector();
-        list.innerHTML = '<div class="text-slate-500 text-sm py-8 text-center">暂无设备连接</div>';
+        list.innerHTML = '<div class="empty-state"><strong>暂无设备连接</strong><span>设备上线后会在这里显示状态、号码与信号信息。</span></div>';
         return;
       }
 
@@ -1688,7 +1718,9 @@
       updateDeviceFilterOptions();
       
       if (filteredMessages.length === 0) {
-        container.innerHTML = `<div class="text-slate-500 text-sm text-center py-8 msg-card-empty">${hasFilter ? '没有匹配的消息记录' : '暂无短信记录'}</div>`;
+        container.innerHTML = hasFilter
+          ? '<div class="empty-state msg-card-empty"><strong>没有匹配的消息记录</strong><span>试试清空筛选条件，或换一个关键词重新查看。</span></div>'
+          : '<div class="empty-state msg-card-empty"><strong>暂无短信记录</strong><span>新短信到达后，会自动出现在这里并显示推送状态。</span></div>';
         paginationEl.innerHTML = getPaginationHtml();
         document.getElementById('msgCount').textContent = '(0)';
         return;
@@ -1769,7 +1801,9 @@
       }
       
       document.getElementById('msgCount').textContent = `(${totalMessagesCount})`;
-      container.innerHTML = cards.length > 0 ? cards.join('') : '<div class="text-slate-500 text-sm text-center py-8 msg-card-empty">没有匹配的消息记录</div>';
+      container.innerHTML = cards.length > 0
+        ? cards.join('')
+        : '<div class="empty-state msg-card-empty"><strong>没有匹配的消息记录</strong><span>试试清空筛选条件，或换一个关键词重新查看。</span></div>';
       paginationEl.innerHTML = getPaginationHtml();
     }
     
@@ -2245,7 +2279,7 @@
       countEl.textContent = tasks.length;
       
       if (tasks.length === 0) {
-        container.innerHTML = '<div class="text-slate-500 text-sm text-center py-8">暂无定时任务<br><span class="text-xs">可创建定时短信或定时流量消耗任务</span></div>';
+          container.innerHTML = '<div class="empty-state"><strong>暂无定时任务</strong><span>你可以创建定时短信或定时流量消耗任务，系统会自动按计划执行。</span></div>';
         return;
       }
       
@@ -2377,7 +2411,7 @@
       
       const historyEl = document.getElementById('scheduleHistoryList');
       if (!history || history.length === 0) {
-          historyEl.innerHTML = '<div class="text-slate-500 text-center py-4">暂无执行记录</div>';
+          historyEl.innerHTML = '<div class="empty-state"><strong>暂无执行记录</strong><span>任务开始执行后，这里会保留最近的历史结果。</span></div>';
         } else {
           historyEl.innerHTML = history.map(h => `
           <div class="settings-card mb-2">
@@ -2468,7 +2502,7 @@
     function renderRecentSms() {
       const list = document.getElementById('recentSmsList');
       if (outboundSmsList.length === 0) {
-        list.innerHTML = '<div class="text-slate-500 text-sm text-center py-4">暂无发送记录</div>';
+        list.innerHTML = '<div class="empty-state"><strong>暂无发送记录</strong><span>发送成功后，这里会按时间展示各设备的最近记录。</span></div>';
         return;
       }
       list.innerHTML = outboundSmsList.map(s => {
@@ -2601,7 +2635,7 @@
     }
 
     function clearAtLog() {
-      document.getElementById('atLog').innerHTML = '<span style="color:#6b7280">AT 终端已清空...</span>';
+      document.getElementById('atLog').innerHTML = '<span style="color:#6b7280">AT 终端已清空，等待新的指令输入。</span>';
     }
 
     function formatResultMessage(msg) {
