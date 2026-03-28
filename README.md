@@ -106,7 +106,7 @@ npm start
 - 实时显示在线/离线设备数量
 - 短信总数统计
 - 服务器运行时间
-- 在线设备列表（点击选中设备）
+- 在线设备列表（显示 MAC、IP、手机号、信号强度，点击可选中）
 
 ### 2. 实时消息中心
 
@@ -115,9 +115,12 @@ npm start
 - **搜索功能**：支持按短信内容、发送者、接收号码搜索
 - **设备筛选**：按设备 MAC 地址筛选
 - **状态筛选**：按推送状态筛选（成功/失败/待推送）
+- **号码展示**：短信卡片中发件人/收件人号码高亮显示
 - **重新推送**：失败的消息支持一键重推
 
 ### 3. 设备工具箱
+
+- 顶部支持通过下拉框快速切换目标设备（MAC + SIM 手机号 + 在线状态）
 
 | 功能 | 说明 |
 |------|------|
@@ -129,11 +132,29 @@ npm start
 | AT终端 | 直接发送 AT 指令 |
 | 定时任务 | 创建、暂停、删除定时短信任务 |
 
+### 定时任务扩展
+
+- 支持同一设备创建多条定时任务
+- 支持两类任务：
+  - 定时发送短信
+  - 定时消耗流量（可设置目标 KB）
+- 漫游规则：
+  - 允许手动 Ping
+  - 允许手动短信与定时短信
+  - 允许定时流量消耗任务（人工配置视为已评估成本）
+  - 禁止临时高流量检测任务
+
 ### 4. 定时任务
 
 - **一次性任务**：指定时间发送一次短信
 - **周期任务**：按天间隔循环发送
 - **执行历史**：记录每次执行的开始时间、状态、响应
+
+### 漫游流量保护
+
+- 当设备被识别为蜂窝漫游状态时，系统会阻止消耗流量的操作
+- 当前受限操作：`consume_traffic`
+- 在 Web 前端和后端 API 均会进行拦截，避免误操作
 
 ## 配置说明
 
@@ -160,9 +181,12 @@ npm start
 | `send_sms` | `{phone, content}` | 发送短信 |
 | `ping` | `{}` | Ping 测试 |
 | `query` | `{type}` | 信息查询 |
+| `consume_traffic` | `{targetKb}` | 消耗指定流量（KB） |
 | `flight_mode` | `{status}` | 飞行模式 |
 | `at` | `{cmd}` | AT 指令 |
 | `reset` | `{}` | 重启设备 |
+
+说明：所有命令 payload 均支持 `requestId` 字段，设备响应会透传该字段用于前后端关联。
 
 ### Query 类型
 
@@ -241,6 +265,8 @@ npm start
 - `search`: 搜索关键词（可选）
 - `device`: 设备 MAC 地址（可选）
 - `status`: 推送状态（可选：success/failed/pending）
+- `direction`: 短信方向（可选：inbound/outbound）
+- `source`: 消息来源（可选：device/manual/schedule）
 
 **响应示例：**
 ```json
@@ -254,7 +280,13 @@ npm start
       "text": "您的余额...",
       "phone": "13800138000",
       "timestamp": "2026-03-21T15:30:00.000Z",
-      "receivedAt": "2026-03-21T15:30:01.234Z"
+      "receivedAt": "2026-03-21T15:30:01.234Z",
+      "status": "success",
+      "direction": "outbound",
+      "source": "manual",
+      "errorMessage": "",
+      "requestId": "",
+      "taskId": null
     }
   ],
   "pagination": {
@@ -264,12 +296,14 @@ npm start
     "totalPages": 16,
     "hasMore": true
   },
-  "filters": {
-    "search": "",
-    "device": "",
-    "status": ""
+    "filters": {
+      "search": "",
+      "device": "",
+      "status": "",
+      "direction": "",
+      "source": ""
+    }
   }
-}
 ```
 
 ## WebSocket
@@ -307,8 +341,8 @@ npm start
 
 | 表名 | 用途 | 主要字段 |
 |------|------|----------|
-| `devices` | 设备管理 | mac(PK), ip, rssi, uptime, last_seen, online, remark |
-| `sms_messages` | 短信记录 | id, mac, sender, text, phone, timestamp, received_at |
+| `devices` | 设备管理 | mac(PK), ip, phone, rssi, uptime, version, status_json, last_seen |
+| `sms_messages` | 统一消息记录 | id, mac, sender, text, phone, timestamp, received_at, status, direction, source, error_message, request_id, task_id |
 | `push_configs` | 推送配置 | id(PK=1), config_json |
 | `users` | 用户管理 | username(PK), password_hash, created_at |
 | `scheduled_sms` | 定时任务 | id, mac, phone, content, schedule_type, next_run_time, status |
