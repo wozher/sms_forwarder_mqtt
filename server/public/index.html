@@ -22,6 +22,7 @@
     :root {
       --bg: #f5f5f7;
       --bg-soft: #fbfbfd;
+      --bg-strong: #eef2f7;
       --card: rgba(255, 255, 255, 0.82);
       --card-strong: rgba(255, 255, 255, 0.96);
       --line: rgba(15, 23, 42, 0.08);
@@ -37,6 +38,8 @@
       --amber-soft: rgba(245, 158, 11, 0.12);
       --red: #dc2626;
       --red-soft: rgba(220, 38, 38, 0.12);
+      --teal: #0f766e;
+      --teal-soft: rgba(15, 118, 110, 0.12);
       --shadow-sm: 0 10px 30px rgba(15, 23, 42, 0.04);
       --shadow-md: 0 18px 48px rgba(15, 23, 42, 0.08);
       --shadow-lg: 0 30px 70px rgba(15, 23, 42, 0.12);
@@ -317,6 +320,14 @@
       gap: 8px;
       flex-wrap: wrap;
     }
+    .toolbar-inline-note {
+      font-size: 12px;
+      color: var(--muted);
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.68);
+      border: 1px solid rgba(15,23,42,0.06);
+    }
     .tab-strip {
       display: flex;
       gap: 8px;
@@ -455,6 +466,33 @@
       color: var(--muted);
     }
     .msg-panel { display: flex; flex-direction: column; gap: 18px; }
+    .msg-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding: 14px 16px;
+      border-radius: 22px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.72), rgba(255,255,255,0.58));
+      border: 1px solid rgba(15,23,42,0.06);
+      box-shadow: var(--shadow-sm);
+    }
+    .msg-toolbar-stat {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--muted);
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(248,250,252,0.92);
+      border: 1px solid rgba(15,23,42,0.06);
+    }
+    .msg-toolbar-stat strong {
+      color: var(--text);
+      font-size: 13px;
+    }
     .msg-viewport {
       background: rgba(255,255,255,0.46);
       border: 1px solid rgba(15, 23, 42, 0.06);
@@ -464,7 +502,50 @@
       max-height: 560px;
       overflow-y: auto;
     }
+    .msg-viewport.loading {
+      position: relative;
+      overflow: hidden;
+    }
+    .msg-viewport.loading::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
+      transform: translateX(-100%);
+      animation: shimmer 1.2s infinite;
+      pointer-events: none;
+    }
     .msg-grid { display: grid; grid-template-columns: repeat(1, minmax(0, 1fr)); gap: 14px; align-content: start; min-height: 100%; }
+    .msg-skeleton {
+      min-height: 192px;
+      border-radius: 22px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.86), rgba(248,250,252,0.82));
+      border: 1px solid rgba(15,23,42,0.06);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+      position: relative;
+    }
+    .msg-skeleton::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.72), transparent);
+      transform: translateX(-100%);
+      animation: shimmer 1.2s infinite;
+    }
+    .msg-skeleton-body {
+      padding: 18px;
+      display: grid;
+      gap: 12px;
+    }
+    .msg-skeleton-line {
+      height: 12px;
+      border-radius: 999px;
+      background: rgba(203,213,225,0.45);
+    }
+    .msg-skeleton-line.short { width: 36%; }
+    .msg-skeleton-line.mid { width: 62%; }
+    .msg-skeleton-line.long { width: 100%; }
     @media (min-width: 768px) { .msg-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
     @media (min-width: 1280px) { .msg-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
     .msg-pagination { min-height: 98px; }
@@ -589,7 +670,26 @@
     .btn-xs { padding: 5px 10px; font-size: 12px; }
     .btn-chip { background: rgba(255,255,255,0.78); color: #475569; border-color: rgba(15,23,42,0.08); box-shadow: none; }
     .btn-chip:hover:not(:disabled) { background: #fff; color: var(--text); }
+    .btn-secondary-accent { background: rgba(15,118,110,0.08); color: var(--teal); border-color: rgba(15,118,110,0.14); }
+    .btn-secondary-accent:hover:not(:disabled) { background: rgba(15,118,110,0.14); }
     .toolbox-device-select { min-width: 260px; max-width: min(100%, 420px); font-size: 13px; padding: 8px 12px; }
+    .push-provider-card {
+      border-radius: 24px;
+      background: rgba(255,255,255,0.72);
+      overflow: hidden;
+      border: 1px solid rgba(15,23,42,0.06);
+      box-shadow: var(--shadow-sm);
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+    .push-provider-card:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-md);
+      border-color: rgba(37,99,235,0.14);
+    }
+    .push-provider-card.enabled { border-color: rgba(15,118,110,0.18); box-shadow: 0 0 0 1px rgba(15,118,110,0.06), var(--shadow-sm); }
+    .push-provider-head { display: flex; align-items: center; justify-content: space-between; padding: 16px; gap: 12px; cursor: pointer; }
+    .push-provider-status { font-size: 11px; font-weight: 700; color: var(--muted-soft); }
+    @keyframes shimmer { to { transform: translateX(100%); } }
     .msg-party-badge {
       display: inline-flex;
       align-items: center;
@@ -658,6 +758,7 @@
       .tab-strip { padding-bottom: 2px; margin-inline: -4px; padding-inline: 4px; }
       .tab-strip .tab-btn { padding-inline: 14px; }
       .msg-viewport { min-height: 460px; max-height: none; border-radius: 20px; padding: 12px; }
+      .msg-toolbar { padding: 12px; }
       .msg-card, .device-card { border-radius: 18px; }
       .msg-card-header, .msg-card-body, .msg-card-footer { padding-inline: 14px; }
       .settings-row { flex-direction: column; align-items: flex-start; padding: 14px 16px; }
@@ -800,23 +901,29 @@
             <h2 class="text-2xl">实时消息中心 <span id="msgCount" class="text-base font-medium text-slate-400 ml-1">(0)</span></h2>
             <p>统一查看短信收件箱、推送状态和筛选结果。</p>
           </div>
-          <div class="toolbar-row">
-            <div class="relative">
-              <input type="text" id="msgSearchInput" placeholder="搜索内容 / 号码" class="!w-52 !text-sm" oninput="filterMessages()">
-            </div>
-            <select id="msgDeviceFilter" class="!w-auto !text-sm" onchange="filterMessages()">
-              <option value="">全部设备</option>
-            </select>
-            <select id="msgStatusFilter" class="!w-auto !text-sm" onchange="filterMessages()">
-              <option value="">全部状态</option>
-              <option value="success">成功</option>
-              <option value="failed">失败</option>
-              <option value="pending">推送中</option>
-            </select>
-            <button class="btn btn-gray btn-sm" onclick="resetFilters()">刷新</button>
-          </div>
         </div>
         <div class="msg-panel">
+          <div class="msg-toolbar">
+            <div class="toolbar-row">
+              <div class="relative">
+                <input type="text" id="msgSearchInput" placeholder="搜索内容 / 号码" class="!w-52 !text-sm" oninput="queueMessageSearch()">
+              </div>
+              <select id="msgDeviceFilter" class="!w-auto !text-sm" onchange="filterMessages()">
+                <option value="">全部设备</option>
+              </select>
+              <select id="msgStatusFilter" class="!w-auto !text-sm" onchange="filterMessages()">
+                <option value="">全部状态</option>
+                <option value="success">成功</option>
+                <option value="failed">失败</option>
+                <option value="pending">推送中</option>
+              </select>
+              <button class="btn btn-gray btn-sm" onclick="resetFilters()">重置筛选</button>
+            </div>
+            <div class="toolbar-row">
+              <div class="msg-toolbar-stat"><strong id="msgFocusValue">全部消息</strong><span id="msgFocusMeta">最近一页</span></div>
+              <div class="toolbar-inline-note" id="msgFilterHint">输入关键词会自动延迟搜索，减少频繁刷新。</div>
+            </div>
+          </div>
           <div id="msgViewport" class="msg-viewport msg-scroll">
             <div id="msgContainer" class="msg-grid">
               <div class="empty-state msg-card-empty"><strong>暂无短信记录</strong><span>新短信到达后，会自动出现在这里并显示推送状态。</span></div>
@@ -835,13 +942,13 @@
             <h2 class="text-2xl">设备工具箱</h2>
             <p>围绕当前设备完成推送配置、短信发送、状态查询与自动化任务管理。</p>
           </div>
-        <div class="toolbar-row w-full sm:w-auto">
-          <span class="text-sm text-slate-400 whitespace-nowrap">当前设备</span>
-          <select id="toolboxDeviceSelect" class="toolbox-device-select" onchange="handleToolboxDeviceChange(this.value)">
-            <option value="">暂无可用设备</option>
-          </select>
+          <div class="toolbar-row w-full sm:w-auto">
+            <span class="text-sm text-slate-400 whitespace-nowrap">当前设备</span>
+            <select id="toolboxDeviceSelect" class="toolbox-device-select" onchange="handleToolboxDeviceChange(this.value)">
+              <option value="">暂无可用设备</option>
+            </select>
+          </div>
         </div>
-      </div>
 
         <div class="tab-strip mb-6 p-2 rounded-full bg-white/60 border border-slate-200">
           <button class="tab-btn active px-4 py-2 rounded-full text-sm font-medium text-slate-500 border border-transparent transition-all" data-tab="push" onclick="switchTab('push')">推送配置</button>
@@ -858,15 +965,15 @@
           <p class="panel-note mb-4">按渠道开启提醒方式，保存后新短信会自动按你的配置分发到对应平台。</p>
           
           <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-            <div class="bg-white/70 rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
-                <div class="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50" onclick="togglePushCard('tg')">
+            <div class="push-provider-card" id="provider-card-tg">
+                <div class="push-provider-head" onclick="togglePushCard('tg')">
                   <div class="service-meta">
                     <span class="font-medium text-slate-900">Telegram</span>
                     <span class="service-note">适合个人通知和即时提醒</span>
                   </div>
                   <div class="flex items-center gap-2">
                     <input type="checkbox" id="cfg_tg_en" class="w-auto" onclick="event.stopPropagation();savePushConfig()">
-                    <span class="text-slate-400">▼</span>
+                    <span class="push-provider-status" id="provider-status-tg">未启用</span>
                   </div>
                 </div>
                 <div id="push-card-tg" class="hidden px-4 pb-4 space-y-2 border-t border-slate-200">
@@ -875,15 +982,15 @@
                 </div>
               </div>
 
-              <div class="bg-white/70 rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
-                <div class="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50" onclick="togglePushCard('dt')">
+              <div class="push-provider-card" id="provider-card-dt">
+                <div class="push-provider-head" onclick="togglePushCard('dt')">
                   <div class="service-meta">
                     <span class="font-medium text-slate-900">钉钉</span>
                     <span class="service-note">适合团队群消息同步</span>
                   </div>
                   <div class="flex items-center gap-2">
                     <input type="checkbox" id="cfg_dt_en" class="w-auto" onclick="event.stopPropagation();savePushConfig()">
-                    <span class="text-slate-400">▼</span>
+                    <span class="push-provider-status" id="provider-status-dt">未启用</span>
                   </div>
                 </div>
                 <div id="push-card-dt" class="hidden px-4 pb-4 space-y-2 border-t border-slate-200">
@@ -892,15 +999,15 @@
                 </div>
               </div>
 
-              <div class="bg-white/70 rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
-                <div class="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50" onclick="togglePushCard('pp')">
+              <div class="push-provider-card" id="provider-card-pp">
+                <div class="push-provider-head" onclick="togglePushCard('pp')">
                   <div class="service-meta">
                     <span class="font-medium text-slate-900">PushPlus</span>
                     <span class="service-note">适合微信生态内的快捷提醒</span>
                   </div>
                   <div class="flex items-center gap-2">
                     <input type="checkbox" id="cfg_pp_en" class="w-auto" onclick="event.stopPropagation();savePushConfig()">
-                    <span class="text-slate-400">▼</span>
+                    <span class="push-provider-status" id="provider-status-pp">未启用</span>
                   </div>
                 </div>
                 <div id="push-card-pp" class="hidden px-4 pb-4 space-y-2 border-t border-slate-200">
@@ -909,15 +1016,15 @@
                 </div>
               </div>
 
-              <div class="bg-white/70 rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
-                <div class="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50" onclick="togglePushCard('sc')">
+              <div class="push-provider-card" id="provider-card-sc">
+                <div class="push-provider-head" onclick="togglePushCard('sc')">
                   <div class="service-meta">
                     <span class="font-medium text-slate-900">Server酱</span>
                     <span class="service-note">适合公众号渠道消息提醒</span>
                   </div>
                   <div class="flex items-center gap-2">
                     <input type="checkbox" id="cfg_sc_en" class="w-auto" onclick="event.stopPropagation();savePushConfig()">
-                    <span class="text-slate-400">▼</span>
+                    <span class="push-provider-status" id="provider-status-sc">未启用</span>
                   </div>
                 </div>
                 <div id="push-card-sc" class="hidden px-4 pb-4 space-y-2 border-t border-slate-200">
@@ -925,15 +1032,15 @@
                 </div>
               </div>
 
-              <div class="bg-white/70 rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
-                <div class="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50" onclick="togglePushCard('fs')">
+              <div class="push-provider-card" id="provider-card-fs">
+                <div class="push-provider-head" onclick="togglePushCard('fs')">
                   <div class="service-meta">
                     <span class="font-medium text-slate-900">飞书</span>
                     <span class="service-note">适合企业协作消息联动</span>
                   </div>
                   <div class="flex items-center gap-2">
                     <input type="checkbox" id="cfg_fs_en" class="w-auto" onclick="event.stopPropagation();savePushConfig()">
-                    <span class="text-slate-400">▼</span>
+                    <span class="push-provider-status" id="provider-status-fs">未启用</span>
                   </div>
                 </div>
                 <div id="push-card-fs" class="hidden px-4 pb-4 space-y-2 border-t border-slate-200">
@@ -942,15 +1049,15 @@
                 </div>
               </div>
 
-              <div class="bg-white/70 rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
-                <div class="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50" onclick="togglePushCard('bark')">
+              <div class="push-provider-card" id="provider-card-bark">
+                <div class="push-provider-head" onclick="togglePushCard('bark')">
                   <div class="service-meta">
                     <span class="font-medium text-slate-900">Bark</span>
                     <span class="service-note">适合 iPhone 端的一对一提醒</span>
                   </div>
                   <div class="flex items-center gap-2">
                     <input type="checkbox" id="cfg_bark_en" class="w-auto" onclick="event.stopPropagation();savePushConfig()">
-                    <span class="text-slate-400">▼</span>
+                    <span class="push-provider-status" id="provider-status-bark">未启用</span>
                   </div>
                 </div>
                 <div id="push-card-bark" class="hidden px-4 pb-4 space-y-2 border-t border-slate-200">
@@ -958,15 +1065,15 @@
                 </div>
               </div>
 
-              <div class="bg-white/70 rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
-                <div class="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50" onclick="togglePushCard('gotify')">
+              <div class="push-provider-card" id="provider-card-gotify">
+                <div class="push-provider-head" onclick="togglePushCard('gotify')">
                   <div class="service-meta">
                     <span class="font-medium text-slate-900">Gotify</span>
                     <span class="service-note">适合自托管消息中心接入</span>
                   </div>
                   <div class="flex items-center gap-2">
                     <input type="checkbox" id="cfg_gotify_en" class="w-auto" onclick="event.stopPropagation();savePushConfig()">
-                    <span class="text-slate-400">▼</span>
+                    <span class="push-provider-status" id="provider-status-gotify">未启用</span>
                   </div>
                 </div>
                 <div id="push-card-gotify" class="hidden px-4 pb-4 space-y-2 border-t border-slate-200">
@@ -975,15 +1082,15 @@
                 </div>
               </div>
 
-              <div class="bg-white/70 rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
-                <div class="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50" onclick="togglePushCard('post')">
+              <div class="push-provider-card" id="provider-card-post">
+                <div class="push-provider-head" onclick="togglePushCard('post')">
                   <div class="service-meta">
                     <span class="font-medium text-slate-900">POST JSON</span>
                     <span class="service-note">适合对接你自己的业务接口</span>
                   </div>
                   <div class="flex items-center gap-2">
                     <input type="checkbox" id="cfg_post_en" class="w-auto" onclick="event.stopPropagation();savePushConfig()">
-                    <span class="text-slate-400">▼</span>
+                    <span class="push-provider-status" id="provider-status-post">未启用</span>
                   </div>
                 </div>
                 <div id="push-card-post" class="hidden px-4 pb-4 space-y-2 border-t border-slate-200">
@@ -991,15 +1098,15 @@
                 </div>
               </div>
 
-              <div class="bg-white/70 rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
-                <div class="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50" onclick="togglePushCard('custom')">
+              <div class="push-provider-card" id="provider-card-custom">
+                <div class="push-provider-head" onclick="togglePushCard('custom')">
                   <div class="service-meta">
                     <span class="font-medium text-slate-900">自定义模板</span>
                     <span class="service-note">适合按你的字段格式自由拼装</span>
                   </div>
                   <div class="flex items-center gap-2">
                     <input type="checkbox" id="cfg_custom_en" class="w-auto" onclick="event.stopPropagation();savePushConfig()">
-                    <span class="text-slate-400">▼</span>
+                    <span class="push-provider-status" id="provider-status-custom">未启用</span>
                   </div>
                 </div>
                 <div id="push-card-custom" class="hidden px-4 pb-4 space-y-2 border-t border-slate-200">
@@ -1232,7 +1339,15 @@
     let totalPages = 1;
     let hasMoreMessages = false;
     let newMessagesCount = 0;
+    let enabledPushChannels = [];
+    let pushConfigCache = null;
+    let pushSaveTimer = null;
+    let searchDebounceTimer = null;
+    let messageLoading = false;
+    let smsCharBound = false;
     const MESSAGE_PAGE_SIZE = 6;
+    const PUSH_CHANNEL_NAMES = { telegram: 'TG', dingtalk: '钉钉', pushplus: 'PP', serverchan: 'SC', feishu: '飞书', bark: 'Bark', gotify: 'Gotify', postJson: 'POST', customTemplate: '自定义' };
+    const PUSH_PROVIDER_DOM_MAP = { telegram: 'tg', dingtalk: 'dt', pushplus: 'pp', serverchan: 'sc', feishu: 'fs', bark: 'bark', gotify: 'gotify', postJson: 'post', customTemplate: 'custom' };
     function setCurrentFirmwareDisplay(value = '-') {
       const currentFirmwareEl = document.getElementById('currentFirmware');
       if (currentFirmwareEl) {
@@ -1353,9 +1468,17 @@
       loadPushConfigToUI();
       startServerTime();
       loadStats();
-      document.getElementById('smsContent').addEventListener('input', () => {
-        document.getElementById('smsCharCount').textContent = document.getElementById('smsContent').value.length;
+      bindSmsCharCounter();
+    }
+
+    function bindSmsCharCounter() {
+      if (smsCharBound) return;
+      const smsContent = document.getElementById('smsContent');
+      if (!smsContent) return;
+      smsContent.addEventListener('input', () => {
+        document.getElementById('smsCharCount').textContent = smsContent.value.length;
       });
+      smsCharBound = true;
     }
 
     function loadStats() {
@@ -1392,6 +1515,56 @@
       const username = localStorage.getItem('sms_admin_user') || 'admin';
       const password = localStorage.getItem('sms_admin_pass') || '';
       return encodeBase64Utf8(`${username}:${password}`);
+    }
+
+    function setMessageLoading(loading, withSkeleton = false) {
+      messageLoading = loading;
+      const viewport = document.getElementById('msgViewport');
+      const container = document.getElementById('msgContainer');
+      if (!viewport || !container) return;
+      viewport.classList.toggle('loading', loading);
+      if (loading && withSkeleton) {
+        container.innerHTML = Array.from({ length: 3 }).map(() => `
+          <div class="msg-skeleton">
+            <div class="msg-skeleton-body">
+              <div class="msg-skeleton-line short"></div>
+              <div class="msg-skeleton-line mid"></div>
+              <div class="msg-skeleton-line long"></div>
+              <div class="msg-skeleton-line long"></div>
+              <div class="msg-skeleton-line short"></div>
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+
+    function getEnabledChannelList(config = pushConfigCache || {}) {
+      return Object.entries(config)
+        .filter(([key, value]) => value && value.enabled && key !== 'postJson' && key !== 'customTemplate')
+        .map(([key]) => key);
+    }
+
+    function getPushSummaryForMessage(message) {
+      if (!message || !message.pushSummary || typeof message.pushSummary !== 'object') {
+        return {};
+      }
+      return message.pushSummary;
+    }
+
+    function updateMessageToolbarMeta() {
+      const focusValue = document.getElementById('msgFocusValue');
+      const focusMeta = document.getElementById('msgFocusMeta');
+      const hint = document.getElementById('msgFilterHint');
+      const filters = [];
+      if (currentFilters.search) filters.push(`关键词: ${currentFilters.search}`);
+      if (currentFilters.device) filters.push(`设备: ${currentFilters.device.substring(0, 12)}`);
+      if (currentFilters.status) {
+        const statusText = currentFilters.status === 'success' ? '成功' : currentFilters.status === 'failed' ? '失败' : '推送中';
+        filters.push(`状态: ${statusText}`);
+      }
+      if (focusValue) focusValue.textContent = filters.length > 0 ? '筛选结果' : '全部消息';
+      if (focusMeta) focusMeta.textContent = filters.length > 0 ? filters.join(' / ') : `第 ${currentPage} 页，共 ${totalPages} 页`;
+      if (hint) hint.textContent = messageLoading ? '正在刷新消息列表...' : '输入关键词会自动延迟搜索，减少频繁刷新。';
     }
 
     function startServerTime() {
@@ -1659,10 +1832,12 @@
       }
       messages = data.messages;
       filteredMessages = [...messages];
+      enabledPushChannels = data.meta?.enabledPushChannels || enabledPushChannels;
       totalMessagesCount = data.pagination?.total || messages.length;
       totalPages = data.pagination?.totalPages || 1;
       hasMoreMessages = data.pagination?.hasMore || false;
       currentPage = data.pagination?.page || page;
+      updateMessageToolbarMeta();
       return data;
     }
 
@@ -1671,6 +1846,14 @@
       newMessagesCount = 0;
       updateNewMsgIndicator();
       await renderMessageCards();
+      updateMessageToolbarMeta();
+    }
+
+    function queueMessageSearch() {
+      clearTimeout(searchDebounceTimer);
+      searchDebounceTimer = setTimeout(() => {
+        filterMessages();
+      }, 320);
     }
 
     async function filterMessages() {
@@ -1679,9 +1862,13 @@
       currentFilters.status = document.getElementById('msgStatusFilter').value;
       
       try {
+        setMessageLoading(true, true);
+        updateMessageToolbarMeta();
         await loadMessagesPage(1, currentFilters);
       } catch (e) {
         console.error('筛选消息失败:', e);
+      } finally {
+        setMessageLoading(false);
       }
       
       newMessagesCount = 0;
@@ -1691,6 +1878,7 @@
     }
 
     async function resetFilters() {
+      clearTimeout(searchDebounceTimer);
       document.getElementById('msgSearchInput').value = '';
       document.getElementById('msgDeviceFilter').value = '';
       document.getElementById('msgStatusFilter').value = '';
@@ -1701,9 +1889,13 @@
       updateNewMsgIndicator();
       
       try {
+        setMessageLoading(true, true);
+        updateMessageToolbarMeta();
         await loadMessagesPage(1, currentFilters);
       } catch (e) {
         console.error('重置筛选失败:', e);
+      } finally {
+        setMessageLoading(false);
       }
       
       scrollMessageViewportToTop();
@@ -1716,6 +1908,7 @@
       const hasFilter = currentFilters.search || currentFilters.device || currentFilters.status;
       
       updateDeviceFilterOptions();
+      updateMessageToolbarMeta();
       
       if (filteredMessages.length === 0) {
         container.innerHTML = hasFilter
@@ -1726,47 +1919,31 @@
         return;
       }
       
-      const cfg = await fetch('/api/push-config', { credentials: 'include', headers: authHeader() }).then(r => r.json()).catch(() => null);
-      const cfgData = cfg?.config || {};
-      const channelNames = { telegram: 'TG', dingtalk: '钉钉', pushplus: 'PP', serverchan: 'SC', feishu: '飞书', bark: 'Bark', gotify: 'Gotify', postjson: 'POST', custom: '自定义' };
-      const enabledChannels = Object.entries(cfgData).filter(([k, v]) => v && v.enabled && k !== 'postJson' && k !== 'custom').map(([k]) => k);
-      
       const cards = [];
       for (const m of filteredMessages) {
         const statusFilter = currentFilters.status;
-        let pushStatus = pushStatusCache[m.id];
-        
-        if (!pushStatus) {
-          const pushHistory = await fetch(`/api/push-history/sms/${m.id}`, { credentials: 'include', headers: authHeader() }).then(r => r.json()).catch(() => null);
-          const history = pushHistory?.history || [];
-          pushStatus = {};
-          enabledChannels.forEach(ch => {
-            const record = history.find(h => h.channel === ch);
-            pushStatus[ch] = record ? { status: record.status, error: record.error_message } : { status: 'pending' };
-          });
-          pushStatusCache[m.id] = pushStatus;
-        }
+        const pushStatus = getPushSummaryForMessage(m);
         
         if (statusFilter) {
-          const hasSuccess = enabledChannels.some(ch => pushStatus[ch]?.status === 'success');
-          const hasFailed = enabledChannels.some(ch => pushStatus[ch]?.status === 'failed');
-          const allPending = enabledChannels.length > 0 && enabledChannels.every(ch => !pushStatus[ch] || pushStatus[ch].status === 'pending');
+          const hasSuccess = enabledPushChannels.some(ch => pushStatus[ch]?.status === 'success');
+          const hasFailed = enabledPushChannels.some(ch => pushStatus[ch]?.status === 'failed');
+          const allPending = enabledPushChannels.length > 0 && enabledPushChannels.every(ch => !pushStatus[ch] || pushStatus[ch].status === 'pending');
           
           if (statusFilter === 'success' && !hasSuccess) continue;
           if (statusFilter === 'failed' && !hasFailed) continue;
           if (statusFilter === 'pending' && !allPending) continue;
         }
         
-        const statusHtml = enabledChannels.map(ch => {
+        const statusHtml = enabledPushChannels.map(ch => {
           const s = pushStatus[ch];
-          const name = channelNames[ch] || ch;
+          const name = PUSH_CHANNEL_NAMES[ch] || ch;
           if (!s || s.status === 'pending') return `<span class="push-badge pending" title="推送中">${name}...</span>`;
           if (s.status === 'success') return `<span class="push-badge success" title="推送成功">${name}</span>`;
           if (s.status === 'failed') return `<span class="push-badge failed" title="${s.error || '推送失败'}">${name}</span>`;
           return '';
         }).join(' ');
         
-        const hasFailed = enabledChannels.some(ch => pushStatus[ch]?.status === 'failed');
+        const hasFailed = enabledPushChannels.some(ch => pushStatus[ch]?.status === 'failed');
         
         const isOnline = devices.some(d => d.mac === m.mac && d.online);
         const senderDisplay = formatPhone(m.sender);
@@ -1872,11 +2049,15 @@
       updateNewMsgIndicator();
       
       try {
+        setMessageLoading(true, true);
+        updateMessageToolbarMeta();
         await loadMessagesPage(page, currentFilters);
         scrollMessageViewportToTop();
         renderMessageCards();
       } catch (e) {
         console.error('跳转页面失败:', e);
+      } finally {
+        setMessageLoading(false);
       }
     }
     
@@ -2517,20 +2698,20 @@
 
     async function deleteCurrentSchedule() {
       if (!currentScheduleId) return;
-      if (!confirm('确定删除此定时任务？')) return;
-      
-      try {
-        await fetch(`/api/schedule/${currentScheduleId}`, {
-          method: 'DELETE',
-          headers: authHeader()
-        });
-        
-        showToast('任务已删除', 'success');
-        closeScheduleDetail();
-        loadScheduleList();
-      } catch (e) {
-        showToast('删除失败', 'error');
-      }
+      openConfirm('删除定时任务', '删除后将移除该任务及其关联历史记录，此操作不可恢复。', async () => {
+        try {
+          await fetch(`/api/schedule/${currentScheduleId}`, {
+            method: 'DELETE',
+            headers: authHeader()
+          });
+          
+          showToast('任务已删除', 'success');
+          closeScheduleDetail();
+          loadScheduleList();
+        } catch (e) {
+          showToast('删除失败', 'error');
+        }
+      });
     }
 
     function closeScheduleDetail() {
@@ -2722,10 +2903,11 @@
     }
 
     async function deleteSms(id) {
-      if (!confirm('确定要删除这条短信及其推送记录吗？')) return;
-      messages = messages.filter(m => m.id !== id);
-      renderMessages();
-      showToast('短信已删除', 'success');
+      openConfirm('移除短信记录', '这会从当前列表中移除这条短信，便于你快速清理视图。', () => {
+        messages = messages.filter(m => m.id !== id);
+        renderMessages();
+        showToast('短信已删除', 'success');
+      });
     }
 
     async function retryPushForSms(smsId) {
@@ -2767,6 +2949,8 @@
         const data = await result.json();
         if (data?.success && data?.config) {
           const cfg = data.config;
+          pushConfigCache = cfg;
+          enabledPushChannels = getEnabledChannelList(cfg);
           document.getElementById('cfg_tg_en').checked = cfg.telegram?.enabled || false;
           document.getElementById('cfg_tg_token').value = cfg.telegram?.botToken || '';
           document.getElementById('cfg_tg_chatid').value = cfg.telegram?.chatId || '';
@@ -2887,6 +3071,8 @@
     }
 
     function doLogout() {
+      clearTimeout(pushSaveTimer);
+      clearTimeout(searchDebounceTimer);
       localStorage.removeItem('sms_admin_user');
       localStorage.removeItem('sms_admin_pass');
       document.getElementById('loginOverlay').classList.remove('hidden');
@@ -2894,6 +3080,8 @@
       devices = [];
       messages = [];
       selectedMac = null;
+      pushConfigCache = null;
+      enabledPushChannels = [];
       renderDevices();
       renderMessages();
       if (ws) { ws.close(); ws = null; }

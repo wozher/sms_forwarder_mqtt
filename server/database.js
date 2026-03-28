@@ -21,8 +21,11 @@ function initDatabase() {
     CREATE TABLE IF NOT EXISTS devices (
       mac TEXT PRIMARY KEY,
       ip TEXT,
+      phone TEXT DEFAULT '',
       rssi INTEGER DEFAULT 0,
       uptime INTEGER DEFAULT 0,
+      version TEXT DEFAULT '',
+      status_json TEXT DEFAULT '{}',
       last_seen INTEGER DEFAULT 0,
       online INTEGER DEFAULT 0,
       remark TEXT DEFAULT '',
@@ -37,7 +40,12 @@ function initDatabase() {
       phone TEXT,
       timestamp TEXT,
       received_at TEXT DEFAULT (datetime('now', 'localtime')),
-      status TEXT DEFAULT 'pending'
+      status TEXT DEFAULT 'pending',
+      direction TEXT DEFAULT 'inbound',
+      source TEXT DEFAULT 'device',
+      error_message TEXT DEFAULT '',
+      request_id TEXT DEFAULT '',
+      task_id INTEGER DEFAULT NULL
     );
 
     CREATE TABLE IF NOT EXISTS push_configs (
@@ -58,8 +66,10 @@ function initDatabase() {
     CREATE TABLE IF NOT EXISTS scheduled_sms (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       mac TEXT NOT NULL,
+      task_type TEXT DEFAULT 'sms',
       phone TEXT NOT NULL,
       content TEXT NOT NULL,
+      traffic_kb INTEGER DEFAULT 0,
       schedule_type TEXT NOT NULL,
       scheduled_time INTEGER NOT NULL,
       interval_days INTEGER DEFAULT 0,
@@ -104,8 +114,44 @@ function initDatabase() {
     getDatabase().exec('ALTER TABLE scheduled_sms ADD COLUMN interval_minutes INTEGER DEFAULT 0');
   } catch (e) {}
   try {
+    getDatabase().exec("ALTER TABLE scheduled_sms ADD COLUMN task_type TEXT DEFAULT 'sms'");
+  } catch (e) {}
+  try {
+    getDatabase().exec('ALTER TABLE scheduled_sms ADD COLUMN traffic_kb INTEGER DEFAULT 0');
+  } catch (e) {}
+  try {
     getDatabase().exec('ALTER TABLE sms_messages ADD COLUMN status TEXT DEFAULT "pending"');
   } catch (e) {}
+  try {
+    getDatabase().exec("ALTER TABLE sms_messages ADD COLUMN direction TEXT DEFAULT 'inbound'");
+  } catch (e) {}
+  try {
+    getDatabase().exec("ALTER TABLE sms_messages ADD COLUMN source TEXT DEFAULT 'device'");
+  } catch (e) {}
+  try {
+    getDatabase().exec("ALTER TABLE sms_messages ADD COLUMN error_message TEXT DEFAULT ''");
+  } catch (e) {}
+  try {
+    getDatabase().exec("ALTER TABLE sms_messages ADD COLUMN request_id TEXT DEFAULT ''");
+  } catch (e) {}
+  try {
+    getDatabase().exec('ALTER TABLE sms_messages ADD COLUMN task_id INTEGER DEFAULT NULL');
+  } catch (e) {}
+  try {
+    getDatabase().exec("ALTER TABLE devices ADD COLUMN phone TEXT DEFAULT ''");
+  } catch (e) {}
+  try {
+    getDatabase().exec("ALTER TABLE devices ADD COLUMN version TEXT DEFAULT ''");
+  } catch (e) {}
+  try {
+    getDatabase().exec("ALTER TABLE devices ADD COLUMN status_json TEXT DEFAULT '{}'");
+  } catch (e) {}
+
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_sms_direction_received ON sms_messages(direction, received_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_sms_mac_direction ON sms_messages(mac, direction);
+    CREATE INDEX IF NOT EXISTS idx_sms_status ON sms_messages(status);
+  `);
 
   const adminExists = db.prepare('SELECT COUNT(*) as count FROM users WHERE username = ?').get('admin');
   if (adminExists.count === 0) {
@@ -143,23 +189,41 @@ function getDatabase() {
 }
 
 function upsertDevice(mac, data) {
+  const statusJson = data.statusJson === undefined
+    ? null
+    : (typeof data.statusJson === 'string' ? data.statusJson : JSON.stringify(data.statusJson || {}));
   const stmt = getDatabase().prepare(`
-    INSERT INTO devices (mac, ip, rssi, uptime, last_seen, online)
-    VALUES (@mac, @ip, @rssi, @uptime, @last_seen, 1)
+    INSERT INTO devices (mac, ip, phone, rssi, uptime, version, status_json, last_seen, online)
+    VALUES (@mac, @ip, @phone, @rssi, @uptime, @version, @status_json, @last_seen, 1)
     ON CONFLICT(mac) DO UPDATE SET
       ip = @ip,
+      phone = COALESCE(@phone, phone),
       rssi = @rssi,
       uptime = @uptime,
+      version = COALESCE(@version, version),
+      status_json = COALESCE(@status_json, status_json),
       last_seen = @last_seen,
       online = 1
   `);
   stmt.run({
     mac,
     ip: data.ip || '',
+    phone: data.phone ? String(data.phone).trim() : null,
     rssi: data.rssi || 0,
     uptime: data.uptime || 0,
+    version: data.version ? String(data.version).trim() : null,
+    status_json: statusJson,
     last_seen: Date.now()
   });
+}
+
+function parseJsonSafe(value, fallback) {
+  if (!value) return fallback;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
 }
 
 function getDeviceList() {
@@ -168,12 +232,33 @@ function getDeviceList() {
   return devices.map(d => ({
     mac: d.mac,
     ip: d.ip,
+    phone: d.phone || '',
     rssi: d.rssi,
     uptime: d.uptime,
+    version: d.version || '',
+    status: parseJsonSafe(d.status_json, {}),
     lastSeen: d.last_seen,
     online: (now - d.last_seen) < 120000,
     remark: d.remark || ''
   }));
+}
+
+function getDeviceByMac(mac) {
+  const d = getDatabase().prepare('SELECT * FROM devices WHERE mac = ?').get(mac);
+  if (!d) return null;
+  const now = Date.now();
+  return {
+    mac: d.mac,
+    ip: d.ip,
+    phone: d.phone || '',
+    rssi: d.rssi,
+    uptime: d.uptime,
+    version: d.version || '',
+    status: parseJsonSafe(d.status_json, {}),
+    lastSeen: d.last_seen,
+    online: (now - d.last_seen) < 120000,
+    remark: d.remark || ''
+  };
 }
 
 function updateDeviceOffline() {
@@ -185,8 +270,8 @@ function updateDeviceOffline() {
 
 function insertSms(msg) {
   const stmt = getDatabase().prepare(`
-    INSERT INTO sms_messages (mac, sender, text, phone, timestamp, received_at, status)
-    VALUES (@mac, @sender, @text, @phone, @timestamp, @received_at, 'pending')
+    INSERT INTO sms_messages (mac, sender, text, phone, timestamp, received_at, status, direction, source, error_message, request_id, task_id)
+    VALUES (@mac, @sender, @text, @phone, @timestamp, @received_at, @status, @direction, @source, @error_message, @request_id, @task_id)
   `);
   const result = stmt.run({
     mac: msg.mac,
@@ -194,13 +279,28 @@ function insertSms(msg) {
     text: msg.text || '',
     phone: msg.phone || '',
     timestamp: msg.timestamp || new Date().toISOString(),
-    received_at: new Date().toISOString()
+    received_at: msg.receivedAt || new Date().toISOString(),
+    status: msg.status || 'pending',
+    direction: msg.direction || 'inbound',
+    source: msg.source || 'device',
+    error_message: msg.errorMessage || '',
+    request_id: msg.requestId || '',
+    task_id: msg.taskId ?? null
   });
   return result.lastInsertRowid;
 }
 
-function updateSmsStatus(id, status) {
-  getDatabase().prepare('UPDATE sms_messages SET status = ? WHERE id = ?').run(status, id);
+function updateSmsStatus(id, status, errorMessage = '') {
+  getDatabase().prepare('UPDATE sms_messages SET status = ?, error_message = ? WHERE id = ?').run(status, errorMessage, id);
+}
+
+function getSmsById(id) {
+  return getDatabase().prepare(`
+    SELECT m.*, d.ip as device_ip
+    FROM sms_messages m
+    LEFT JOIN devices d ON m.mac = d.mac
+    WHERE m.id = ?
+  `).get(id);
 }
 
 function getSmsList(limit = 100, offset = 0, filters = {}) {
@@ -224,6 +324,14 @@ function getSmsList(limit = 100, offset = 0, filters = {}) {
   if (filters.status) {
     conditions.push('m.status = ?');
     params.push(filters.status);
+  }
+  if (filters.direction) {
+    conditions.push('m.direction = ?');
+    params.push(filters.direction);
+  }
+  if (filters.source) {
+    conditions.push('m.source = ?');
+    params.push(filters.source);
   }
   
   if (conditions.length > 0) {
@@ -253,6 +361,14 @@ function getSmsCount(filters = {}) {
   if (filters.status) {
     conditions.push('m.status = ?');
     params.push(filters.status);
+  }
+  if (filters.direction) {
+    conditions.push('m.direction = ?');
+    params.push(filters.direction);
+  }
+  if (filters.source) {
+    conditions.push('m.source = ?');
+    params.push(filters.source);
   }
   
   if (conditions.length > 0) {
@@ -303,13 +419,16 @@ function getStats() {
 function insertScheduledSms(data) {
   const stmt = getDatabase().prepare(`
     INSERT INTO scheduled_sms 
-    (mac, phone, content, schedule_type, scheduled_time, interval_days, interval_hours, interval_minutes, next_run_time)
-    VALUES (@mac, @phone, @content, @schedule_type, @scheduled_time, @interval_days, @interval_hours, @interval_minutes, @next_run_time)
+    (mac, task_type, phone, content, traffic_kb, schedule_type, scheduled_time, interval_days, interval_hours, interval_minutes, next_run_time)
+    VALUES (@mac, @task_type, @phone, @content, @traffic_kb, @schedule_type, @scheduled_time, @interval_days, @interval_hours, @interval_minutes, @next_run_time)
   `);
+  const taskType = data.task_type === 'traffic' ? 'traffic' : 'sms';
   const result = stmt.run({
     mac: data.mac,
-    phone: data.phone,
-    content: data.content,
+    task_type: taskType,
+    phone: taskType === 'sms' ? (data.phone || '') : '-',
+    content: taskType === 'sms' ? (data.content || '') : '[TRAFFIC_TASK]',
+    traffic_kb: taskType === 'traffic' ? (parseInt(data.traffic_kb, 10) || 0) : 0,
     schedule_type: data.schedule_type,
     scheduled_time: data.scheduled_time,
     interval_days: data.interval_days || 0,
@@ -361,10 +480,16 @@ function updateScheduledSms(id, data) {
   const stmt = getDatabase().prepare(`
     UPDATE scheduled_sms 
     SET phone = COALESCE(?, phone), 
-        content = COALESCE(?, content)
+        content = COALESCE(?, content),
+        traffic_kb = COALESCE(?, traffic_kb)
     WHERE id = ?
   `);
-  stmt.run(data.phone || null, data.content || null, id);
+  stmt.run(
+    data.phone || null,
+    data.content || null,
+    data.traffic_kb !== undefined ? (parseInt(data.traffic_kb, 10) || 0) : null,
+    id
+  );
 }
 
 function deleteScheduledSms(id) {
@@ -432,14 +557,46 @@ function getPushHistoryBySmsId(smsId) {
   return getDatabase().prepare('SELECT * FROM push_history WHERE sms_id = ? ORDER BY created_at DESC').all(smsId);
 }
 
+function getPushHistorySummaryBySmsIds(smsIds = []) {
+  if (!Array.isArray(smsIds) || smsIds.length === 0) {
+    return {};
+  }
+
+  const placeholders = smsIds.map(() => '?').join(',');
+  const rows = getDatabase().prepare(`
+    SELECT id, sms_id, channel, status, error_message, created_at
+    FROM push_history
+    WHERE sms_id IN (${placeholders})
+    ORDER BY created_at DESC, id DESC
+  `).all(...smsIds);
+
+  const summary = {};
+  for (const row of rows) {
+    if (!summary[row.sms_id]) {
+      summary[row.sms_id] = {};
+    }
+    if (!summary[row.sms_id][row.channel]) {
+      summary[row.sms_id][row.channel] = {
+        id: row.id,
+        status: row.status || 'pending',
+        error: row.error_message || ''
+      };
+    }
+  }
+
+  return summary;
+}
+
 module.exports = {
   initDatabase,
   getDatabase,
   upsertDevice,
   getDeviceList,
+  getDeviceByMac,
   updateDeviceOffline,
   insertSms,
   updateSmsStatus,
+  getSmsById,
   getSmsList,
   getSmsCount,
   getPushConfig,
@@ -461,5 +618,6 @@ module.exports = {
   getPushHistory,
   updatePushHistoryStatus,
   getPushHistoryById,
-  getPushHistoryBySmsId
+  getPushHistoryBySmsId,
+  getPushHistorySummaryBySmsIds
 };
