@@ -102,6 +102,8 @@ function initDatabase() {
       retry_count INTEGER DEFAULT 0
     );
 
+    CREATE INDEX IF NOT EXISTS idx_push_history_sms_channel_status ON push_history(sms_id, channel, status);
+
     CREATE INDEX IF NOT EXISTS idx_schedule_next_run ON scheduled_sms(next_run_time);
     CREATE INDEX IF NOT EXISTS idx_schedule_mac ON scheduled_sms(mac);
     CREATE INDEX IF NOT EXISTS idx_history_task ON schedule_history(task_id);
@@ -136,6 +138,9 @@ function initDatabase() {
   } catch (e) {}
   try {
     getDatabase().exec('ALTER TABLE sms_messages ADD COLUMN task_id INTEGER DEFAULT NULL');
+  } catch (e) {}
+  try {
+    getDatabase().exec("ALTER TABLE devices ADD COLUMN remark TEXT DEFAULT ''");
   } catch (e) {}
   try {
     getDatabase().exec("ALTER TABLE devices ADD COLUMN phone TEXT DEFAULT ''");
@@ -268,6 +273,10 @@ function updateDeviceOffline() {
   `).run(threshold);
 }
 
+function updateDeviceRemark(mac, remark) {
+  getDatabase().prepare('UPDATE devices SET remark = ? WHERE mac = ?').run(remark, mac);
+}
+
 function insertSms(msg) {
   const stmt = getDatabase().prepare(`
     INSERT INTO sms_messages (mac, sender, text, phone, timestamp, received_at, status, direction, source, error_message, request_id, task_id)
@@ -321,9 +330,9 @@ function getSmsList(limit = 100, offset = 0, filters = {}) {
     conditions.push('m.mac = ?');
     params.push(filters.device);
   }
-  if (filters.status) {
+  if (filters.smsStatus) {
     conditions.push('m.status = ?');
-    params.push(filters.status);
+    params.push(filters.smsStatus);
   }
   if (filters.direction) {
     conditions.push('m.direction = ?');
@@ -332,6 +341,35 @@ function getSmsList(limit = 100, offset = 0, filters = {}) {
   if (filters.source) {
     conditions.push('m.source = ?');
     params.push(filters.source);
+  }
+
+  // Push status filter (based on push_history), so pagination matches UI.
+  // pending: no enabled channel has success/failed record (missing history treated as pending)
+  const pushStatus = filters.pushStatus;
+  const enabledChannels = Array.isArray(filters.enabledPushChannels) ? filters.enabledPushChannels.filter(Boolean) : [];
+  if (pushStatus) {
+    if (enabledChannels.length === 0) {
+      // No enabled channels: push status filters don't make sense.
+      conditions.push('1 = 0');
+    } else if (pushStatus === 'success' || pushStatus === 'failed') {
+      const placeholders = enabledChannels.map(() => '?').join(',');
+      conditions.push(`EXISTS (
+        SELECT 1 FROM push_history ph
+        WHERE ph.sms_id = m.id
+          AND ph.channel IN (${placeholders})
+          AND ph.status = ?
+      )`);
+      params.push(...enabledChannels, pushStatus);
+    } else if (pushStatus === 'pending') {
+      const placeholders = enabledChannels.map(() => '?').join(',');
+      conditions.push(`NOT EXISTS (
+        SELECT 1 FROM push_history ph
+        WHERE ph.sms_id = m.id
+          AND ph.channel IN (${placeholders})
+          AND (ph.status = 'success' OR ph.status = 'failed')
+      )`);
+      params.push(...enabledChannels);
+    }
   }
   
   if (conditions.length > 0) {
@@ -358,9 +396,9 @@ function getSmsCount(filters = {}) {
     conditions.push('m.mac = ?');
     params.push(filters.device);
   }
-  if (filters.status) {
+  if (filters.smsStatus) {
     conditions.push('m.status = ?');
-    params.push(filters.status);
+    params.push(filters.smsStatus);
   }
   if (filters.direction) {
     conditions.push('m.direction = ?');
@@ -369,6 +407,32 @@ function getSmsCount(filters = {}) {
   if (filters.source) {
     conditions.push('m.source = ?');
     params.push(filters.source);
+  }
+
+  const pushStatus = filters.pushStatus;
+  const enabledChannels = Array.isArray(filters.enabledPushChannels) ? filters.enabledPushChannels.filter(Boolean) : [];
+  if (pushStatus) {
+    if (enabledChannels.length === 0) {
+      conditions.push('1 = 0');
+    } else if (pushStatus === 'success' || pushStatus === 'failed') {
+      const placeholders = enabledChannels.map(() => '?').join(',');
+      conditions.push(`EXISTS (
+        SELECT 1 FROM push_history ph
+        WHERE ph.sms_id = m.id
+          AND ph.channel IN (${placeholders})
+          AND ph.status = ?
+      )`);
+      params.push(...enabledChannels, pushStatus);
+    } else if (pushStatus === 'pending') {
+      const placeholders = enabledChannels.map(() => '?').join(',');
+      conditions.push(`NOT EXISTS (
+        SELECT 1 FROM push_history ph
+        WHERE ph.sms_id = m.id
+          AND ph.channel IN (${placeholders})
+          AND (ph.status = 'success' OR ph.status = 'failed')
+      )`);
+      params.push(...enabledChannels);
+    }
   }
   
   if (conditions.length > 0) {
@@ -594,6 +658,7 @@ module.exports = {
   getDeviceList,
   getDeviceByMac,
   updateDeviceOffline,
+  updateDeviceRemark,
   insertSms,
   updateSmsStatus,
   getSmsById,

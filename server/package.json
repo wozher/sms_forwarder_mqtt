@@ -5,7 +5,8 @@
   "main": "backend.js",
   "scripts": {
     "start": "node backend.js",
-    "dev": "node backend.js"
+    "dev": "node backend.js",
+    "build:web": "node scripts/build-web.mjs"
   },
   "keywords": [
     "sms",
@@ -22,6 +23,12 @@
     "ws": "^8.14.2",
     "better-sqlite3": "^9.2.2",
     "dayjs": "^1.11.10"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.19",
+    "esbuild": "^0.21.5",
+    "postcss": "^8.4.39",
+    "tailwindcss": "^3.4.7"
   },
   "engines": {
     "node": ">=18.0.0"

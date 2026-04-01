@@ -4,20 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>短信转发器 - 管理后台 v2.0</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            primary: { 50: '#eff6ff', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' },
-            dark: { bg: '#0f172a', card: '#1e293b', border: '#334155' }
-          }
-        }
-      }
-    }
-  </script>
+  <!-- BUILD:CSS -->
   <style>
     :root {
       --bg: #f5f5f7;
@@ -46,6 +33,8 @@
       --radius: 24px;
     }
     * { box-sizing: border-box; }
+    /* Defensive: ensure utility-class 'hidden' works even without Tailwind */
+    .hidden { display: none !important; }
     html { background: var(--bg); }
     body {
       margin: 0;
@@ -348,14 +337,17 @@
       gap: 8px;
     }
     .device-card {
-      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+      transition: box-shadow 0.18s ease, border-color 0.18s ease;
       cursor: pointer;
       background: rgba(255,255,255,0.82);
       border: 1px solid var(--line);
       border-radius: 20px;
       box-shadow: var(--shadow-sm);
+      min-height: 180px;
+      max-height: 180px;
+      overflow: hidden;
     }
-    .device-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+    .device-card:hover { box-shadow: var(--shadow-md); }
     .device-card.selected { border-color: rgba(37, 99, 235, 0.45); box-shadow: 0 0 0 4px rgba(37,99,235,0.08), var(--shadow-md); }
     .msg-scroll { scroll-behavior: smooth; }
     .msg-scroll::-webkit-scrollbar, .at-log::-webkit-scrollbar { width: 8px; }
@@ -409,7 +401,6 @@
       border-color: rgba(37, 99, 235, 0.16);
     }
     .msg-grid > .msg-card,
-    #deviceList > .device-card,
     #scheduleList > * ,
     #recentSmsList > * {
       animation: sectionReveal 0.36s cubic-bezier(0.22, 1, 0.36, 1);
@@ -911,6 +902,11 @@
               <select id="msgDeviceFilter" class="!w-auto !text-sm" onchange="filterMessages()">
                 <option value="">全部设备</option>
               </select>
+              <select id="msgDirectionFilter" class="!w-auto !text-sm" onchange="filterMessages()">
+                <option value="">全部方向</option>
+                <option value="inbound">收件</option>
+                <option value="outbound">发件</option>
+              </select>
               <select id="msgStatusFilter" class="!w-auto !text-sm" onchange="filterMessages()">
                 <option value="">全部状态</option>
                 <option value="success">成功</option>
@@ -1320,13 +1316,14 @@
 
   <div id="toastContainer" class="toast-container"></div>
 
+  <!-- BUILD:JS -->
   <script>
     let ws = null;
     let selectedMac = null;
     let devices = [];
     let messages = [];
     let filteredMessages = [];
-    let currentFilters = { search: '', device: '', status: '' };
+    let currentFilters = { search: '', device: '', direction: '', status: '' };
     let pushStatusCache = {};
     let atSeq = 0;
     let pendingRespCallback = null;
@@ -1558,6 +1555,10 @@
       const filters = [];
       if (currentFilters.search) filters.push(`关键词: ${currentFilters.search}`);
       if (currentFilters.device) filters.push(`设备: ${currentFilters.device.substring(0, 12)}`);
+      if (currentFilters.direction) {
+        const dirText = currentFilters.direction === 'inbound' ? '收件' : currentFilters.direction === 'outbound' ? '发件' : currentFilters.direction;
+        filters.push(`方向: ${dirText}`);
+      }
       if (currentFilters.status) {
         const statusText = currentFilters.status === 'success' ? '成功' : currentFilters.status === 'failed' ? '失败' : '推送中';
         filters.push(`状态: ${statusText}`);
@@ -1704,26 +1705,86 @@
 
       ensureSelectedDevice();
       updateToolboxDeviceSelector();
-      
-      list.innerHTML = devices.map(d => {
+
+      // Clear empty-state placeholder if present
+      const emptyState = list.querySelector('.empty-state');
+      if (emptyState) emptyState.remove();
+
+      const existingCards = list.querySelectorAll('.device-card[data-mac]');
+      const existingMap = {};
+      existingCards.forEach(card => { existingMap[card.dataset.mac] = card; });
+      const newMacs = devices.map(d => d.mac);
+
+      // Remove cards for devices no longer present
+      existingCards.forEach(card => {
+        if (!newMacs.includes(card.dataset.mac)) card.remove();
+      });
+
+      devices.forEach((d, idx) => {
         const signalInfo = getSignalStrengthInfo(d.rssi);
-        return `
-          <div class="device-card p-4 ${selectedMac === d.mac ? 'selected' : ''}" onclick="selectDevice('${d.mac}', true)">
+        const remarkText = d.remark || '';
+        const existing = existingMap[d.mac];
+
+        if (existing) {
+          // Incremental update — only patch changed fields
+          const dot = existing.querySelector('[data-field="dot"]');
+          if (dot) { dot.className = `w-2.5 h-2.5 rounded-full ${d.online ? 'bg-green-500 online-dot' : 'bg-slate-500'}`; }
+          const badge = existing.querySelector('[data-field="badge"]');
+          if (badge) { badge.className = `text-xs px-2.5 py-1 rounded-full ${d.online ? 'bg-green-900 text-green-400' : 'bg-slate-100 text-slate-500'}`; badge.textContent = d.online ? '在线' : '离线'; }
+          const remarkEl = existing.querySelector('[data-field="remark"]');
+          if (remarkEl) { remarkEl.innerHTML = remarkText ? escapeHtml(remarkText) : '<span class="text-slate-400">点击设置</span>'; remarkEl.onclick = (e) => { e.stopPropagation(); editDeviceRemark(d.mac, remarkText); }; }
+          const ipEl = existing.querySelector('[data-field="ip"]');
+          if (ipEl) ipEl.textContent = d.ip || '-';
+          const phoneEl = existing.querySelector('[data-field="phone"]');
+          if (phoneEl) phoneEl.textContent = d.phone || '-';
+          const signalEl = existing.querySelector('[data-field="signal"]');
+          if (signalEl) { signalEl.textContent = signalInfo.text; signalEl.title = signalInfo.title; }
+          // Update selected state
+          if (selectedMac === d.mac) existing.classList.add('selected'); else existing.classList.remove('selected');
+          // Ensure correct order
+          if (list.children[idx] !== existing) list.insertBefore(existing, list.children[idx]);
+        } else {
+          // Create new card
+          const remarkDisplay = remarkText ? escapeHtml(remarkText) : '<span class="text-slate-400">点击设置</span>';
+          const card = document.createElement('div');
+          card.className = `device-card p-4 ${selectedMac === d.mac ? 'selected' : ''}`;
+          card.dataset.mac = d.mac;
+          card.onclick = () => selectDevice(d.mac, true);
+          card.innerHTML = `
             <div class="flex items-start justify-between mb-3 gap-3">
               <div class="flex items-center gap-2 min-w-0">
-                <span class="w-2.5 h-2.5 rounded-full ${d.online ? 'bg-green-500 online-dot' : 'bg-slate-500'}"></span>
+                <span data-field="dot" class="w-2.5 h-2.5 rounded-full ${d.online ? 'bg-green-500 online-dot' : 'bg-slate-500'}"></span>
                 <span class="font-mono text-xs text-slate-500 truncate">${d.mac.substring(0, 12)}</span>
               </div>
-              <span class="text-xs px-2.5 py-1 rounded-full ${d.online ? 'bg-green-900 text-green-400' : 'bg-slate-100 text-slate-500'}">${d.online ? '在线' : '离线'}</span>
+              <span data-field="badge" class="text-xs px-2.5 py-1 rounded-full ${d.online ? 'bg-green-900 text-green-400' : 'bg-slate-100 text-slate-500'}">${d.online ? '在线' : '离线'}</span>
             </div>
             <div class="space-y-2 text-sm text-slate-500">
-              <div class="flex items-center justify-between gap-3"><span>IP</span><span class="text-slate-900 text-right">${d.ip || '-'}</span></div>
-              <div class="flex items-center justify-between gap-3"><span>手机号</span><span class="text-slate-900 text-right">${d.phone || '-'}</span></div>
-              <div class="flex items-center justify-between gap-3"><span>信号强度</span><span class="text-slate-900 text-right" title="${escapeAttr(signalInfo.title)}">${escapeHtml(signalInfo.text)}</span></div>
-            </div>
-          </div>
-        `;
-      }).join('');
+              <div class="flex items-center justify-between gap-3"><span>备注</span><span data-field="remark" class="device-remark-value text-slate-900 text-right truncate cursor-pointer hover:text-blue-500" title="点击编辑备注">${remarkDisplay}</span></div>
+              <div class="flex items-center justify-between gap-3"><span>IP</span><span data-field="ip" class="text-slate-900 text-right">${d.ip || '-'}</span></div>
+              <div class="flex items-center justify-between gap-3"><span>手机号</span><span data-field="phone" class="text-slate-900 text-right">${d.phone || '-'}</span></div>
+              <div class="flex items-center justify-between gap-3"><span>信号强度</span><span data-field="signal" class="text-slate-900 text-right" title="${escapeAttr(signalInfo.title)}">${escapeHtml(signalInfo.text)}</span></div>
+            </div>`;
+          const remarkEl = card.querySelector('[data-field="remark"]');
+          remarkEl.onclick = (e) => { e.stopPropagation(); editDeviceRemark(d.mac, remarkText); };
+          if (list.children[idx]) list.insertBefore(card, list.children[idx]); else list.appendChild(card);
+        }
+      });
+    }
+
+    async function editDeviceRemark(mac, currentRemark) {
+      const newRemark = prompt('请输入设备备注：', currentRemark || '');
+      if (newRemark === null) return;
+      try {
+        const resp = await fetch(`/api/devices/${encodeURIComponent(mac)}/remark`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', ...authHeader() },
+          body: JSON.stringify({ remark: newRemark })
+        });
+        const data = await resp.json();
+        if (!data.success) throw new Error(data.message || '更新失败');
+      } catch (e) {
+        alert('备注更新失败: ' + e.message);
+      }
     }
 
     function getToolboxDeviceLabel(device) {
@@ -1815,6 +1876,7 @@
       const params = new URLSearchParams({ page: String(page), pageSize: String(MESSAGE_PAGE_SIZE) });
       if (filters.search) params.append('search', filters.search);
       if (filters.device) params.append('device', filters.device);
+      if (filters.direction) params.append('direction', filters.direction);
       if (filters.status) params.append('status', filters.status);
       return params;
     }
@@ -1859,6 +1921,7 @@
     async function filterMessages() {
       currentFilters.search = document.getElementById('msgSearchInput').value.toLowerCase().trim();
       currentFilters.device = document.getElementById('msgDeviceFilter').value;
+      currentFilters.direction = document.getElementById('msgDirectionFilter').value;
       currentFilters.status = document.getElementById('msgStatusFilter').value;
       
       try {
@@ -1881,8 +1944,9 @@
       clearTimeout(searchDebounceTimer);
       document.getElementById('msgSearchInput').value = '';
       document.getElementById('msgDeviceFilter').value = '';
+      document.getElementById('msgDirectionFilter').value = '';
       document.getElementById('msgStatusFilter').value = '';
-      currentFilters = { search: '', device: '', status: '' };
+      currentFilters = { search: '', device: '', direction: '', status: '' };
       clearPushStatusCache();
       currentPage = 1;
       newMessagesCount = 0;
@@ -1905,7 +1969,7 @@
     async function renderMessageCards() {
       const container = document.getElementById('msgContainer');
       const paginationEl = document.getElementById('msgPagination');
-      const hasFilter = currentFilters.search || currentFilters.device || currentFilters.status;
+      const hasFilter = currentFilters.search || currentFilters.device || currentFilters.direction || currentFilters.status;
       
       updateDeviceFilterOptions();
       updateMessageToolbarMeta();
@@ -1921,18 +1985,7 @@
       
       const cards = [];
       for (const m of filteredMessages) {
-        const statusFilter = currentFilters.status;
         const pushStatus = getPushSummaryForMessage(m);
-        
-        if (statusFilter) {
-          const hasSuccess = enabledPushChannels.some(ch => pushStatus[ch]?.status === 'success');
-          const hasFailed = enabledPushChannels.some(ch => pushStatus[ch]?.status === 'failed');
-          const allPending = enabledPushChannels.length > 0 && enabledPushChannels.every(ch => !pushStatus[ch] || pushStatus[ch].status === 'pending');
-          
-          if (statusFilter === 'success' && !hasSuccess) continue;
-          if (statusFilter === 'failed' && !hasFailed) continue;
-          if (statusFilter === 'pending' && !allPending) continue;
-        }
         
         const statusHtml = enabledPushChannels.map(ch => {
           const s = pushStatus[ch];

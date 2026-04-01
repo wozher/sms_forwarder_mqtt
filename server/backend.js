@@ -253,7 +253,29 @@ db.initDatabase();
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-app.use(express.static(path.join(__dirname, 'public')));
+const publicRoot = path.join(__dirname, 'public');
+const publicDist = path.join(publicRoot, 'dist');
+
+function setStaticCacheHeaders(res, filePath) {
+  const base = path.basename(filePath);
+  if (base === 'index.html') {
+    res.setHeader('Cache-Control', 'no-cache');
+    return;
+  }
+
+  // Fingerprinted assets can be cached forever.
+  if (/\.[a-f0-9]{8,}\.(css|js)$/i.test(base)) {
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    return;
+  }
+
+  // Default for other static files
+  res.setHeader('Cache-Control', 'public, max-age=3600');
+}
+
+// Serve built frontend first (public/dist), then fallback to public/
+app.use(express.static(publicDist, { setHeaders: setStaticCacheHeaders }));
+app.use(express.static(publicRoot, { setHeaders: setStaticCacheHeaders }));
 
 app.post('/api/login', (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -316,24 +338,49 @@ app.get('/api/devices', (req, res) => {
   }
 });
 
+app.put('/api/devices/:mac/remark', (req, res) => {
+  try {
+    const { mac } = req.params;
+    const { remark } = req.body;
+    if (typeof remark !== 'string') {
+      return res.status(400).json({ success: false, message: '备注内容无效' });
+    }
+    const device = db.getDeviceByMac(mac);
+    if (!device) {
+      return res.status(404).json({ success: false, message: '设备不存在' });
+    }
+    db.updateDeviceRemark(mac, remark.trim());
+    broadcastDeviceList();
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[API] Error updating device remark:', error);
+    res.status(500).json({ success: false, message: '服务暂时不可用，请稍后重试' });
+  }
+});
+
 app.get('/api/messages', (req, res) => {
   try {
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const pageSize = Math.min(parseInt(req.query.pageSize) || 10, 100);
     const offset = (page - 1) * pageSize;
-    
+
+    const pushConfig = db.getPushConfig() || {};
+    const enabledPushChannels = getEnabledPushChannels(pushConfig);
+
+    // status query param is treated as PUSH status (success/failed/pending)
+    // so pagination stays consistent with the UI filter.
     const filters = {
       search: req.query.search || '',
       device: req.query.device || '',
-      status: req.query.status || '',
       direction: req.query.direction || '',
-      source: req.query.source || ''
+      source: req.query.source || '',
+      pushStatus: req.query.status || '',
+      enabledPushChannels
     };
-    
-    const pushConfig = db.getPushConfig() || {};
+
     const baseMessages = db.getSmsList(pageSize, offset, filters).map(buildSmsResponsePayload);
     const messages = buildPushSummaryForMessages(baseMessages, pushConfig);
-    
+
     const total = db.getSmsCount(filters);
     const totalPages = Math.ceil(total / pageSize) || 1;
     
@@ -341,7 +388,7 @@ app.get('/api/messages', (req, res) => {
       success: true, 
       messages,
       meta: {
-        enabledPushChannels: getEnabledPushChannels(pushConfig)
+        enabledPushChannels
       },
       pagination: {
         page,
@@ -674,7 +721,13 @@ app.delete('/api/schedule/:id', (req, res) => {
 });
 
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  const distIndex = path.join(publicDist, 'index.html');
+  if (fs.existsSync(distIndex)) {
+    res.setHeader('Cache-Control', 'no-cache');
+    return res.sendFile(distIndex);
+  }
+  res.setHeader('Cache-Control', 'no-cache');
+  res.sendFile(path.join(publicRoot, 'index.html'));
 });
 
 app.use((req, res) => {
@@ -820,7 +873,9 @@ function sendCmdToDevice(mac, action, params) {
 
       const timeoutMap = {
         ping: 40000,
-        consume_traffic: 90000
+        consume_traffic: 90000,
+        send_sms: 60000,
+        at: 30000
       };
       const timeout = timeoutMap[action] || 15000;
       const timer = setTimeout(() => {
@@ -937,10 +992,17 @@ async function dispatchPush(sms, smsId = null) {
   const results = await Promise.allSettled(tasks);
   results.forEach((r, i) => {
     if (r.status === 'fulfilled') {
-      const historyId = r.value?.historyId || r.value;
-      if (historyId) {
-        db.updatePushHistoryStatus(historyId, 'success', '');
-        console.log(`[PUSH] ${channelMap[i]} ok`);
+      const val = r.value;
+      if (val && typeof val === 'object' && val.error) {
+        // .catch() converted rejection into fulfilled object { historyId, error }
+        db.updatePushHistoryStatus(val.historyId, 'failed', val.error);
+        console.error(`[PUSH] ${channelMap[i]} failed:`, val.error);
+      } else {
+        const historyId = val;
+        if (historyId) {
+          db.updatePushHistoryStatus(historyId, 'success', '');
+          console.log(`[PUSH] ${channelMap[i]} ok`);
+        }
       }
     } else {
       const error = r.reason?.message || r.reason;
@@ -951,6 +1013,16 @@ async function dispatchPush(sms, smsId = null) {
       console.error(`[PUSH] ${channelMap[i]} failed:`, error);
     }
   });
+
+  // Broadcast push status update so frontend refreshes from pending
+  if (smsId) {
+    try {
+      const smsRow = db.getSmsById(smsId);
+      if (smsRow) broadcastSMS(buildSmsResponsePayload(smsRow));
+    } catch (e) {
+      console.error('[PUSH] broadcast after push failed:', e.message);
+    }
+  }
 }
 
 function formatPushMessage(sender, text, timestamp, phone) {
@@ -999,11 +1071,12 @@ async function doDingtalk(webhookUrl, secret, sender, text, timestamp, phone) {
     url += `&timestamp=${timestamp2}&sign=${encodedSign}`;
   }
   const msgObj = formatPushMessage(sender, text, timestamp, phone);
-  await fetch(url, {
+  const resp = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ msgtype: 'text', text: { content: msgObj.plain } })
   });
+  if (!resp.ok) throw new Error(`Dingtalk HTTP ${resp.status}`);
 }
 
 async function doPushplus(token, sender, text, timestamp, phone, channel) {
@@ -1040,31 +1113,34 @@ async function doFeishu(webhookUrl, secret, sender, text, timestamp, phone) {
     const sign = crypto2.createHmac('sha256', secret).update(`${timestampSec}\n${secret}`).digest('base64');
     bodyObj = { ...bodyObj, timestamp: String(timestampSec), sign };
   }
-  await fetch(webhookUrl, {
+  const resp = await fetch(webhookUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(bodyObj)
   });
+  if (!resp.ok) throw new Error(`Feishu HTTP ${resp.status}`);
 }
 
 async function doBark(barkUrl, sender, text, timestamp, phone) {
   const msgObj = formatPushMessage(sender, text, timestamp, phone);
   const url = barkUrl.endsWith('/') ? barkUrl : barkUrl + '/';
-  await fetch(`${url}`, {
+  const resp = await fetch(`${url}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ title: msgObj.title, body: msgObj.plain })
   });
+  if (!resp.ok) throw new Error(`Bark HTTP ${resp.status}`);
 }
 
 async function doGotify(gotifyUrl, token, sender, text, timestamp, phone) {
   const msgObj = formatPushMessage(sender, text, timestamp, phone);
   const url = gotifyUrl.endsWith('/') ? gotifyUrl : gotifyUrl + '/';
-  await fetch(`${url}message?token=${token}`, {
+  const resp = await fetch(`${url}message?token=${token}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ title: msgObj.title, message: msgObj.plain, priority: 5 })
   });
+  if (!resp.ok) throw new Error(`Gotify HTTP ${resp.status}`);
 }
 
 async function doPostJson(url, payload) {
@@ -1081,11 +1157,12 @@ async function doCustomTemplate(url, template, payload) {
   for (const [k, v] of Object.entries(payload)) {
     body = body.replace(new RegExp(`\\{${k}\\}`, 'g'), v);
   }
-  await fetch(url, {
+  const resp = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body
   });
+  if (!resp.ok) throw new Error(`CustomTemplate HTTP ${resp.status}`);
 }
 
 function connectMQTT() {

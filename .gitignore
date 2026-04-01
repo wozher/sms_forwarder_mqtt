@@ -22,6 +22,9 @@ Thumbs.db
 dist/
 build/
 
+# Frontend build artifacts (server)
+server/public/dist/
+
 # Environment
 .env
 .env.local

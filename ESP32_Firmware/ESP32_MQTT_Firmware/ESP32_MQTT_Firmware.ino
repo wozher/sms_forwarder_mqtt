@@ -50,6 +50,9 @@ unsigned long lastQueueFlushAttempt = 0;
 #define NETWORK_CACHE_TTL 5000UL
 #define SIMINFO_CACHE_TTL 600000UL
 
+// Roaming networks can have higher latency; keep SMS send timeout longer.
+#define SEND_SMS_TOTAL_TIMEOUT_MS 50000UL
+
 enum AsyncTaskType {
   ASYNC_TASK_NONE = 0,
   ASYNC_TASK_PING,
@@ -200,15 +203,19 @@ void resetModule() {
   Serial.println(ok ? "模组AT恢复正常" : "模组AT仍未响应");
 }
 
-bool sendSMS(const char* phoneNum, const char* message) {
+bool sendSMS(const char* phoneNum, const char* message, String& outMessage) {
   Serial.println("发送短信...");
   Serial.print("目标号码: "); Serial.println(phoneNum);
   Serial.print("内容: "); Serial.println(message);
+
+  const unsigned long SMS_TOTAL_TIMEOUT_MS = SEND_SMS_TOTAL_TIMEOUT_MS;
+  const unsigned long startAll = millis();
 
   pdu.setSCAnumber();
   int pduLen = pdu.encodePDU(phoneNum, message);
   if (pduLen < 0) {
     Serial.print("PDU编码失败: "); Serial.println(pduLen);
+    outMessage = "PDU编码失败";
     return false;
   }
 
@@ -217,32 +224,49 @@ bool sendSMS(const char* phoneNum, const char* message) {
   while (Serial1.available()) Serial1.read();
   Serial1.println(cmgsCmd);
 
-  unsigned long start = millis();
   bool gotPrompt = false;
-  while (millis() - start < 5000) {
+  while (millis() - startAll < SMS_TOTAL_TIMEOUT_MS) {
+    // Keep MQTT connection alive while waiting on modem
+    if (mqttClient.connected()) mqttClient.loop();
     if (Serial1.available()) {
       char c = Serial1.read();
       Serial.print(c);
       if (c == '>') { gotPrompt = true; break; }
     }
+    delay(1);
   }
-  if (!gotPrompt) { Serial.println("未收到>提示符"); return false; }
+  if (!gotPrompt) {
+    Serial.println("未收到>提示符");
+    outMessage = "未收到发送提示符";
+    return false;
+  }
 
   Serial1.print(pdu.getSMS());
   Serial1.write(0x1A);
 
-  start = millis();
   String resp = "";
-  while (millis() - start < 30000) {
+  while (millis() - startAll < SMS_TOTAL_TIMEOUT_MS) {
+    // Keep MQTT connection alive while waiting on modem
+    if (mqttClient.connected()) mqttClient.loop();
     while (Serial1.available()) {
       char c = Serial1.read();
       resp += c;
       Serial.print(c);
-      if (resp.indexOf("OK") >= 0) { Serial.println("短信发送成功"); return true; }
-      if (resp.indexOf("ERROR") >= 0) { Serial.println("短信发送失败"); return false; }
+      if (resp.indexOf("OK") >= 0) {
+        Serial.println("短信发送成功");
+        outMessage = "短信发送成功";
+        return true;
+      }
+      if (resp.indexOf("ERROR") >= 0) {
+        Serial.println("短信发送失败");
+        outMessage = "短信发送失败";
+        return false;
+      }
     }
+    delay(1);
   }
   Serial.println("短信发送超时");
+  outMessage = "短信发送超时";
   return false;
 }
 
@@ -800,8 +824,33 @@ void publishRespDoc(DynamicJsonDocument& doc) {
   payload.reserve(512);
   serializeJson(doc, payload);
   String topic = "sms_forwarder/resp/" + deviceMAC;
-  mqttClient.publish(topic.c_str(), payload.c_str());
-  Serial.println("[MQTT] Resp sent: " + payload);
+
+  // Ensure response is sent promptly, even after a long modem operation.
+  // Try to reconnect and retry publish a few times to avoid the server waiting.
+  if (!mqttClient.connected()) {
+    unsigned long start = millis();
+    while (!mqttClient.connected() && millis() - start < 3000) {
+      mqttReconnect();
+      mqttClient.loop();
+      delay(120);
+    }
+  }
+
+  bool published = false;
+  for (int i = 0; i < 3; i++) {
+    if (!mqttClient.connected()) {
+      mqttReconnect();
+      mqttClient.loop();
+      delay(120);
+      continue;
+    }
+    published = mqttClient.publish(topic.c_str(), payload.c_str());
+    mqttClient.loop();
+    if (published) break;
+    delay(60);
+  }
+
+  Serial.println(String("[MQTT] Resp ") + (published ? "sent" : "send_failed") + ": " + payload);
 }
 
 void publishResp(const char* action, bool success, const String& message) {
@@ -1266,8 +1315,15 @@ void handleQueryMQTT(const String& type) {
 
 void handleSendSmsMQTT(const String& phone, const String& content) {
   Serial.println("[MQTT] 发送短信: " + phone + " -> " + content);
-  bool ok = sendSMS(phone.c_str(), content.c_str());
-  publishResp("send_sms", ok, ok ? "短信发送成功" : "短信发送失败");
+  String resultMsg;
+  resultMsg.reserve(64);
+  bool ok = sendSMS(phone.c_str(), content.c_str(), resultMsg);
+  // Always send a response (with original requestId) right after the action ends.
+  // This prevents the backend from waiting its full timeout when modem/network is slow.
+  if (resultMsg.length() == 0) {
+    resultMsg = ok ? "短信发送成功" : "短信发送失败";
+  }
+  publishResp("send_sms", ok, resultMsg);
 }
 
 
