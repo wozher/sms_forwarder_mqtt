@@ -1999,8 +1999,14 @@
         const hasFailed = enabledPushChannels.some(ch => pushStatus[ch]?.status === 'failed');
         
         const isOnline = devices.some(d => d.mac === m.mac && d.online);
-        const senderDisplay = formatPhone(m.sender);
-        const receiverDisplay = m.phone ? String(m.phone) : '-';
+        const isOutbound = m.direction === 'outbound';
+        const devicePhone = getDevicePhoneByMac(m.mac);
+        const senderDisplay = isOutbound
+          ? (devicePhone || '本机')
+          : formatPhone(m.sender);
+        const receiverDisplay = isOutbound
+          ? (m.phone ? String(m.phone) : '-')
+          : (devicePhone || (m.phone ? String(m.phone) : '-'));
         const timeStr = formatTimeStr(m.receivedAt || m.timestamp);
         const isLongText = m.text && m.text.length > 80;
         const deviceMac = m.mac || '';
@@ -2017,6 +2023,7 @@
             <div class="flex items-center gap-2 mb-2 flex-wrap">
               <span class="msg-party-badge sender">发件人 ${escapeHtml(senderDisplay)}</span>
               <span class="msg-party-badge receiver">收件人 ${escapeHtml(receiverDisplay)}</span>
+              ${isOutbound ? `<span class="push-badge pending" title="发送来源">${escapeHtml(getOutboundSourceLabel(m.source))}</span>` : ''}
             </div>
             <div class="msg-card-text">${escapeHtml(m.text||'')}</div>
             ${isLongText ? `<button class="text-xs text-blue-400 mt-2 hover:underline" onclick="event.stopPropagation();this.previousElementSibling.classList.toggle('expanded');this.textContent=this.previousElementSibling.classList.contains('expanded')?'收起':'展开全部'">展开全部</button>` : ''}
@@ -2177,6 +2184,12 @@
     function formatPhone(phone) {
       if (!phone) return '-';
       return String(phone);
+    }
+
+    function getDevicePhoneByMac(mac) {
+      if (!mac) return '';
+      const dev = devices.find(d => d.mac === mac);
+      return dev?.phone ? String(dev.phone) : '';
     }
 
     function clearPushStatusCache() {
