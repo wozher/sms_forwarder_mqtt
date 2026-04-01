@@ -443,9 +443,10 @@ app.post('/api/cmd/:mac', async (req, res) => {
 
   try {
     if (action === 'send_sms') {
+      const devicePhone = (device && device.phone) ? String(device.phone).trim() : '';
       const outboundId = db.insertSms({
         mac,
-        sender: '本机发送',
+        sender: devicePhone || '本机',
         text: params.content || '',
         phone: params.phone || '',
         timestamp: new Date().toISOString(),
@@ -1341,10 +1342,12 @@ setInterval(() => {
     const cmdParams = taskType === 'traffic'
       ? { targetKb: parseInt(task.traffic_kb, 10) || 0 }
       : { phone: task.phone, content: task.content };
+    const taskDevice = task?.mac ? db.getDeviceByMac(task.mac) : null;
+    const taskDevicePhone = taskDevice?.phone ? String(taskDevice.phone).trim() : '';
     const outboundSmsId = taskType === 'sms'
       ? db.insertSms({
           mac: task.mac,
-          sender: '定时发送',
+          sender: taskDevicePhone || '本机',
           text: task.content,
           phone: task.phone,
           timestamp: new Date().toISOString(),
