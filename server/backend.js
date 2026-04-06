@@ -146,6 +146,7 @@ function buildSmsResponsePayload(row) {
     id: row.id,
     mac: row.mac,
     deviceIp: row.device_ip || '',
+    devicePhone: row.device_phone || '',
     sender: row.sender,
     text: row.text,
     phone: row.phone,
@@ -358,6 +359,26 @@ app.put('/api/devices/:mac/remark', (req, res) => {
   }
 });
 
+app.put('/api/devices/:mac/phone', (req, res) => {
+  try {
+    const { mac } = req.params;
+    const { phone } = req.body;
+    if (typeof phone !== 'string') {
+      return res.status(400).json({ success: false, message: '号码内容无效' });
+    }
+    const device = db.getDeviceByMac(mac);
+    if (!device) {
+      return res.status(404).json({ success: false, message: '设备不存在' });
+    }
+    db.updateDevicePhoneOverride(mac, phone.trim());
+    broadcastDeviceList();
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[API] Error updating device phone override:', error);
+    res.status(500).json({ success: false, message: '服务暂时不可用，请稍后重试' });
+  }
+});
+
 app.get('/api/messages', (req, res) => {
   try {
     const page = Math.max(1, parseInt(req.query.page) || 1);
@@ -372,6 +393,7 @@ app.get('/api/messages', (req, res) => {
     const filters = {
       search: req.query.search || '',
       device: req.query.device || '',
+      phone: req.query.phone || '',
       direction: req.query.direction || '',
       source: req.query.source || '',
       pushStatus: req.query.status || '',
@@ -449,6 +471,7 @@ app.post('/api/cmd/:mac', async (req, res) => {
         sender: devicePhone || '本机',
         text: params.content || '',
         phone: params.phone || '',
+        devicePhone,
         timestamp: new Date().toISOString(),
         status: 'pending',
         direction: 'outbound',
@@ -614,6 +637,11 @@ app.post('/api/schedule', (req, res) => {
     if (!device?.online) {
       return res.status(400).json({ success: false, message: '设备不在线' });
     }
+
+    // Prefer binding schedules by device phone if available; fallback to mac.
+    const devicePhone = device?.phone ? String(device.phone).trim() : '';
+    const bindMode = devicePhone ? 'phone' : 'mac';
+    const bindPhone = devicePhone;
     
     const timeParts = scheduled_time.split(':');
     const hour = parseInt(timeParts[0]) || 0;
@@ -624,6 +652,8 @@ app.post('/api/schedule', (req, res) => {
     
     const taskId = db.insertScheduledSms({
       mac,
+      bind_mode: bindMode,
+      bind_phone: bindPhone,
       task_type: taskType,
       phone: taskType === 'sms' ? phone : '-',
       content: taskType === 'sms' ? content : '[TRAFFIC_TASK]',
@@ -637,7 +667,7 @@ app.post('/api/schedule', (req, res) => {
     });
     
     const targetDesc = taskType === 'traffic' ? `${parseInt(traffic_kb, 10) || 0}KB` : phone;
-    console.log(`[Schedule] Task ${taskId} created: ${taskType}/${schedule_type} - ${targetDesc} at ${hour}:${minute}`);
+    console.log(`[Schedule] Task ${taskId} created: ${taskType}/${schedule_type} - ${targetDesc} at ${hour}:${minute} (bind=${bindMode}${bindPhone ? ':' + bindPhone : ''})`);
     res.json({ success: true, id: taskId, message: '定时任务已创建，系统会按计划自动执行' });
   } catch (error) {
     console.error('[API] Error creating schedule:', error);
@@ -791,6 +821,30 @@ function broadcastScheduleEvent(event, data) {
       ws.send(payload);
     }
   });
+}
+
+function normalizePhone(value) {
+  return (value == null ? '' : String(value)).replace(/\s+/g, '').trim();
+}
+
+function resolveScheduleTargetDevice(task) {
+  if (!task) return null;
+  const bindMode = task.bind_mode === 'phone' ? 'phone' : 'mac';
+  const bindPhone = normalizePhone(task.bind_phone);
+  const taskMac = task.mac || '';
+
+  if (bindMode === 'phone' && bindPhone) {
+    const devices = db.getDeviceList();
+    const onlineMatches = devices.filter(d => d.online && normalizePhone(d.phone) === bindPhone);
+    if (onlineMatches.length > 0) {
+      // Prefer the most recently seen device.
+      onlineMatches.sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0));
+      return onlineMatches[0];
+    }
+    return null;
+  }
+
+  return taskMac ? db.getDeviceByMac(taskMac) : null;
 }
 
 function broadcastSMS(sms) {
@@ -1233,14 +1287,25 @@ function connectMQTT() {
             smsTimestamp = receivedAt;
           }
 
+          const device = db.getDeviceList().find(d => d.mac === mac);
+          const devicePhone = device?.phone || '';
+          const normalizedPhone = (() => {
+            const rawPhone = String(data.phone || '').trim();
+            if (!rawPhone || rawPhone === '?' || rawPhone === '未知') {
+              return devicePhone || '';
+            }
+            return rawPhone;
+          })();
+
           const smsRecord = {
             id: crypto.randomUUID(),
             mac,
-            deviceIp: db.getDeviceList().find(d => d.mac === mac)?.ip || '',
+            deviceIp: device?.ip || '',
+            devicePhone,
             sender: data.sender || '?',
             text: data.text || '',
             timestamp: smsTimestamp,
-            phone: data.phone || '?',
+            phone: normalizedPhone,
             receivedAt
           };
 
@@ -1252,7 +1317,8 @@ function connectMQTT() {
               mac,
               sender: data.sender || '',
               text: data.text || '',
-              phone: data.phone || '',
+              phone: normalizedPhone,
+              devicePhone,
               timestamp: smsRecord.timestamp,
               status: 'success',
               direction: 'inbound',
@@ -1267,7 +1333,7 @@ function connectMQTT() {
             sender: data.sender || '',
             text: data.text || '',
             timestamp: smsRecord.timestamp,
-            phone: data.phone || ''
+            phone: normalizedPhone
           }, smsId);
 
           if (smsId !== null) {
@@ -1342,14 +1408,53 @@ setInterval(() => {
     const cmdParams = taskType === 'traffic'
       ? { targetKb: parseInt(task.traffic_kb, 10) || 0 }
       : { phone: task.phone, content: task.content };
-    const taskDevice = task?.mac ? db.getDeviceByMac(task.mac) : null;
-    const taskDevicePhone = taskDevice?.phone ? String(taskDevice.phone).trim() : '';
+
+    const resolvedDevice = resolveScheduleTargetDevice(task);
+    const resolvedMac = resolvedDevice?.mac || '';
+    const resolvedPhone = resolvedDevice?.phone ? String(resolvedDevice.phone).trim() : '';
+
+    if (!resolvedDevice || !resolvedDevice.online || !resolvedMac) {
+      const runTime = Date.now();
+      const bindDesc = task.bind_mode === 'phone'
+        ? `本机号码 ${task.bind_phone || '-'} 绑定`
+        : `设备 ${task.mac || '-'} 绑定`;
+      const reason = `未找到可执行设备（${bindDesc}），任务已停止`;
+      console.warn(`[Schedule] Task ${task.id} skipped: ${reason}`);
+
+      db.insertScheduleHistory({
+        task_id: task.id,
+        run_time: runTime,
+        status: 'failed',
+        response: reason
+      });
+
+      if (task.schedule_type === 'once') {
+        db.updateScheduledSmsStatus(task.id, 'failed');
+      } else {
+        // For interval tasks, keep it active and retry on next interval window.
+        const intervalDays = task.interval_days || 1;
+        const targetHour = task.interval_hours || 0;
+        const targetMinute = task.interval_minutes || 0;
+        const nextRun = calculateNextRunTimeFromRunTime(runTime, targetHour, targetMinute, intervalDays);
+        db.updateScheduledSmsNextRun(task.id, nextRun, intervalDays, targetHour, targetMinute);
+      }
+
+      broadcastScheduleEvent('failed', {
+        taskId: task.id,
+        runTime,
+        message: reason
+      });
+
+      return;
+    }
+
     const outboundSmsId = taskType === 'sms'
       ? db.insertSms({
-          mac: task.mac,
-          sender: taskDevicePhone || '本机',
+          mac: resolvedMac,
+          sender: resolvedPhone || '本机',
           text: task.content,
           phone: task.phone,
+          devicePhone: resolvedPhone || '',
           timestamp: new Date().toISOString(),
           status: 'pending',
           direction: 'outbound',
@@ -1474,17 +1579,17 @@ setInterval(() => {
     };
 
     if (taskType === 'traffic') {
-      sendCmdToDevice(task.mac, 'query', { type: 'network' }).then(netResp => {
+      sendCmdToDevice(resolvedMac, 'query', { type: 'network' }).then(netResp => {
         const kv = parsePipeKv(netResp?.message || '');
         const regText = kv['注册'] || '';
         const roaming = parseNetworkRoaming(regText);
         if (roaming) {
           throw new Error('设备处于漫游状态，跳过本次定时流量任务');
         }
-        return sendCmdToDevice(task.mac, cmdAction, cmdParams);
+        return sendCmdToDevice(resolvedMac, cmdAction, cmdParams);
       }).then(handleResult).catch(handleError);
     } else {
-      sendCmdToDevice(task.mac, cmdAction, cmdParams).then(handleResult).catch(handleError);
+      sendCmdToDevice(resolvedMac, cmdAction, cmdParams).then(handleResult).catch(handleError);
     }
   });
 }, 60000);

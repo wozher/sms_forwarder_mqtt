@@ -344,12 +344,15 @@
       border: 1px solid var(--line);
       border-radius: 20px;
       box-shadow: var(--shadow-sm);
-      min-height: 180px;
-      max-height: 180px;
+      min-height: 220px;
+      max-height: 220px;
       overflow: hidden;
     }
     .device-card:hover { box-shadow: var(--shadow-md); }
     .device-card.selected { border-color: rgba(37, 99, 235, 0.45); box-shadow: 0 0 0 4px rgba(37,99,235,0.08), var(--shadow-md); }
+    #deviceList::-webkit-scrollbar { width: 8px; }
+    #deviceList::-webkit-scrollbar-track { background: transparent; }
+    #deviceList::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.65); border-radius: 999px; }
     .msg-scroll { scroll-behavior: smooth; }
     .msg-scroll::-webkit-scrollbar, .at-log::-webkit-scrollbar { width: 8px; }
     .msg-scroll::-webkit-scrollbar-track, .at-log::-webkit-scrollbar-track { background: transparent; }
@@ -467,6 +470,14 @@
       box-shadow: var(--shadow-md);
     }
 
+    /* Strong override: some builds may re-order CSS and restore .hero-panel{overflow:hidden}.
+       Ensure the account dropdown isn't clipped on desktop. */
+    .hero-panel.topbar {
+      overflow: visible !important;
+      position: relative;
+      z-index: 10060;
+    }
+
     /* Ensure dropdowns render above card grids. */
     #app { position: relative; z-index: 1; }
 
@@ -521,6 +532,64 @@
       pointer-events: none;
     }
     .msg-grid { display: grid; grid-template-columns: repeat(1, minmax(0, 1fr)); gap: 14px; align-content: start; min-height: 100%; }
+.msg-grid.grouped { grid-template-columns: 1fr; }
+
+    .msg-group {
+      background: rgba(255,255,255,0.68);
+      border: 1px solid rgba(15,23,42,0.08);
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+    .msg-group-head {
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid rgba(15,23,42,0.06);
+      background: linear-gradient(180deg, rgba(248,250,252,0.92), rgba(255,255,255,0.72));
+    }
+    .msg-group-title {
+      min-width: 0;
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .msg-group-badge {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #475569;
+      background: rgba(148,163,184,0.18);
+      border: 1px solid rgba(148,163,184,0.24);
+      padding: 4px 8px;
+      border-radius: 999px;
+    }
+    .msg-group-value {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      max-width: 360px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .msg-group-meta {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .msg-group-grid {
+      padding: 14px;
+      display: grid;
+      grid-template-columns: repeat(1, minmax(0, 1fr));
+      gap: 14px;
+    }
+    @media (min-width: 768px) { .msg-group-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (min-width: 1280px) { .msg-group-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    .msg-group.collapsed .msg-group-grid { display: none; }
     .msg-skeleton {
       min-height: 192px;
       border-radius: 22px;
@@ -836,6 +905,46 @@
     </div>
   </div>
 
+  <div id="editRemarkModal" class="fixed inset-0 bg-black/60 z-[10001] hidden flex items-center justify-center">
+    <div class="glass-card rounded-[28px] p-8 w-full max-w-sm">
+      <h2 class="text-xl font-semibold text-slate-900 text-center mb-6">修改备注</h2>
+      <div class="form-row">
+        <label>设备备注</label>
+        <input type="text" id="remarkInput" placeholder="输入设备备注">
+      </div>
+      <div class="flex gap-3 mt-4">
+        <button class="btn btn-gray flex-1" onclick="closeEditRemarkModal()">取消</button>
+        <button class="btn btn-primary flex-1" onclick="doSaveRemark()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="editPhoneModal" class="fixed inset-0 bg-black/60 z-[10001] hidden flex items-center justify-center">
+    <div class="glass-card rounded-[28px] p-8 w-full max-w-sm">
+      <h2 class="text-xl font-semibold text-slate-900 text-center mb-6">修改手机号</h2>
+      <div class="form-row">
+        <label>本机号码</label>
+        <input type="text" id="phoneInput" placeholder="输入本机号码">
+      </div>
+      <div class="text-xs text-slate-500 mt-2">用于定时任务绑定，系统将优先使用此号码</div>
+      <div class="flex gap-3 mt-4">
+        <button class="btn btn-gray flex-1" onclick="closeEditPhoneModal()">取消</button>
+        <button class="btn btn-primary flex-1" onclick="doSavePhone()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="roamingConfirmModal" class="fixed inset-0 bg-black/60 z-[10001] hidden flex items-center justify-center">
+    <div class="glass-card rounded-[28px] p-8 w-full max-w-sm">
+      <h2 class="text-xl font-semibold text-slate-900 text-center mb-6">⚠️ 漫游提示</h2>
+      <p id="roamingConfirmMsg" class="text-sm text-slate-600 text-center mb-6"></p>
+      <div class="flex gap-3">
+        <button class="btn btn-gray flex-1" onclick="closeRoamingConfirmModal()">取消</button>
+        <button class="btn btn-primary flex-1" onclick="confirmRoamingAction()">确定继续</button>
+      </div>
+    </div>
+  </div>
+
   <div id="app" class="max-w-7xl mx-auto p-4 app-shell">
     <header class="hero-panel topbar mb-4 relative">
       <div class="flex items-center justify-between gap-3 relative z-10">
@@ -855,7 +964,7 @@
     </header>
 
     <div class="grid grid-cols-1 xl:grid-cols-[360px_minmax(0,1fr)] gap-6 mb-6">
-      <section class="section-card p-5 lg:p-6 h-full">
+      <section class="section-card p-5 lg:p-6 flex flex-col">
         <div class="section-heading">
           <div>
             <div class="eyebrow">设备总览</div>
@@ -863,7 +972,7 @@
             <p>查看在线状态、IP、手机号与信号强度。</p>
           </div>
         </div>
-        <div id="deviceList" class="grid grid-cols-1 gap-3">
+        <div id="deviceList" style="max-height: 800px; overflow-y: auto;">
           <div class="empty-state"><strong>暂无设备连接</strong><span>设备上线后会在这里显示状态、号码与信号信息。</span></div>
         </div>
       </section>
@@ -882,8 +991,12 @@
               <div class="relative">
                 <input type="text" id="msgSearchInput" placeholder="搜索内容 / 号码" class="!w-52 !text-sm" oninput="queueMessageSearch()">
               </div>
+              <input type="hidden" id="msgPhoneFilter" value="">
+              <select id="msgPhoneFilterSelect" class="!w-auto !text-sm" onchange="handlePhoneFilterChange(this.value)">
+                <option value="">全部手机号</option>
+              </select>
               <select id="msgDeviceFilter" class="!w-auto !text-sm" onchange="filterMessages()">
-                <option value="">全部设备</option>
+                <option value="">全部设备(MAC)</option>
               </select>
               <select id="msgDirectionFilter" class="!w-auto !text-sm" onchange="filterMessages()">
                 <option value="">全部方向</option>
@@ -1122,7 +1235,7 @@
                   <button class="btn btn-gray btn-sm" onclick="loadOutboundSmsHistory()">刷新</button>
                 </div>
                 <div id="recentSmsList" class="space-y-2 max-h-72 overflow-y-auto">
-                  <div class="empty-state"><strong>暂无发送记录</strong><span>发送成功后，这里会按时间展示各设备的最近记录。</span></div>
+                  <div class="empty-state"><strong>暂无发送记录</strong><span>提交发送请求后，这里会按时间展示各设备的最近记录。</span></div>
                 </div>
               </div>
             </div>
@@ -1306,7 +1419,7 @@
     let devices = [];
     let messages = [];
     let filteredMessages = [];
-    let currentFilters = { search: '', device: '', direction: '', status: '' };
+    let currentFilters = { search: '', device: '', phone: '', direction: '', status: '' };
     let pushStatusCache = {};
     let atSeq = 0;
     let pendingRespCallback = null;
@@ -1444,6 +1557,7 @@
     function afterLogin() {
       const username = localStorage.getItem('sms_admin_user') || 'admin';
       document.getElementById('userDisplayName').textContent = username;
+      loadUiPreferences();
       connectWS();
       loadPushConfigToUI();
       // Stats/time widgets were removed from the header.
@@ -1580,28 +1694,24 @@
         renderDevices();
         renderMessages();
         updateNewMsgIndicator();
+        
+        // Sync phone filter with current selection
+        if (currentFilters.phone) {
+          document.getElementById('msgPhoneFilter').value = currentFilters.phone;
+          document.getElementById('msgPhoneFilterSelect').value = currentFilters.phone;
+        }
       } else if (data.type === 'devices') {
         devices = data.devices || [];
         renderDevices();
       } else if (data.type === 'sms') {
         if (data.sms?.direction === 'outbound') {
-          outboundSmsList.unshift(data.sms);
+          upsertMessageItem(outboundSmsList, data.sms, true);
           if (outboundSmsList.length > 20) outboundSmsList.pop();
           renderRecentSms();
         }
+        upsertMessageItem(messages, data.sms, true);
+        renderMessages();
         clearPushStatusCache();
-        const hasFilter = !!(currentFilters.search || currentFilters.device || currentFilters.status);
-        if (currentPage > 1 || hasFilter) {
-          newMessagesCount++;
-          updateNewMsgIndicator();
-        } else {
-          try {
-            await loadMessagesPage(1, currentFilters);
-            renderMessageCards();
-          } catch (e) {
-            console.error('刷新第一页消息失败:', e);
-          }
-        }
         loadStats();
       } else if (data.type === 'resp') {
         handleDeviceResp(data.mac, data.data);
@@ -1658,6 +1768,16 @@
         return;
       }
 
+      // Sort devices: devices with phone first, then by phone value
+      const sortedDevices = [...devices].sort((a, b) => {
+        const aPhone = a.phone || '';
+        const bPhone = b.phone || '';
+        if (aPhone && !bPhone) return -1;
+        if (!aPhone && bPhone) return 1;
+        if (aPhone && bPhone) return aPhone.localeCompare(bPhone);
+        return a.mac.localeCompare(b.mac);
+      });
+
       ensureSelectedDevice();
       updateToolboxDeviceSelector();
 
@@ -1675,7 +1795,7 @@
         if (!newMacs.includes(card.dataset.mac)) card.remove();
       });
 
-      devices.forEach((d, idx) => {
+      sortedDevices.forEach((d, idx) => {
         const signalInfo = getSignalStrengthInfo(d.rssi);
         const remarkText = d.remark || '';
         const existing = existingMap[d.mac];
@@ -1686,14 +1806,23 @@
           if (dot) { dot.className = `w-2.5 h-2.5 rounded-full ${d.online ? 'bg-green-500 online-dot' : 'bg-slate-500'}`; }
           const badge = existing.querySelector('[data-field="badge"]');
           if (badge) { badge.className = `text-xs px-2.5 py-1 rounded-full ${d.online ? 'bg-green-900 text-green-400' : 'bg-slate-100 text-slate-500'}`; badge.textContent = d.online ? '在线' : '离线'; }
+          const phoneEl = existing.querySelector('[data-field="phone"]');
+          if (phoneEl) {
+            phoneEl.textContent = d.phone || '未设置';
+            phoneEl.classList.add('cursor-pointer', 'hover:text-blue-500');
+            phoneEl.onclick = (e) => { e.stopPropagation(); openEditPhoneModal(d.mac, d.phone || ''); };
+          }
           const remarkEl = existing.querySelector('[data-field="remark"]');
-          if (remarkEl) { remarkEl.innerHTML = remarkText ? escapeHtml(remarkText) : '<span class="text-slate-400">点击设置</span>'; remarkEl.onclick = (e) => { e.stopPropagation(); editDeviceRemark(d.mac, remarkText); }; }
+          if (remarkEl) { remarkEl.innerHTML = remarkText ? escapeHtml(remarkText) : '<span class="text-slate-400">点击设置</span>'; remarkEl.onclick = (e) => { e.stopPropagation(); openEditRemarkModal(d.mac, remarkText); }; }
           const ipEl = existing.querySelector('[data-field="ip"]');
           if (ipEl) ipEl.textContent = d.ip || '-';
-          const phoneEl = existing.querySelector('[data-field="phone"]');
-          if (phoneEl) phoneEl.textContent = d.phone || '-';
           const signalEl = existing.querySelector('[data-field="signal"]');
           if (signalEl) { signalEl.textContent = signalInfo.text; signalEl.title = signalInfo.title; }
+          const networkDisplay = getNetworkStatusDisplay(d);
+          const operatorEl = existing.querySelector('[data-field="operator"]');
+          if (operatorEl) { operatorEl.textContent = networkDisplay.hasNetwork ? `${networkDisplay.operator} (${networkDisplay.roaming})` : '-'; }
+          const pdpEl = existing.querySelector('[data-field="pdp"]');
+          if (pdpEl) { pdpEl.textContent = networkDisplay.pdp; }
           // Update selected state
           if (selectedMac === d.mac) existing.classList.add('selected'); else existing.classList.remove('selected');
           // Ensure correct order
@@ -1701,29 +1830,55 @@
         } else {
           // Create new card
           const remarkDisplay = remarkText ? escapeHtml(remarkText) : '<span class="text-slate-400">点击设置</span>';
+          const phoneDisplay = d.phone || '未设置';
+          const networkDisplay = getNetworkStatusDisplay(d);
           const card = document.createElement('div');
           card.className = `device-card p-4 ${selectedMac === d.mac ? 'selected' : ''}`;
           card.dataset.mac = d.mac;
+          card.dataset.phone = d.phone || '';
           card.onclick = () => selectDevice(d.mac, true);
           card.innerHTML = `
             <div class="flex items-start justify-between mb-3 gap-3">
               <div class="flex items-center gap-2 min-w-0">
                 <span data-field="dot" class="w-2.5 h-2.5 rounded-full ${d.online ? 'bg-green-500 online-dot' : 'bg-slate-500'}"></span>
-                <span class="font-mono text-xs text-slate-500 truncate">${d.mac.substring(0, 12)}</span>
+                <span data-field="phone" class="font-bold text-base text-blue-600 truncate">${escapeHtml(phoneDisplay)}</span>
               </div>
               <span data-field="badge" class="text-xs px-2.5 py-1 rounded-full ${d.online ? 'bg-green-900 text-green-400' : 'bg-slate-100 text-slate-500'}">${d.online ? '在线' : '离线'}</span>
             </div>
             <div class="space-y-2 text-sm text-slate-500">
+              <div class="flex items-center justify-between gap-3"><span>MAC</span><span data-field="mac" class="font-mono text-xs text-slate-400 text-right">${d.mac.substring(0, 12)}</span></div>
+              ${networkDisplay.hasNetwork ? `
+              <div class="flex items-center justify-between gap-3"><span>运营商</span><span data-field="operator" class="text-slate-900 text-right">${escapeHtml(networkDisplay.operator)} (${networkDisplay.roaming})</span></div>
+              <div class="flex items-center justify-between gap-3"><span>数据连接</span><span data-field="pdp" class="text-slate-900 text-right">${escapeHtml(networkDisplay.pdp)}</span></div>
+              ` : ''}
               <div class="flex items-center justify-between gap-3"><span>备注</span><span data-field="remark" class="device-remark-value text-slate-900 text-right truncate cursor-pointer hover:text-blue-500" title="点击编辑备注">${remarkDisplay}</span></div>
               <div class="flex items-center justify-between gap-3"><span>IP</span><span data-field="ip" class="text-slate-900 text-right">${d.ip || '-'}</span></div>
-              <div class="flex items-center justify-between gap-3"><span>手机号</span><span data-field="phone" class="text-slate-900 text-right">${d.phone || '-'}</span></div>
               <div class="flex items-center justify-between gap-3"><span>信号强度</span><span data-field="signal" class="text-slate-900 text-right" title="${escapeAttr(signalInfo.title)}">${escapeHtml(signalInfo.text)}</span></div>
             </div>`;
           const remarkEl = card.querySelector('[data-field="remark"]');
-          remarkEl.onclick = (e) => { e.stopPropagation(); editDeviceRemark(d.mac, remarkText); };
+          remarkEl.onclick = (e) => { e.stopPropagation(); openEditRemarkModal(d.mac, remarkText); };
+          const phoneEl = card.querySelector('[data-field="phone"]');
+          if (phoneEl) {
+            phoneEl.classList.add('cursor-pointer', 'hover:text-blue-500');
+            phoneEl.onclick = (e) => { e.stopPropagation(); openEditPhoneModal(d.mac, d.phone || ''); };
+          }
           if (list.children[idx]) list.insertBefore(card, list.children[idx]); else list.appendChild(card);
         }
       });
+    }
+
+    function loadUiPreferences() {
+      // Preferences loaded
+    }
+
+    function toggleMessageGroupByPhone(enabled) {
+      groupMessagesByPhone = !!enabled;
+      try { localStorage.setItem('sms_group_by_phone', groupMessagesByPhone ? '1' : '0'); } catch {}
+      const grid = document.getElementById('msgContainer');
+      if (grid) {
+        grid.classList.toggle('grouped', groupMessagesByPhone);
+      }
+      renderMessageCards();
     }
 
     async function editDeviceRemark(mac, currentRemark) {
@@ -1742,6 +1897,23 @@
       }
     }
 
+    async function editDevicePhoneOverride(mac, currentPhone) {
+      const hint = '请输入本机号码（用于定时任务绑定）。\n留空表示不设置，系统将使用设备上报号码（如有）。';
+      const newPhone = prompt(hint, currentPhone || '');
+      if (newPhone === null) return;
+      try {
+        const resp = await fetch(`/api/devices/${encodeURIComponent(mac)}/phone`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', ...authHeader() },
+          body: JSON.stringify({ phone: newPhone })
+        });
+        const data = await resp.json();
+        if (!data.success) throw new Error(data.message || '更新失败');
+      } catch (e) {
+        alert('本机号码更新失败: ' + e.message);
+      }
+    }
+
     function getToolboxDeviceLabel(device) {
       const macShort = (device.mac || '').substring(0, 12);
       const phone = device.phone || '-';
@@ -1754,6 +1926,25 @@
       if (!device) return mac || '-';
       const macShort = (device.mac || '').substring(0, 12);
       return device.phone ? `${device.phone} | ${macShort}` : macShort;
+    }
+
+    function getScheduleBindLabel(task) {
+      if (!task) return '-';
+      if (task.bind_mode === 'phone' && task.bind_phone) return `本机号码 ${task.bind_phone}`;
+      return `设备 ${task.mac ? task.mac.substring(0, 12) : '-'}`;
+    }
+
+    function resolveScheduleDeviceLabel(task) {
+      if (!task) return '-';
+      if (task.bind_mode === 'phone' && task.bind_phone) {
+        const matches = devices.filter(d => d.online && (d.phone || '').trim() === String(task.bind_phone).trim());
+        if (matches.length > 0) {
+          matches.sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0));
+          return getScheduleDeviceLabel(matches[0].mac);
+        }
+        return '未找到在线设备';
+      }
+      return getScheduleDeviceLabel(task.mac);
     }
 
     function updateToolboxDeviceSelector() {
@@ -1790,6 +1981,80 @@
       return !!(device && device.status && device.status.network && device.status.network.roaming);
     }
 
+    const OPERATOR_CODES = {
+      // 中国运营商
+      '46000': '中国移动',
+      '46001': '中国联通',
+      '46002': '中国移动',
+      '46003': '中国电信',
+      '46004': '中国移动',
+      '46005': '中国电信',
+      '46006': '中国联通',
+      '46007': '中国移动',
+      '46008': '中国移动',
+      '46009': '中国电信',
+      '46011': '中国联通',
+      '46012': '中国移动',
+      '46013': '中国电信',
+      '46015': '中国广电',
+      '46017': '中国联通',
+      '46019': '中国电信'
+    };
+
+    function getOperatorName(code) {
+      if (!code) return '未知';
+      
+      // 先尝试直接匹配
+      if (OPERATOR_CODES[code]) {
+        return OPERATOR_CODES[code];
+      }
+      
+      // 尝试从可能包含乱码的字符串中提取数字代码
+      // 例如: "商=46000" 或 "46000" 或 "商=46000"
+      const match = String(code).match(/\d+/);
+      if (match) {
+        const numCode = match[0];
+        if (OPERATOR_CODES[numCode]) {
+          return OPERATOR_CODES[numCode];
+        }
+        // 如果是5位或6位数字代码，直接返回（可能是运营商代码）
+        if (numCode.length >= 5) {
+          return numCode; // 显示原始代码
+        }
+      }
+      
+      // 都不是则返回原始值或未知
+      return code || '未知';
+    }
+
+    function getNetworkStatusDisplay(device) {
+      const status = device?.status?.network || {};
+      const operator = getOperatorName(status.operator);
+      const roaming = status.roaming ? '漫游' : '本地';
+      const pdp = status.pdpActive ? '已激活' : '未激活';
+      
+      return {
+        operator,
+        roaming,
+        pdp,
+        hasNetwork: !!status.operator
+      };
+    }
+
+    async function checkDeviceRoamingStatus() {
+      const device = getSelectedDevice();
+      // 直接使用设备心跳数据中的漫游状态
+      const roamingFromHeartbeat = device?.status?.network?.roaming;
+      
+      // 如果心跳数据有值，返回相应结果
+      if (roamingFromHeartbeat !== undefined) {
+        return roamingFromHeartbeat;
+      }
+      
+      // 如果心跳数据没有漫游状态，返回 undefined（无法确定）
+      return undefined;
+    }
+
     function getSelectedDevice() {
       if (!selectedMac) return null;
       return devices.find(d => d.mac === selectedMac) || null;
@@ -1800,6 +2065,17 @@
       if (device && isDeviceRoaming(device)) {
         throw new Error(`设备处于漫游状态，已禁止${operationLabel}`);
       }
+    }
+
+    function checkRoamingAndProceed(operation, callback) {
+      const device = getSelectedDevice();
+      if (device && isDeviceRoaming(device)) {
+        if (!confirm('⚠️ 漫游提示\n\n设备处于漫游状态，继续操作可能产生额外费用。\n\n确定继续吗？')) {
+          return false;
+        }
+      }
+      callback();
+      return true;
     }
 
     function getDefaultDevice(preferOnline = true) {
@@ -1831,6 +2107,7 @@
       const params = new URLSearchParams({ page: String(page), pageSize: String(MESSAGE_PAGE_SIZE) });
       if (filters.search) params.append('search', filters.search);
       if (filters.device) params.append('device', filters.device);
+      if (filters.phone) params.append('phone', filters.phone);
       if (filters.direction) params.append('direction', filters.direction);
       if (filters.status) params.append('status', filters.status);
       return params;
@@ -1866,6 +2143,25 @@
       updateMessageToolbarMeta();
     }
 
+    function upsertMessageItem(list, item, moveToFront = true) {
+      if (!item) return;
+      const id = item.id;
+      if (id == null) {
+        if (moveToFront) list.unshift(item);
+        else list.push(item);
+        return;
+      }
+
+      const idx = list.findIndex(entry => entry && entry.id === id);
+      if (idx >= 0) {
+        const merged = { ...list[idx], ...item };
+        list[idx] = merged;
+      } else {
+        if (moveToFront) list.unshift(item);
+        else list.push(item);
+      }
+    }
+
     function queueMessageSearch() {
       clearTimeout(searchDebounceTimer);
       searchDebounceTimer = setTimeout(() => {
@@ -1876,6 +2172,7 @@
     async function filterMessages() {
       currentFilters.search = document.getElementById('msgSearchInput').value.toLowerCase().trim();
       currentFilters.device = document.getElementById('msgDeviceFilter').value;
+      currentFilters.phone = document.getElementById('msgPhoneFilter').value;
       currentFilters.direction = document.getElementById('msgDirectionFilter').value;
       currentFilters.status = document.getElementById('msgStatusFilter').value;
       
@@ -1895,13 +2192,22 @@
       renderMessageCards();
     }
 
+    function handlePhoneFilterChange(phone) {
+      currentFilters.phone = phone;
+      document.getElementById('msgPhoneFilter').value = phone;
+      filterMessages();
+    }
+
     async function resetFilters() {
       clearTimeout(searchDebounceTimer);
       document.getElementById('msgSearchInput').value = '';
       document.getElementById('msgDeviceFilter').value = '';
+      document.getElementById('msgPhoneFilter').value = '';
+      document.getElementById('msgPhoneFilterSelect').value = '';
       document.getElementById('msgDirectionFilter').value = '';
       document.getElementById('msgStatusFilter').value = '';
-      currentFilters = { search: '', device: '', direction: '', status: '' };
+      // grouping toggle is a UI preference; keep it.
+      currentFilters = { search: '', device: '', phone: '', direction: '', status: '' };
       clearPushStatusCache();
       currentPage = 1;
       newMessagesCount = 0;
@@ -1924,7 +2230,7 @@
     async function renderMessageCards() {
       const container = document.getElementById('msgContainer');
       const paginationEl = document.getElementById('msgPagination');
-      const hasFilter = currentFilters.search || currentFilters.device || currentFilters.direction || currentFilters.status;
+      const hasFilter = currentFilters.search || currentFilters.device || currentFilters.phone || currentFilters.direction || currentFilters.status;
       
       updateDeviceFilterOptions();
       updateMessageToolbarMeta();
@@ -1939,6 +2245,7 @@
       }
       
       const cards = [];
+
       for (const m of filteredMessages) {
         const pushStatus = getPushSummaryForMessage(m);
         
@@ -1955,15 +2262,14 @@
         
         const isOnline = devices.some(d => d.mac === m.mac && d.online);
         const isOutbound = m.direction === 'outbound';
-        const devicePhone = getDevicePhoneByMac(m.mac);
+        const inboundPhoneDisplay = m.phone && m.phone !== '未知' ? String(m.phone) : (m.devicePhone || '-');
         const senderDisplay = isOutbound
-          ? (devicePhone || '本机')
+          ? (m.devicePhone || '本机')
           : formatPhone(m.sender);
         const receiverDisplay = isOutbound
           ? (m.phone ? String(m.phone) : '-')
-          : (devicePhone || (m.phone ? String(m.phone) : '-'));
+          : inboundPhoneDisplay;
         const timeStr = formatTimeStr(m.receivedAt || m.timestamp);
-        const isLongText = m.text && m.text.length > 80;
         const deviceMac = m.mac || '';
         
         cards.push(`<div class="msg-card">
@@ -1979,9 +2285,10 @@
               <span class="msg-party-badge sender">发件人 ${escapeHtml(senderDisplay)}</span>
               <span class="msg-party-badge receiver">收件人 ${escapeHtml(receiverDisplay)}</span>
               ${isOutbound ? `<span class="push-badge pending" title="发送来源">${escapeHtml(getOutboundSourceLabel(m.source))}</span>` : ''}
+              ${isOutbound ? `<span class="push-badge ${m.status === 'success' ? 'success' : m.status === 'failed' ? 'failed' : 'pending'}" title="短信提交状态${getOutboundStatusTitle(m.status, m.errorMessage) ? `: ${escapeAttr(getOutboundStatusTitle(m.status, m.errorMessage))}` : ''}">${escapeHtml(getOutboundStatusLabel(m.status, m.errorMessage))}</span>` : ''}
             </div>
             <div class="msg-card-text">${escapeHtml(m.text||'')}</div>
-            ${isLongText ? `<button class="text-xs text-blue-400 mt-2 hover:underline" onclick="event.stopPropagation();this.previousElementSibling.classList.toggle('expanded');this.textContent=this.previousElementSibling.classList.contains('expanded')?'收起':'展开全部'">展开全部</button>` : ''}
+            <button class="msg-expand-btn text-xs text-blue-400 mt-2 hover:underline hidden" onclick="toggleMsgExpand(this, event)">展开全部</button>
           </div>
           <div class="msg-card-footer">
             <div class="flex flex-wrap gap-1.5">${statusHtml || '<span class="text-slate-500 text-xs">未配置推送</span>'}</div>
@@ -1997,6 +2304,9 @@
         ? cards.join('')
         : '<div class="empty-state msg-card-empty"><strong>没有匹配的消息记录</strong><span>试试清空筛选条件，或换一个关键词重新查看。</span></div>';
       paginationEl.innerHTML = getPaginationHtml();
+
+      // Defer to ensure layout is computed before measuring truncation.
+      requestAnimationFrame(updateMessageExpandButtons);
     }
     
     function getPaginationHtml() {
@@ -2128,10 +2438,33 @@
       const currentValue = select.value;
       const devicesInMessages = [...new Set(messages.map(m => m.mac).filter(Boolean))];
       
-      select.innerHTML = '<option value="">全部设备</option>' + 
+      select.innerHTML = '<option value="">全部设备(MAC)</option>' + 
         devicesInMessages.map(mac => `<option value="${mac}">${mac.substring(0, 12)}...</option>`).join('');
       
       if (devicesInMessages.includes(currentValue)) {
+        select.value = currentValue;
+      }
+
+      // Update phone filter dropdown
+      updatePhoneFilterOptions();
+    }
+
+    function updatePhoneFilterOptions() {
+      const select = document.getElementById('msgPhoneFilterSelect');
+      if (!select) return;
+      const currentValue = select.value;
+      const phonesInMessages = [...new Set(
+        messages.flatMap(m => [m.phone, m.sender]).filter(Boolean)
+      )];
+      
+      // Get phones from devices as well
+      const devicePhones = devices.map(d => d.phone).filter(Boolean);
+      const allPhones = [...new Set([...phonesInMessages, ...devicePhones])].sort();
+      
+      select.innerHTML = '<option value="">全部手机号</option>' + 
+        allPhones.map(phone => `<option value="${phone}">${phone}</option>`).join('');
+      
+      if (currentValue && allPhones.includes(currentValue)) {
         select.value = currentValue;
       }
     }
@@ -2145,6 +2478,23 @@
       if (!mac) return '';
       const dev = devices.find(d => d.mac === mac);
       return dev?.phone ? String(dev.phone) : '';
+    }
+
+    function getMessageGroupPhone(m) {
+      const direct = (m && m.devicePhone) ? String(m.devicePhone).trim() : '';
+      if (direct) return direct;
+      const byMac = getDevicePhoneByMac(m && m.mac);
+      return byMac ? String(byMac).trim() : '';
+    }
+
+    function getMessageGroupKey(m) {
+      const phone = getMessageGroupPhone(m);
+      return phone || '__NO_PHONE__';
+    }
+
+    function getMessageGroupTitle(key) {
+      if (!key || key === '__NO_PHONE__') return '未设置本机号码';
+      return key;
     }
 
     function clearPushStatusCache() {
@@ -2207,14 +2557,33 @@
       const dev = devices.find(d => d.mac === mac);
       updateToolboxDeviceSelector();
       document.getElementById('toolboxSection').classList.remove('hidden');
+      
+      // Auto-filter messages by phone when device is selected
+      if (dev && dev.phone) {
+        currentFilters.phone = dev.phone;
+        document.getElementById('msgPhoneFilter').value = dev.phone;
+        document.getElementById('msgPhoneFilterSelect').value = dev.phone;
+      } else {
+        currentFilters.phone = '';
+        document.getElementById('msgPhoneFilter').value = '';
+        document.getElementById('msgPhoneFilterSelect').value = '';
+      }
+      
+      // Load filtered messages
+      loadMessagesPage(1, currentFilters).then(() => {
+        renderMessageCards();
+        updateMessageToolbarMeta();
+      }).catch(e => console.error('Filter messages failed:', e));
+      
       renderDevices();
       if (switchToSmsTab) {
         switchTab('sms');
       }
       currentFirmwareVersion = null;
       setCurrentFirmwareDisplay('-');
+      const deviceLabel = dev && dev.phone ? dev.phone : mac.substring(0, 12);
       if (!silent) {
-        showToast(dev ? `已切换到设备 ${mac.substring(0, 12)}` : '已切换设备', 'info', 1800);
+        showToast(`已切换到设备 ${deviceLabel}`, 'info', 1800);
       }
     }
 
@@ -2289,6 +2658,11 @@
       }
 
       const normalized = String(message).trim();
+      if (normalized.startsWith('短信已提交到模组/网络|ref=')) {
+        const ref = normalized.split('|ref=')[1] || '';
+        return ref ? `短信已提交到设备（参考号 ${ref}）` : '短信已提交到设备';
+      }
+
       const replacements = {
         '服务器内部错误': '服务暂时不可用，请稍后重试',
         '服务器错误': '服务暂时不可用，请稍后重试',
@@ -2305,7 +2679,8 @@
         '当前没有可用设备': '当前还没有可用设备',
         '当前设备离线，请切换到在线设备': '当前设备暂未在线，请切换到在线设备后再试',
         '短信发送请求已发送...': '发送请求已提交，正在等待设备处理',
-        '短信发送成功': '短信已发送',
+        '短信发送成功': '短信已提交到设备',
+        '短信已提交到模组/网络': '短信已提交到设备',
         '短信发送失败': '短信发送未完成，请稍后再试',
         '定时任务已创建': '定时任务已创建',
         '定时任务已创建，系统会按计划自动执行': '定时任务已创建，系统会按计划自动执行',
@@ -2357,10 +2732,6 @@
         const dev = devices.find(d => d.mac === selectedMac);
         if (!dev?.online) {
           reject(new Error('设备不在线'));
-          return;
-        }
-        if (action === 'consume_traffic' && isDeviceRoaming(dev)) {
-          reject(new Error('设备处于漫游状态，已禁止执行消耗流量的操作'));
           return;
         }
         
@@ -2422,6 +2793,25 @@
     }
 
     async function doSendSms() {
+      // 主动查询设备网络状态判断漫游
+      const device = getSelectedDevice();
+      let roamingStatus;
+      if (device?.online) {
+        roamingStatus = await checkDeviceRoamingStatus();
+      } else {
+        roamingStatus = device?.status?.network?.roaming ?? device?.roaming;
+      }
+      
+      // 无论是否确定漫游状态，都进行提示（安全优先）
+      if (roamingStatus === true || roamingStatus === undefined) {
+        const msg = roamingStatus === true 
+          ? '设备处于漫游状态，发送短信可能产生额外费用。'
+          : '无法确定设备当前网络状态，发送短信可能产生额外费用。';
+        await new Promise(resolve => {
+          showRoamingConfirm(msg, resolve);
+        });
+      }
+      
       const phone = document.getElementById('smsPhone').value.trim();
       const content = document.getElementById('smsContent').value.trim();
       if (!phone) { showToast('请输入目标号码', 'warning'); return; }
@@ -2433,7 +2823,7 @@
       try {
         const result = await sendCmd('send_sms', { phone, content });
         if (result?.success) {
-          showToast('短信发送成功', 'success');
+          showToast(result?.message || '短信已提交到设备', 'success');
           document.getElementById('smsPhone').value = '';
           document.getElementById('smsContent').value = '';
           document.getElementById('smsCharCount').textContent = '0';
@@ -2459,6 +2849,29 @@
 
     async function doCreateSchedule() {
       if (!requireDevice()) return;
+      
+      // 主动查询设备网络状态判断漫游
+      const device = getSelectedDevice();
+      let roamingStatus;
+      
+      if (device?.online) {
+        roamingStatus = await checkDeviceRoamingStatus();
+      } else {
+        roamingStatus = device?.status?.network?.roaming ?? device?.roaming;
+      }
+      
+      // 无论是否确定漫游状态，都进行提示（安全优先）
+      if (roamingStatus === true || roamingStatus === undefined) {
+        const taskType = document.getElementById('scheduleTaskType').value;
+        const opName = taskType === 'traffic' ? '创建定时流量任务' : '创建定时短信任务';
+        const msg = roamingStatus === true 
+          ? `设备处于漫游状态，${opName}可能产生额外费用。`
+          : `无法确定设备当前网络状态，${opName}可能产生额外费用。`;
+        await new Promise(resolve => {
+          showRoamingConfirm(msg, resolve);
+        });
+      }
+      
       const phone = document.getElementById('schedulePhone').value.trim();
       const content = document.getElementById('scheduleContent').value.trim();
       const taskType = document.getElementById('scheduleTaskType').value;
@@ -2582,7 +2995,8 @@
         }
 
         const taskType = task.task_type === 'traffic' ? 'traffic' : 'sms';
-        const deviceLabel = getScheduleDeviceLabel(task.mac);
+        const deviceLabel = resolveScheduleDeviceLabel(task);
+        const bindLabel = getScheduleBindLabel(task);
         const targetLabel = taskType === 'traffic'
           ? `流量 ${task.traffic_kb || 0}KB`
           : task.phone;
@@ -2598,7 +3012,7 @@
             <div class="settings-row">
               <div class="min-w-0">
                 <span class="text-slate-900 font-medium flex items-center gap-2">${targetLabel}${typeBadge}</span>
-                <div class="text-xs text-slate-400 truncate mt-1">设备: ${escapeHtml(deviceLabel)}</div>
+                <div class="text-xs text-slate-400 truncate mt-1">绑定: ${escapeHtml(bindLabel)} | 当前: ${escapeHtml(deviceLabel)}</div>
               </div>
               <span class="text-xs px-2 py-0.5 rounded ${statusClass}">${statusText}</span>
             </div>
@@ -2630,7 +3044,8 @@
     function renderScheduleDetail(task, history) {
       const infoEl = document.getElementById('scheduleDetailInfo');
       const nextRunDate = new Date(task.next_run_time);
-      const deviceLabel = getScheduleDeviceLabel(task.mac);
+      const deviceLabel = resolveScheduleDeviceLabel(task);
+      const bindLabel = getScheduleBindLabel(task);
       const hour = task.interval_hours || 0;
       const minute = task.interval_minutes || 0;
       const timeStr = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
@@ -2656,7 +3071,8 @@
           <div class="settings-card">
             <div class="settings-row"><div><div class="settings-title">任务类型</div><div class="settings-desc">${task.task_type === 'traffic' ? '定时流量消耗' : '定时短信'}</div></div><div>${statusHtml}</div></div>
             <div class="settings-row"><div><div class="settings-title">执行方式</div><div class="settings-desc">${task.schedule_type === 'interval' ? '周期执行' : '一次性'}</div></div><div class="text-sm text-slate-500">${task.schedule_type === 'interval' ? intervalText : timeStr}</div></div>
-            <div class="settings-row"><div><div class="settings-title">所属设备</div><div class="settings-desc">${escapeHtml(deviceLabel)}</div></div><div class="text-sm text-slate-500">${nextRunDate.toLocaleDateString()}</div></div>
+            <div class="settings-row"><div><div class="settings-title">绑定方式</div><div class="settings-desc">${escapeHtml(bindLabel)}</div></div><div class="text-sm text-slate-500">${nextRunDate.toLocaleDateString()}</div></div>
+            <div class="settings-row"><div><div class="settings-title">当前执行设备</div><div class="settings-desc">${escapeHtml(deviceLabel)}</div></div><div class="text-sm text-slate-500">&nbsp;</div></div>
             ${task.task_type === 'traffic'
               ? `<div class="settings-row"><div><div class="settings-title">目标流量</div><div class="settings-desc">${task.traffic_kb || 0} KB</div></div><div class="text-sm text-slate-500">下次 ${nextRunDate.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div></div>`
               : `<div class="settings-row"><div><div class="settings-title">目标号码</div><div class="settings-desc">${task.phone}</div></div><div class="text-sm text-slate-500">下次 ${nextRunDate.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div></div>`}
@@ -2766,16 +3182,41 @@
       return 'text-yellow-400';
     }
 
+    function getOutboundStatusLabel(status, errorMessage = '') {
+      if (status === 'success') return '已提交';
+      if (status === 'failed') return errorMessage ? '提交失败' : '未完成';
+      return '处理中';
+    }
+
+    function getSmsErrorDisplay(status, errorMessage = '') {
+      if (status === 'success') return '';
+      const text = String(errorMessage || '').trim();
+      if (!text) return '';
+      if (text === '短信发送成功' || text === '短信已提交到模组/网络' || text === '短信已提交到设备') return '';
+      return text;
+    }
+
+    function getOutboundStatusTitle(status, errorMessage = '') {
+      if (status !== 'success') return errorMessage || '';
+      const text = String(errorMessage || '').trim();
+      if (text.startsWith('短信已提交到模组/网络|ref=')) {
+        const ref = text.split('|ref=')[1] || '';
+        return ref ? `模组参考号: ${ref}` : '短信已提交到设备';
+      }
+      return text;
+    }
+
     function renderRecentSms() {
       const list = document.getElementById('recentSmsList');
       if (outboundSmsList.length === 0) {
-        list.innerHTML = '<div class="empty-state"><strong>暂无发送记录</strong><span>发送成功后，这里会按时间展示各设备的最近记录。</span></div>';
+        list.innerHTML = '<div class="empty-state"><strong>暂无发送记录</strong><span>提交发送请求后，这里会按时间展示各设备的最近记录。</span></div>';
         return;
       }
       list.innerHTML = outboundSmsList.map(s => {
         const deviceLabel = getScheduleDeviceLabel(s.mac);
         const timeStr = formatTimeStr(s.receivedAt || s.timestamp);
-        const errorHtml = s.errorMessage ? `<div class="text-red-400 mt-2 truncate">失败原因: ${escapeHtml(s.errorMessage)}</div>` : '';
+        const displayError = getSmsErrorDisplay(s.status, s.errorMessage);
+        const errorHtml = displayError ? `<div class="text-red-400 mt-2 truncate">失败原因: ${escapeHtml(displayError)}</div>` : '';
         return `
         <div class="bg-white/80 rounded-2xl p-3 text-xs border border-slate-200 shadow-sm">
           <div class="flex justify-between text-slate-400 gap-2">
@@ -2784,7 +3225,7 @@
           </div>
           <div class="flex justify-between mt-2">
             <span class="text-slate-500">${escapeHtml(getOutboundSourceLabel(s.source))}</span>
-            <span class="${getOutboundStatusClass(s.status)}">${escapeHtml(s.status || 'pending')}</span>
+            <span class="${getOutboundStatusClass(s.status)}" title="${escapeAttr(getOutboundStatusTitle(s.status, s.errorMessage))}">${escapeHtml(getOutboundStatusLabel(s.status, s.errorMessage))}</span>
           </div>
           <div class="text-slate-700 mt-2 truncate leading-5">${escapeHtml(s.text || '')}</div>
           ${errorHtml}
@@ -3021,6 +3462,12 @@
         }).then(r => r.json());
         if (result?.success) {
           showToast('配置已自动保存', 'success');
+          const providers = ['tg', 'dt', 'pp', 'sc', 'fs', 'bark', 'gotify', 'post', 'custom'];
+          providers.forEach(p => {
+            const enabled = document.getElementById(`cfg_${p}_en`).checked;
+            document.getElementById(`provider-status-${p}`).textContent = enabled ? '已启用' : '未启用';
+            document.getElementById(`provider-status-${p}`).style.color = enabled ? '#16a34a' : 'var(--muted-soft)';
+          });
         }
       } catch (e) {}
     }
@@ -3063,8 +3510,135 @@
       document.getElementById('changePwdModal').classList.remove('hidden');
     }
 
+    function toggleMsgExpand(btn, event) {
+      if (event) event.stopPropagation();
+      if (!btn) return;
+      const textEl = btn.previousElementSibling;
+      if (!textEl) return;
+      textEl.classList.toggle('expanded');
+      btn.textContent = textEl.classList.contains('expanded') ? '收起' : '展开全部';
+    }
+
+    function updateMessageExpandButtons() {
+      const cards = document.querySelectorAll('#msgContainer .msg-card');
+      cards.forEach((card) => {
+        const textEl = card.querySelector('.msg-card-text');
+        const btn = card.querySelector('.msg-expand-btn');
+        if (!textEl || !btn) return;
+
+        // If expanded, always keep the button so it can be collapsed.
+        if (textEl.classList.contains('expanded')) {
+          btn.classList.remove('hidden');
+          btn.textContent = '收起';
+          return;
+        }
+
+        // Detect actual truncation instead of relying on text length.
+        // +1px tolerance avoids false positives due to sub-pixel rounding.
+        const isTruncated = textEl.scrollHeight > textEl.clientHeight + 1;
+        if (isTruncated) {
+          btn.classList.remove('hidden');
+          btn.textContent = '展开全部';
+        } else {
+          btn.classList.add('hidden');
+          btn.textContent = '展开全部';
+        }
+      });
+    }
+
+    function toggleMsgGroup(btn) {
+      if (!btn) return;
+      const group = btn.closest('.msg-group');
+      if (!group) return;
+      group.classList.toggle('collapsed');
+      btn.textContent = group.classList.contains('collapsed') ? '展开' : '收起';
+      // Re-check truncation after layout changes.
+      requestAnimationFrame(updateMessageExpandButtons);
+    }
+
     function closeChangePwdModal() {
       document.getElementById('changePwdModal').classList.add('hidden');
+    }
+
+    let currentEditMac = '';
+
+    function openEditRemarkModal(mac, currentRemark) {
+      currentEditMac = mac;
+      document.getElementById('remarkInput').value = currentRemark || '';
+      document.getElementById('editRemarkModal').classList.remove('hidden');
+    }
+
+    function closeEditRemarkModal() {
+      document.getElementById('editRemarkModal').classList.add('hidden');
+      currentEditMac = '';
+    }
+
+    async function doSaveRemark() {
+      const newRemark = document.getElementById('remarkInput').value;
+      if (!currentEditMac) return;
+      try {
+        const resp = await fetch(`/api/devices/${encodeURIComponent(currentEditMac)}/remark`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', ...authHeader() },
+          body: JSON.stringify({ remark: newRemark })
+        });
+        const data = await resp.json();
+        if (!data.success) throw new Error(data.message || '保存失败');
+        showToast('备注保存成功', 'success');
+        closeEditRemarkModal();
+      } catch (e) {
+        showToast('备注保存失败: ' + e.message, 'error');
+      }
+    }
+
+    function openEditPhoneModal(mac, currentPhone) {
+      currentEditMac = mac;
+      document.getElementById('phoneInput').value = currentPhone || '';
+      document.getElementById('editPhoneModal').classList.remove('hidden');
+    }
+
+    function closeEditPhoneModal() {
+      document.getElementById('editPhoneModal').classList.add('hidden');
+      currentEditMac = '';
+    }
+
+    let roamingConfirmCallback = null;
+
+    function showRoamingConfirm(message, onConfirm) {
+      document.getElementById('roamingConfirmMsg').textContent = message;
+      roamingConfirmCallback = onConfirm;
+      document.getElementById('roamingConfirmModal').classList.remove('hidden');
+    }
+
+    function closeRoamingConfirmModal() {
+      document.getElementById('roamingConfirmModal').classList.add('hidden');
+      roamingConfirmCallback = null;
+    }
+
+    function confirmRoamingAction() {
+      const callback = roamingConfirmCallback;
+      closeRoamingConfirmModal();
+      if (callback) {
+        callback();
+      }
+    }
+
+    async function doSavePhone() {
+      const newPhone = document.getElementById('phoneInput').value;
+      if (!currentEditMac) return;
+      try {
+        const resp = await fetch(`/api/devices/${encodeURIComponent(currentEditMac)}/phone`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', ...authHeader() },
+          body: JSON.stringify({ phone: newPhone })
+        });
+        const data = await resp.json();
+        if (!data.success) throw new Error(data.message || '保存失败');
+        showToast('手机号保存成功', 'success');
+        closeEditPhoneModal();
+      } catch (e) {
+        showToast('手机号保存失败: ' + e.message, 'error');
+      }
     }
 
     function doChangePassword() {

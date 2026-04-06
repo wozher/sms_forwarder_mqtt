@@ -20,12 +20,13 @@
 #define MAX_CONCAT_MESSAGES 5
 #define RECENT_CONCAT_CACHE_SIZE 5
 #define RECENT_CONCAT_IGNORE_MS 120000
+#define PENDING_URC_QUEUE_SIZE 6
 
 #define MQTT_SERVER "192.168.31.197"
 #define MQTT_PORT 1883
 #define MQTT_RECONNECT_INTERVAL 5000
 #define HEARTBEAT_INTERVAL 60000
-#define CURRENT_FIRMWARE_VERSION "1.0.1"
+#define CURRENT_FIRMWARE_VERSION "1.0.2"
 
 PDU pdu = PDU(4096);
 WiFiClient espClient;
@@ -38,6 +39,7 @@ String deviceMAC = "";
 String currentRequestId = "";
 unsigned long lastPhoneRefreshAt = 0;
 unsigned long lastQueueFlushAttempt = 0;
+bool pendingPhoneRefresh = false;
 
 #define OFFLINE_QUEUE_SIZE 10
 #define MQTT_BUFFER_SIZE 4096
@@ -82,6 +84,12 @@ struct AsyncTaskState {
 
 AsyncTaskState asyncTask = { ASYNC_TASK_NONE, ASYNC_STEP_IDLE, false, 0, 0, 0, 0, false, "", "", "" };
 bool urcWaitingPdu = false;
+String pendingUrcLines[PENDING_URC_QUEUE_SIZE];
+uint8_t pendingUrcHead = 0;
+uint8_t pendingUrcTail = 0;
+uint8_t pendingUrcCount = 0;
+bool pendingDeferredPduLine = false;
+int lastNetworkRegStat = -1;
 
 struct RequestIdScope {
   String previous;
@@ -92,6 +100,15 @@ struct QueryCacheEntry {
   String message;
   unsigned long updatedAt;
   bool valid;
+};
+
+struct NetworkStatus {
+  bool registered;
+  bool roaming;
+  bool pdpActive;
+  String operatorCode;
+  String regText;
+  int regCode;
 };
 
 QueryCacheEntry signalCache = { "", 0, false };
@@ -138,6 +155,21 @@ struct RecentConcatMessage {
 ConcatSms concatBuffer[MAX_CONCAT_MESSAGES];
 RecentConcatMessage recentConcatMessages[RECENT_CONCAT_CACHE_SIZE];
 
+bool publishMqttMessage(const String& topic, const String& payload, int retries = 3, int reconnectWindowMs = 3000, int retryDelayMs = 60);
+String readSerialLine(HardwareSerial& port);
+bool isExactOkLine(const String& line);
+bool isErrorLine(const String& line);
+String readATResponse(unsigned long timeout, bool stopOnOkOnly = false);
+String extractDigitsOnly(const String& input);
+bool enqueuePendingUrc(const String& line);
+bool dequeuePendingUrc(String& line);
+bool isDeferredUrcLine(const String& line);
+void handleDeferredLineDuringSyncRead(const String& line);
+bool handleSmsUrcLine(const String& line);
+bool handleGenericUrcLine(const String& line);
+String explainSmsErrorLine(const String& line);
+int parseCeregStatCode(const String& line);
+
 void blink_short(unsigned long gap_time = 500) {
   digitalWrite(LED_BUILTIN, LOW);
   delay(50);
@@ -145,41 +177,396 @@ void blink_short(unsigned long gap_time = 500) {
   delay(gap_time);
 }
 
+bool enqueuePendingUrc(const String& line) {
+  if (line.length() == 0) return false;
+  if (pendingUrcCount >= PENDING_URC_QUEUE_SIZE) {
+    pendingUrcHead = (pendingUrcHead + 1) % PENDING_URC_QUEUE_SIZE;
+    pendingUrcCount--;
+  }
+  pendingUrcLines[pendingUrcTail] = line;
+  pendingUrcTail = (pendingUrcTail + 1) % PENDING_URC_QUEUE_SIZE;
+  pendingUrcCount++;
+  return true;
+}
+
+bool dequeuePendingUrc(String& line) {
+  if (pendingUrcCount == 0) return false;
+  line = pendingUrcLines[pendingUrcHead];
+  pendingUrcLines[pendingUrcHead] = "";
+  pendingUrcHead = (pendingUrcHead + 1) % PENDING_URC_QUEUE_SIZE;
+  pendingUrcCount--;
+  return true;
+}
+
+bool isDeferredUrcLine(const String& line) {
+  return line.startsWith("+CMT:") ||
+         line.startsWith("+CEREG:") ||
+         line.startsWith("+CREG:") ||
+         line.startsWith("+CGREG:") ||
+         line == "RING" ||
+         line == "NO CARRIER";
+}
+
+void handleDeferredLineDuringSyncRead(const String& line) {
+  if (line.length() == 0) return;
+  if (line.startsWith("+CMT:")) {
+    enqueuePendingUrc(line);
+    pendingDeferredPduLine = true;
+    return;
+  }
+  if (isDeferredUrcLine(line)) {
+    enqueuePendingUrc(line);
+    return;
+  }
+  if (pendingDeferredPduLine) {
+    enqueuePendingUrc(line);
+    pendingDeferredPduLine = false;
+  }
+}
+
+bool handleSmsUrcLine(const String& line) {
+  if (!urcWaitingPdu) {
+    if (line.startsWith("+CMT:")) {
+      Serial.println("[URC] 检测到短信通知，等待PDU");
+      urcWaitingPdu = true;
+      return true;
+    }
+    return false;
+  }
+
+  if (line.length() == 0) return true;
+  if (!isHexString(line)) {
+    urcWaitingPdu = false;
+    return false;
+  }
+
+  Serial.println("[URC] 已收到PDU数据行");
+  if (!pdu.decodePDU(line.c_str())) {
+    Serial.println("[URC] PDU解析失败");
+    urcWaitingPdu = false;
+    return true;
+  }
+
+  Serial.println("[URC] PDU解析成功");
+  Serial.println("[URC] 发件人=" + String(pdu.getSender()) + ", 时间=" + String(pdu.getTimeStamp()) + ", 长度=" + String(strlen(pdu.getText())));
+
+  int* concatInfo = pdu.getConcatInfo();
+  int refNumber = concatInfo[0];
+  int partNumber = concatInfo[1];
+  int totalParts = concatInfo[2];
+
+  if (totalParts > 1 && partNumber > 0) {
+    if (isRecentlyCompletedConcat(refNumber, pdu.getSender(), pdu.getTimeStamp())) {
+      Serial.printf("[URC] 忽略重复长短信分段 %d/%d\n", partNumber, totalParts);
+      urcWaitingPdu = false;
+      return true;
+    }
+
+    if (totalParts > MAX_CONCAT_PARTS) {
+      Serial.printf("[URC] 长短信分段超出范围 %d/%d，已丢弃\n", partNumber, totalParts);
+      urcWaitingPdu = false;
+      return true;
+    }
+
+    Serial.printf("[URC] 长短信分段 %d/%d\n", partNumber, totalParts);
+    int slot = findOrCreateConcatSlot(refNumber, pdu.getSender(), pdu.getTimeStamp(), totalParts);
+    int partIndex = partNumber - 1;
+    if (partIndex >= 0 && partIndex < MAX_CONCAT_PARTS) {
+      if (!concatBuffer[slot].parts[partIndex].valid) {
+        concatBuffer[slot].parts[partIndex].valid = true;
+        concatBuffer[slot].parts[partIndex].text = String(pdu.getText());
+        concatBuffer[slot].receivedParts++;
+        if (concatBuffer[slot].receivedParts == 1) {
+          concatBuffer[slot].firstPartTime = millis();
+          concatBuffer[slot].sender = String(pdu.getSender());
+          concatBuffer[slot].totalParts = totalParts;
+          concatBuffer[slot].timestamp = String(pdu.getTimeStamp());
+        }
+        Serial.printf("[URC] 已缓存分段 %d，当前 %d/%d\n", partNumber, concatBuffer[slot].receivedParts, totalParts);
+      }
+    }
+    if (concatBuffer[slot].receivedParts >= totalParts) {
+      Serial.println("[URC] 长短信已收齐，开始转发");
+      String fullText = assembleConcatSms(slot);
+      bool published = publishRawSMS(concatBuffer[slot].sender.c_str(), fullText.c_str(), concatBuffer[slot].timestamp.c_str());
+      if (published) {
+        rememberCompletedConcat(concatBuffer[slot].refNumber, concatBuffer[slot].sender.c_str(), concatBuffer[slot].timestamp.c_str());
+      } else {
+        Serial.println("[URC] 长短信转发失败，未写入完成标记");
+      }
+      clearConcatSlot(slot);
+    }
+  } else {
+    bool published = publishRawSMS(pdu.getSender(), pdu.getText(), pdu.getTimeStamp());
+    if (!published) {
+      Serial.println("[URC] 普通短信转发失败，已尝试入离线队列");
+    }
+  }
+
+  urcWaitingPdu = false;
+  return true;
+}
+
+bool handleGenericUrcLine(const String& line) {
+  if (line.length() == 0) return false;
+  if (line.startsWith("+CEREG:") || line.startsWith("+CREG:") || line.startsWith("+CGREG:")) {
+    lastNetworkRegStat = parseCeregStatCode(line);
+    networkCache.valid = false;
+    Serial.println("[URC] 网络状态更新: " + line);
+    return true;
+  }
+  if (line == "RING") {
+    Serial.println("[URC] 检测到来电");
+    return true;
+  }
+  if (line == "NO CARRIER") {
+    Serial.println("[URC] 通话或网络连接已释放");
+    return true;
+  }
+  return false;
+}
+
+String explainSmsErrorLine(const String& line) {
+  String trimmed = line;
+  trimmed.trim();
+  if (trimmed.length() == 0) return "短信发送失败";
+  if (trimmed == "ERROR") return "ERROR|模组返回通用错误";
+
+  int colonIdx = trimmed.lastIndexOf(':');
+  if (colonIdx < 0) return trimmed;
+
+  String codeStr = trimmed.substring(colonIdx + 1);
+  codeStr.trim();
+  int code = codeStr.toInt();
+  String reason = "";
+
+  if (trimmed.startsWith("+CMS ERROR:")) {
+    if (code == 38) reason = "网络不可用";
+    else if (code == 69) reason = "SIM卡未就绪";
+    else if (code == 111) reason = "协议错误";
+    else if (code == 302) reason = "操作不允许";
+    else if (code == 330) reason = "短信中心地址未知";
+    else if (code == 331) reason = "当前无网络服务";
+    else if (code == 332) reason = "网络超时";
+    else if (code == 500) reason = "未知错误";
+    else if (code == 512) reason = "SIM卡故障";
+    else if (code == 515) reason = "设备未注册到网络";
+  } else if (trimmed.startsWith("+CME ERROR:")) {
+    if (code == 10) reason = "SIM卡未插入";
+    else if (code == 11) reason = "SIM卡PIN未验证";
+    else if (code == 13) reason = "SIM卡故障";
+    else if (code == 30) reason = "无网络服务";
+    else if (code == 50) reason = "请求不支持";
+    else if (code == 515) reason = "设备未注册到网络";
+  }
+
+  if (reason.length() == 0) return trimmed;
+  return trimmed + "|" + reason;
+}
+
+int parseCeregStatCode(const String& line) {
+  int prefixIdx = line.indexOf(":");
+  if (prefixIdx < 0) return -1;
+  String rest = line.substring(prefixIdx + 1);
+  rest.trim();
+  int firstComma = rest.indexOf(',');
+  if (firstComma < 0) return -1;
+  int secondComma = rest.indexOf(',', firstComma + 1);
+  String stat = secondComma >= 0 ? rest.substring(firstComma + 1, secondComma) : rest.substring(firstComma + 1);
+  stat.trim();
+  if (stat.length() == 0) return -1;
+  return stat.toInt();
+}
+
+bool isAnyPdpContextActive(const String& resp) {
+  int searchFrom = 0;
+  while (true) {
+    int idx = resp.indexOf("+CGACT:", searchFrom);
+    if (idx < 0) break;
+    int lineEnd = resp.indexOf('\n', idx);
+    if (lineEnd < 0) lineEnd = resp.length();
+    String line = resp.substring(idx, lineEnd);
+    line.trim();
+    int colonIdx = line.indexOf(':');
+    if (colonIdx >= 0) {
+      String rest = line.substring(colonIdx + 1);
+      int commaIdx = rest.indexOf(',');
+      if (commaIdx >= 0) {
+        String stateStr = rest.substring(commaIdx + 1);
+        stateStr.trim();
+        if (stateStr.toInt() == 1) return true;
+      }
+    }
+    searchFrom = lineEnd + 1;
+  }
+  return false;
+}
+
+String deactivateAllPdpContexts(const String& initialResp) {
+  String currentResp = initialResp;
+  for (int round = 0; round < 3; round++) {
+    int searchFrom = 0;
+    bool issuedDeactivate = false;
+    while (true) {
+      int idx = currentResp.indexOf("+CGACT:", searchFrom);
+      if (idx < 0) break;
+      int lineEnd = currentResp.indexOf('\n', idx);
+      if (lineEnd < 0) lineEnd = currentResp.length();
+      String line = currentResp.substring(idx, lineEnd);
+      line.trim();
+      int colonIdx = line.indexOf(':');
+      if (colonIdx >= 0) {
+        String rest = line.substring(colonIdx + 1);
+        int commaIdx = rest.indexOf(',');
+        if (commaIdx >= 0) {
+          String cidStr = rest.substring(0, commaIdx);
+          String stateStr = rest.substring(commaIdx + 1);
+          cidStr.trim();
+          stateStr.trim();
+          if (stateStr.toInt() == 1) {
+            String cmd = "AT+CGACT=0," + cidStr;
+            String cmdResp = sendATCommand(cmd.c_str(), 5000);
+            Serial.println("[NET] 停用PDP上下文 CID=" + cidStr + ", 响应=" + cmdResp);
+            issuedDeactivate = true;
+          }
+        }
+      }
+      searchFrom = lineEnd + 1;
+    }
+
+    if (!issuedDeactivate) break;
+    delay(300);
+    currentResp = sendATCommand("AT+CGACT?", 2000);
+    Serial.println("[NET] CGACT轮询复查: " + currentResp);
+    if (!isAnyPdpContextActive(currentResp)) break;
+  }
+
+  return currentResp;
+}
+
+bool isSimReady() {
+  String resp = sendATCommand("AT+CPIN?", 2000);
+  return resp.indexOf("+CPIN: READY") >= 0;
+}
+
+String readATResponse(unsigned long timeout, bool stopOnOkOnly) {
+  unsigned long start = millis();
+  String resp = "";
+  resp.reserve(ASYNC_CMD_BUFFER_SIZE);
+
+  while (millis() - start < timeout) {
+    String line = readSerialLine(Serial1);
+    if (line.length() == 0) {
+      delay(1);
+      continue;
+    }
+
+    if (isDeferredUrcLine(line) || pendingDeferredPduLine) {
+      handleDeferredLineDuringSyncRead(line);
+      continue;
+    }
+
+    if (resp.length() > 0) resp += "\n";
+    resp += line;
+
+    if (isExactOkLine(line)) {
+      return resp;
+    }
+    if (!stopOnOkOnly && isErrorLine(line)) {
+      return resp;
+    }
+  }
+
+  return resp;
+}
+
+bool readSmsSubmitResponse(unsigned long timeout, String& resp, String& cmgsRef, String& errorLine, bool& gotCmgs, bool& gotFinalOk) {
+  unsigned long start = millis();
+  resp = "";
+  cmgsRef = "";
+  errorLine = "";
+  gotCmgs = false;
+  gotFinalOk = false;
+
+  while (millis() - start < timeout) {
+    if (mqttClient.connected()) mqttClient.loop();
+
+    String line = readSerialLine(Serial1);
+    if (line.length() == 0) {
+      delay(1);
+      continue;
+    }
+
+    if (line.startsWith("+CMT:") || pendingDeferredPduLine) {
+      handleDeferredLineDuringSyncRead(line);
+      continue;
+    }
+
+    Serial.println(line);
+    if (resp.length() > 0) resp += "\n";
+    resp += line;
+
+    if (!gotCmgs && line.indexOf("+CMGS:") >= 0) {
+      gotCmgs = true;
+      cmgsRef = extractDigitsOnly(line);
+      continue;
+    }
+
+    if (line.indexOf("+CMS ERROR:") >= 0 || line.indexOf("+CME ERROR:") >= 0 || line == "ERROR") {
+      errorLine = explainSmsErrorLine(line);
+      return false;
+    }
+
+    if (gotCmgs && isExactOkLine(line)) {
+      gotFinalOk = true;
+      return true;
+    }
+  }
+
+  return false;
+}
+
+bool waitForSmsPrompt(unsigned long timeout) {
+  unsigned long start = millis();
+  String seen = "";
+  seen.reserve(32);
+
+  while (millis() - start < timeout) {
+    if (mqttClient.connected()) mqttClient.loop();
+
+    while (Serial1.available()) {
+      char c = Serial1.read();
+      if (c == '>') {
+        return true;
+      }
+      if (c != '\r' && c != '\n' && seen.length() < 31) {
+        seen += c;
+      }
+    }
+
+    delay(1);
+  }
+
+  if (seen.length() > 0) {
+    Serial.println("[SMS] 等待发送提示符超时，最后响应=" + seen);
+  }
+  return false;
+}
+
 bool sendATandWaitOK(const char* cmd, unsigned long timeout) {
   while (Serial1.available()) Serial1.read();
   Serial1.println(cmd);
-  unsigned long start = millis();
-  String resp = "";
-  while (millis() - start < timeout) {
-    while (Serial1.available()) {
-      char c = Serial1.read();
-      resp += c;
-      if (resp.indexOf("OK") >= 0) return true;
-      if (resp.indexOf("ERROR") >= 0) return false;
-    }
-  }
-  return false;
+  String resp = readATResponse(timeout);
+  return resp.indexOf("\nOK") >= 0 || resp == "OK";
 }
 
 String sendATCommand(const char* cmd, unsigned long timeout) {
   while (Serial1.available()) Serial1.read();
   Serial1.println(cmd);
   unsigned long start = millis();
-  String resp = "";
-  resp.reserve(ASYNC_CMD_BUFFER_SIZE);
-  while (millis() - start < timeout) {
-    while (Serial1.available()) {
-      char c = Serial1.read();
-      resp += c;
-      if (resp.indexOf("OK") >= 0 || resp.indexOf("ERROR") >= 0) {
-        delay(50);
-        while (Serial1.available()) resp += (char)Serial1.read();
-        return resp;
-      }
-    }
-    delay(1);
-  }
-  Serial.println(String("[AT] Timeout: ") + cmd + ", elapsed=" + String(millis() - start) + "ms");
+  String resp = readATResponse(timeout);
+  if (resp.length() > 0) return resp;
+  Serial.println(String("[AT] 指令超时: ") + cmd + ", 已耗时=" + String(millis() - start) + "ms");
   return resp;
 }
 
@@ -192,21 +579,20 @@ void modemPowerCycle() {
 }
 
 void resetModule() {
-  Serial.println("硬重启模组...");
+  Serial.println("[AT] 正在硬重启模组");
   modemPowerCycle();
   while (Serial1.available()) Serial1.read();
   bool ok = false;
   for (int i = 0; i < 10; i++) {
     if (sendATandWaitOK("AT", 1000)) { ok = true; break; }
-    Serial.println("等待模组启动...");
+    Serial.println("[AT] 等待模组启动...");
   }
-  Serial.println(ok ? "模组AT恢复正常" : "模组AT仍未响应");
+  Serial.println(ok ? "[AT] 模组已恢复响应" : "[AT] 模组仍未响应");
 }
 
 bool sendSMS(const char* phoneNum, const char* message, String& outMessage) {
-  Serial.println("发送短信...");
-  Serial.print("目标号码: "); Serial.println(phoneNum);
-  Serial.print("内容: "); Serial.println(message);
+  Serial.println("[SMS] 开始提交短信");
+  Serial.println("[SMS] 目标号码=" + String(phoneNum));
 
   const unsigned long SMS_TOTAL_TIMEOUT_MS = SEND_SMS_TOTAL_TIMEOUT_MS;
   const unsigned long startAll = millis();
@@ -214,7 +600,7 @@ bool sendSMS(const char* phoneNum, const char* message, String& outMessage) {
   pdu.setSCAnumber();
   int pduLen = pdu.encodePDU(phoneNum, message);
   if (pduLen < 0) {
-    Serial.print("PDU编码失败: "); Serial.println(pduLen);
+    Serial.println("[SMS] PDU编码失败: " + String(pduLen));
     outMessage = "PDU编码失败";
     return false;
   }
@@ -224,19 +610,10 @@ bool sendSMS(const char* phoneNum, const char* message, String& outMessage) {
   while (Serial1.available()) Serial1.read();
   Serial1.println(cmgsCmd);
 
-  bool gotPrompt = false;
-  while (millis() - startAll < SMS_TOTAL_TIMEOUT_MS) {
-    // Keep MQTT connection alive while waiting on modem
-    if (mqttClient.connected()) mqttClient.loop();
-    if (Serial1.available()) {
-      char c = Serial1.read();
-      Serial.print(c);
-      if (c == '>') { gotPrompt = true; break; }
-    }
-    delay(1);
-  }
+  unsigned long promptTimeout = SMS_TOTAL_TIMEOUT_MS - (millis() - startAll);
+  bool gotPrompt = waitForSmsPrompt(promptTimeout);
   if (!gotPrompt) {
-    Serial.println("未收到>提示符");
+    Serial.println("[SMS] 提交失败：未收到发送提示符");
     outMessage = "未收到发送提示符";
     return false;
   }
@@ -245,28 +622,39 @@ bool sendSMS(const char* phoneNum, const char* message, String& outMessage) {
   Serial1.write(0x1A);
 
   String resp = "";
-  while (millis() - startAll < SMS_TOTAL_TIMEOUT_MS) {
-    // Keep MQTT connection alive while waiting on modem
-    if (mqttClient.connected()) mqttClient.loop();
-    while (Serial1.available()) {
-      char c = Serial1.read();
-      resp += c;
-      Serial.print(c);
-      if (resp.indexOf("OK") >= 0) {
-        Serial.println("短信发送成功");
-        outMessage = "短信发送成功";
-        return true;
-      }
-      if (resp.indexOf("ERROR") >= 0) {
-        Serial.println("短信发送失败");
-        outMessage = "短信发送失败";
-        return false;
-      }
+  String cmgsRef = "";
+  String errLine = "";
+  bool gotCmgs = false;
+  bool gotFinalOk = false;
+  unsigned long remaining = SMS_TOTAL_TIMEOUT_MS - (millis() - startAll);
+  bool ok = readSmsSubmitResponse(remaining, resp, cmgsRef, errLine, gotCmgs, gotFinalOk);
+
+  if (ok && gotCmgs && gotFinalOk) {
+    String msg = "短信已提交到模组/网络";
+    if (cmgsRef.length() > 0) {
+      msg += "|ref=" + cmgsRef;
     }
-    delay(1);
+    Serial.println("[SMS] 短信已提交");
+    if (cmgsRef.length() > 0) {
+      Serial.println("[SMS] 模组参考号=" + cmgsRef);
+    }
+    outMessage = msg;
+    return true;
   }
-  Serial.println("短信发送超时");
-  outMessage = "短信发送超时";
+
+  if (errLine.length() > 0) {
+    Serial.println("[SMS] 提交失败: " + errLine);
+    outMessage = errLine;
+    return false;
+  }
+
+  if (gotCmgs) {
+    Serial.println("[SMS] 提交超时：已收到+CMGS但未收到最终OK");
+    outMessage = "已收到+CMGS但未收到最终OK";
+  } else {
+    Serial.println("[SMS] 提交超时：未收到+CMGS");
+    outMessage = "短信发送超时(未收到+CMGS)";
+  }
   return false;
 }
 
@@ -516,6 +904,104 @@ void updateQueryCache(QueryCacheEntry& entry, const String& message) {
   entry.valid = true;
 }
 
+String extractDigitsOnly(const String& input) {
+  String result = "";
+  for (int i = 0; i < input.length(); i++) {
+    char c = input.charAt(i);
+    if (c >= '0' && c <= '9') result += c;
+  }
+  return result;
+}
+
+String parseCeregStatusText(int status) {
+  if (status == 0) return "未注册";
+  if (status == 1) return "已注册本地";
+  if (status == 2) return "搜索中";
+  if (status == 3) return "注册被拒绝";
+  if (status == 4) return "未知";
+  if (status == 5) return "已注册漫游";
+  return "状态码:" + String(status);
+}
+
+void resetNetworkStatus(NetworkStatus& status) {
+  status.registered = false;
+  status.roaming = false;
+  status.pdpActive = false;
+  status.operatorCode = "";
+  status.regText = "未知";
+  status.regCode = -1;
+}
+
+void parseNetworkStatusMessage(const String& msg, NetworkStatus& status) {
+  resetNetworkStatus(status);
+
+  const char* regKey = "注册=";
+  const char* operKey = "|运营商=";
+  const char* dataKey = "|数据=";
+  int regIdx = msg.indexOf(regKey);
+  int operIdx = msg.indexOf(operKey);
+  int dataIdx = msg.indexOf(dataKey);
+
+  if (regIdx >= 0) {
+    int regEnd = operIdx > regIdx ? operIdx : msg.length();
+    String regText = msg.substring(regIdx + (int)strlen(regKey), regEnd);
+    regText.trim();
+    status.regText = regText;
+    status.registered = (regText.indexOf("已注册") >= 0);
+    status.roaming = (regText.indexOf("漫游") >= 0);
+  }
+
+  if (operIdx >= 0) {
+    int operEnd = dataIdx > operIdx ? dataIdx : msg.length();
+    String oper = msg.substring(operIdx + (int)strlen(operKey), operEnd);
+    oper.trim();
+    status.operatorCode = extractDigitsOnly(oper);
+  }
+
+  if (dataIdx >= 0) {
+    String dataText = msg.substring(dataIdx + (int)strlen(dataKey));
+    dataText.trim();
+    status.pdpActive = (dataText.indexOf("已激活") >= 0);
+  }
+
+  if (lastNetworkRegStat == 1 || lastNetworkRegStat == 5) {
+    status.regCode = lastNetworkRegStat;
+    status.registered = true;
+    status.roaming = (lastNetworkRegStat == 5);
+    status.regText = parseCeregStatusText(lastNetworkRegStat);
+  }
+}
+
+String getActivePdpContextsSummary(const String& resp) {
+  String active = "";
+  int searchFrom = 0;
+  while (true) {
+    int idx = resp.indexOf("+CGACT:", searchFrom);
+    if (idx < 0) break;
+    int lineEnd = resp.indexOf('\n', idx);
+    if (lineEnd < 0) lineEnd = resp.length();
+    String line = resp.substring(idx, lineEnd);
+    line.trim();
+    int colonIdx = line.indexOf(':');
+    if (colonIdx >= 0) {
+      String rest = line.substring(colonIdx + 1);
+      int commaIdx = rest.indexOf(',');
+      if (commaIdx >= 0) {
+        String cidStr = rest.substring(0, commaIdx);
+        String stateStr = rest.substring(commaIdx + 1);
+        cidStr.trim();
+        stateStr.trim();
+        if (stateStr.toInt() == 1) {
+          if (active.length() > 0) active += ",";
+          active += cidStr;
+        }
+      }
+    }
+    searchFrom = lineEnd + 1;
+  }
+  return active;
+}
+
 String extractQuotedValue(const String& text, int startSearch = 0) {
   int firstQuote = text.indexOf('"', startSearch);
   if (firstQuote < 0) return "";
@@ -546,6 +1032,13 @@ String extractNextResponseLine(const String& resp) {
   return value;
 }
 
+String extractCmgsRef(const String& resp) {
+  String line = extractLineAfterPrefix(resp, "+CMGS:");
+  line.trim();
+  if (line.length() == 0) return "";
+  return extractDigitsOnly(line);
+}
+
 bool withCachedQuery(QueryCacheEntry& cache, unsigned long ttlMs, String& msg, bool& success, bool (*builder)(String&)) {
   if (isQueryCacheValid(cache, ttlMs)) {
     success = true;
@@ -564,6 +1057,15 @@ bool withCachedQuery(QueryCacheEntry& cache, unsigned long ttlMs, String& msg, b
   return true;
 }
 
+bool queryNetworkStatus(NetworkStatus& status, String& msg, bool& success) {
+  resetNetworkStatus(status);
+  bool handled = withCachedQuery(networkCache, NETWORK_CACHE_TTL, msg, success, buildNetworkQueryMessage);
+  if (handled && success && msg.length() > 0) {
+    parseNetworkStatusMessage(msg, status);
+  }
+  return handled;
+}
+
 void finishAsyncTask(bool success, const String& message) {
   String action = asyncTask.type == ASYNC_TASK_TRAFFIC ? "consume_traffic" : "ping";
   RequestIdScope scope = pushRequestIdScope(asyncTask.requestId);
@@ -580,6 +1082,15 @@ String getPhoneNumber() {
   }
   if (phoneNumber.length() == 0) phoneNumber = "未知";
   return phoneNumber;
+}
+
+String getCachedPhoneNumber() {
+  if (phoneNumber.length() > 0) return phoneNumber;
+  return "未知";
+}
+
+void requestPhoneNumberRefresh() {
+  pendingPhoneRefresh = true;
 }
 
 String jsonEscape(const String& str) {
@@ -676,7 +1187,10 @@ String buildSmsPayload(const char* sender, const char* text, const char* timesta
     formattedTime = getLocalTimeStr();
   }
 
-  String phone = getPhoneNumber();
+  String phone = getCachedPhoneNumber();
+  if (phone == "未知") {
+    requestPhoneNumberRefresh();
+  }
   size_t capacity = JSON_OBJECT_SIZE(4) + formattedTime.length() + phone.length() + strlen(sender) + strlen(text) + 256;
   DynamicJsonDocument doc(capacity);
   doc["sender"] = sender;
@@ -702,13 +1216,16 @@ bool enqueueOfflineSMS(const char* sender, const char* text, const char* timesta
   offlineQueue[queueTail].sender = String(sender);
   offlineQueue[queueTail].text = String(text);
   offlineQueue[queueTail].timestamp = ts.length() > 0 ? ts : getLocalTimeStr();
-  offlineQueue[queueTail].phone = getPhoneNumber();
+  offlineQueue[queueTail].phone = getCachedPhoneNumber();
+  if (offlineQueue[queueTail].phone == "未知") {
+    requestPhoneNumberRefresh();
+  }
   queueValid[queueTail] = true;
   
   queueTail = (queueTail + 1) % OFFLINE_QUEUE_SIZE;
   queueCount++;
   
-  Serial.println("[Queue] SMS queued, count: " + String(queueCount));
+  Serial.println("[Queue] 短信已入队，当前数量=" + String(queueCount));
   return true;
 }
 
@@ -737,9 +1254,9 @@ bool flushOfflineQueue(uint8_t maxMessages = 1) {
     }
 
     String topic = "sms_forwarder/raw_sms/" + deviceMAC;
-    bool ok = mqttClient.publish(topic.c_str(), payload.c_str());
+    bool ok = publishMqttMessage(topic, payload, 3, 2000, 80);
     if (!ok) {
-      Serial.println("[Queue] Flush publish failed, keeping queued SMS");
+      Serial.println("[Queue] 队列补发失败，保留当前短信");
       return false;
     }
 
@@ -754,13 +1271,13 @@ bool flushOfflineQueue(uint8_t maxMessages = 1) {
   }
 
   if (flushed > 0) {
-    Serial.println("[Queue] Flushed messages: " + String(flushed) + ", remaining=" + String(queueCount));
+    Serial.println("[Queue] 已补发短信=" + String(flushed) + "，剩余=" + String(queueCount));
   }
   return queueCount == 0;
 }
 
 void publishHeartbeat() {
-  StaticJsonDocument<384> doc;
+  DynamicJsonDocument doc(1536);
   doc["ip"] = WiFi.localIP().toString();
   doc["phone"] = phoneNumber.length() > 0 ? phoneNumber : "未知";
   doc["rssi"] = WiFi.RSSI();
@@ -770,50 +1287,90 @@ void publishHeartbeat() {
   wifi["connected"] = WiFi.isConnected();
   wifi["ssid"] = WiFi.SSID();
   JsonObject sim = doc.createNestedObject("sim");
-  sim["ready"] = (phoneNumber.length() > 0 && phoneNumber != "未知");
+  sim["ready"] = isSimReady();
   JsonObject queue = doc.createNestedObject("queue");
   queue["offlineSms"] = queueCount;
+  JsonObject network = doc.createNestedObject("network");
+  network["registered"] = false;
+  network["roaming"] = false;
+  network["operator"] = "";
+  network["pdpActive"] = false;
+  
+  // 获取缓存的网络状态（心跳与手动查询共用同一份结构化解析结果）
+  String networkInfo;
+  bool networkSuccess;
+  NetworkStatus networkStatus;
+  if (queryNetworkStatus(networkStatus, networkInfo, networkSuccess)) {
+    network["registered"] = networkSuccess ? networkStatus.registered : false;
+    network["roaming"] = networkSuccess ? networkStatus.roaming : false;
+    network["operator"] = networkSuccess ? networkStatus.operatorCode : "";
+    network["pdpActive"] = networkSuccess ? networkStatus.pdpActive : false;
+  }
+  
   String topic = "sms_forwarder/heartbeat/" + deviceMAC;
-  char buf[384];
-  serializeJson(doc, buf);
-  mqttClient.publish(topic.c_str(), buf);
-  Serial.println("[MQTT] Heartbeat sent: " + String(buf));
+  String payload;
+  payload.reserve(1024);
+  serializeJson(doc, payload);
+  bool published = publishMqttMessage(topic, payload, 3, 2000, 80);
+  Serial.println(String("[MQTT] 心跳") + (published ? "发送成功: " : "发送失败: ") + payload);
 }
 
 bool publishRawSMS(const char* sender, const char* text, const char* timestamp) {
-  Serial.println("[SMS] 准备发送短信到服务器...");
-  Serial.println("[SMS] sender=" + String(sender) + ", text=" + String(text));
-  Serial.println("[SMS] 原始时间戳: " + String(timestamp ? timestamp : "(null)"));
+  Serial.println("[SMS] 开始转发接收短信");
+  Serial.println("[SMS] 发件人=" + String(sender) + ", 长度=" + String(strlen(text)) + ", 时间=" + String(timestamp ? timestamp : "(null)"));
 
   String payload = buildSmsPayload(sender, text, timestamp);
   String topic = "sms_forwarder/raw_sms/" + deviceMAC;
-  Serial.println("[SMS] Topic: " + topic);
-  Serial.println("[SMS] Payload length: " + String(payload.length()));
+  Serial.println("[SMS] 主题=" + topic + ", 负载长度=" + String(payload.length()));
   if (payload.length() >= MQTT_BUFFER_SIZE) {
-    Serial.println("[SMS] Payload exceeds MQTT buffer, storing in offline queue");
+    Serial.println("[SMS] 负载过大，存入离线队列");
     return enqueueOfflineSMS(sender, text, timestamp);
   }
   
   if (mqttClient.connected()) {
-    Serial.println("[SMS] MQTT已连接，准备发送...");
+    Serial.println("[SMS] MQTT已连接，开始发布");
     if (!flushOfflineQueue(1)) {
       Serial.println("[SMS] 离线队列刷新失败，当前短信改为入队");
       return enqueueOfflineSMS(sender, text, timestamp);
     }
-    mqttClient.loop();
-    delay(10);
-    boolean result = mqttClient.publish(topic.c_str(), payload.c_str());
-    Serial.println("[SMS] MQTT发送结果: " + String(result ? "成功" : "失败"));
+    boolean result = publishMqttMessage(topic, payload, 3, 2000, 80);
+    Serial.println("[SMS] 发布结果: " + String(result ? "成功" : "失败"));
     if (result) {
-      Serial.println("[MQTT] SMS published");
+      Serial.println("[MQTT] 短信已发布");
       return true;
     }
-    Serial.println("[SMS] MQTT发送失败，转入离线队列");
+    Serial.println("[SMS] 发布失败，转入离线队列");
     return enqueueOfflineSMS(sender, text, timestamp);
   } else {
     Serial.println("[SMS] MQTT未连接，存入离线队列");
     return enqueueOfflineSMS(sender, text, timestamp);
   }
+}
+
+bool publishMqttMessage(const String& topic, const String& payload, int retries, int reconnectWindowMs, int retryDelayMs) {
+  if (!mqttClient.connected()) {
+    unsigned long start = millis();
+    while (!mqttClient.connected() && millis() - start < (unsigned long)reconnectWindowMs) {
+      mqttReconnect();
+      mqttClient.loop();
+      delay(120);
+    }
+  }
+
+  bool published = false;
+  for (int i = 0; i < retries; i++) {
+    if (!mqttClient.connected()) {
+      mqttReconnect();
+      mqttClient.loop();
+      delay(120);
+      continue;
+    }
+    published = mqttClient.publish(topic.c_str(), payload.c_str());
+    mqttClient.loop();
+    if (published) break;
+    delay(retryDelayMs);
+  }
+  return published;
 }
 
 void publishRespDoc(DynamicJsonDocument& doc) {
@@ -824,33 +1381,9 @@ void publishRespDoc(DynamicJsonDocument& doc) {
   payload.reserve(512);
   serializeJson(doc, payload);
   String topic = "sms_forwarder/resp/" + deviceMAC;
+  bool published = publishMqttMessage(topic, payload, 3, 3000, 60);
 
-  // Ensure response is sent promptly, even after a long modem operation.
-  // Try to reconnect and retry publish a few times to avoid the server waiting.
-  if (!mqttClient.connected()) {
-    unsigned long start = millis();
-    while (!mqttClient.connected() && millis() - start < 3000) {
-      mqttReconnect();
-      mqttClient.loop();
-      delay(120);
-    }
-  }
-
-  bool published = false;
-  for (int i = 0; i < 3; i++) {
-    if (!mqttClient.connected()) {
-      mqttReconnect();
-      mqttClient.loop();
-      delay(120);
-      continue;
-    }
-    published = mqttClient.publish(topic.c_str(), payload.c_str());
-    mqttClient.loop();
-    if (published) break;
-    delay(60);
-  }
-
-  Serial.println(String("[MQTT] Resp ") + (published ? "sent" : "send_failed") + ": " + payload);
+  Serial.println(String("[MQTT] 响应") + (published ? "发送成功: " : "发送失败: ") + payload);
 }
 
 void publishResp(const char* action, bool success, const String& message) {
@@ -977,7 +1510,7 @@ void issueAsyncDeactivateCommand() {
   asyncTask.responseBuffer.reserve(ASYNC_CMD_BUFFER_SIZE);
   asyncTask.step = ASYNC_STEP_DEACTIVATE_WAIT;
   asyncTask.stepStartedAt = millis();
-  Serial1.println("AT+CGACT=0,1");
+  Serial1.println("AT+CGACT?");
 }
 
 void processAsyncTaskResponse(const String& line) {
@@ -1042,6 +1575,9 @@ void processAsyncTaskResponse(const String& line) {
 
   if (asyncTask.step == ASYNC_STEP_DEACTIVATE_WAIT) {
     if (isCgactQueryLine(line)) {
+      if (isAnyPdpContextActive(asyncTask.responseBuffer)) {
+        asyncTask.responseBuffer = deactivateAllPdpContexts(asyncTask.responseBuffer);
+      }
       return;
     }
     if (isExactOkLine(line) || isErrorLine(line)) {
@@ -1102,14 +1638,14 @@ void tickAsyncTask() {
 }
 
 void handleFlightModeMQTT(int status) {
-  Serial.println("[MQTT] 飞行模式操作, status=" + String(status));
+  Serial.println("[MQTT] 飞行模式操作，status=" + String(status));
   String resp;
   bool success = false;
   String msg;
 
   if (status == -1) {
     resp = sendATCommand("AT+CFUN?", 2000);
-    Serial.println("CFUN查询响应: " + resp);
+    Serial.println("[AT] CFUN响应: " + resp);
     if (resp.indexOf("+CFUN:") >= 0) {
       success = true;
       int idx = resp.indexOf("+CFUN:");
@@ -1140,7 +1676,7 @@ void handleFlightModeMQTT(int status) {
       int currentMode = resp.substring(idx + 6).toInt();
       int newMode = (currentMode == 1) ? 4 : 1;
       String cmd = "AT+CFUN=" + String(newMode);
-      Serial.println("切换飞行模式: " + cmd);
+      Serial.println("[MQTT] 切换飞行模式命令: " + cmd);
       resp = sendATCommand(cmd.c_str(), 5000);
       success = (resp.indexOf("OK") >= 0);
       msg = success ? (newMode == 4 ? "飞行模式已开启" : "飞行模式已关闭") : "切换失败: " + resp;
@@ -1155,7 +1691,7 @@ void handleFlightModeMQTT(int status) {
 void handleAtCmdMQTT(const String& cmd) {
   Serial.println("[MQTT] AT指令: " + cmd);
   String resp = sendATCommand(cmd.c_str(), 5000);
-  Serial.println("响应: " + resp);
+  Serial.println("[AT] 响应: " + resp);
   publishResp("at", resp.length() > 0, resp);
 }
 
@@ -1226,27 +1762,29 @@ bool buildNetworkQueryMessage(String& msg) {
     String tmp = extractLineAfterPrefix(resp, "+CEREG:");
     int commaIdx = tmp.indexOf(',');
     if (commaIdx >= 0) {
-      String stat = tmp.substring(commaIdx + 1, commaIdx + 2);
-      int s = stat.toInt();
-      if (s == 0) regStatus = "未注册";
-      else if (s == 1) regStatus = "已注册本地";
-      else if (s == 2) regStatus = "搜索中";
-      else if (s == 3) regStatus = "注册被拒绝";
-      else if (s == 4) regStatus = "未知";
-      else if (s == 5) regStatus = "已注册漫游";
-      else regStatus = "状态码:" + stat;
+      int nextCommaIdx = tmp.indexOf(',', commaIdx + 1);
+      String stat = nextCommaIdx >= 0 ? tmp.substring(commaIdx + 1, nextCommaIdx) : tmp.substring(commaIdx + 1);
+      stat.trim();
+      regStatus = parseCeregStatusText(stat.toInt());
     }
   }
 
   resp = sendATCommand("AT+COPS?", 2000);
   String oper = "未知";
   if (resp.indexOf("+COPS:") >= 0) {
-    String extracted = extractQuotedValue(resp, resp.indexOf(",\""));
-    if (extracted.length() > 0) oper = extracted;
+    // 响应格式：+COPS: 0,2,"46000",7
+    int copsIdx = resp.indexOf("+COPS:");
+    int quote1 = resp.indexOf('"', copsIdx >= 0 ? copsIdx : 0);
+    int quote2 = resp.indexOf('"', quote1 + 1);
+    if (quote1 >= 0 && quote2 > quote1 && quote2 - quote1 <= 15) {
+      String extracted = resp.substring(quote1 + 1, quote2);
+      String numbers = extractDigitsOnly(extracted);
+      if (numbers.length() >= 5) oper = numbers;
+    }
   }
 
   resp = sendATCommand("AT+CGACT?", 2000);
-  String pdpStatus = resp.indexOf("+CGACT: 1,1") >= 0 ? "已激活" : "未激活";
+  String pdpStatus = isAnyPdpContextActive(resp) ? "已激活" : "未激活";
 
   msg = "注册=" + regStatus + "|运营商=" + oper + "|数据=" + pdpStatus;
   return true;
@@ -1300,7 +1838,8 @@ void handleQueryMQTT(const String& type) {
     withCachedQuery(simInfoCache, SIMINFO_CACHE_TTL, msg, success, buildSimInfoQueryMessage);
   }
   else if (type == "network") {
-    withCachedQuery(networkCache, NETWORK_CACHE_TTL, msg, success, buildNetworkQueryMessage);
+    NetworkStatus networkStatus;
+    queryNetworkStatus(networkStatus, msg, success);
   }
   else if (type == "wifi") {
     success = true;
@@ -1314,14 +1853,14 @@ void handleQueryMQTT(const String& type) {
 }
 
 void handleSendSmsMQTT(const String& phone, const String& content) {
-  Serial.println("[MQTT] 发送短信: " + phone + " -> " + content);
+  Serial.println("[MQTT] 发送短信到=" + phone + "，长度=" + String(content.length()));
   String resultMsg;
   resultMsg.reserve(64);
   bool ok = sendSMS(phone.c_str(), content.c_str(), resultMsg);
   // Always send a response (with original requestId) right after the action ends.
   // This prevents the backend from waiting its full timeout when modem/network is slow.
   if (resultMsg.length() == 0) {
-    resultMsg = ok ? "短信发送成功" : "短信发送失败";
+    resultMsg = ok ? "短信已提交到模组/网络" : "短信发送未完成";
   }
   publishResp("send_sms", ok, resultMsg);
 }
@@ -1396,10 +1935,10 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 bool mqttReconnect() {
   String clientId = "ESP32SMS_" + deviceMAC;
   if (mqttClient.connect(clientId.c_str())) {
-    Serial.println("[MQTT] Connected to broker");
+    Serial.println("[MQTT] 已连接到Broker");
     String topic = "sms_forwarder/cmd/" + deviceMAC;
     mqttClient.subscribe(topic.c_str());
-    Serial.println("[MQTT] Subscribed to: " + topic);
+    Serial.println("[MQTT] 已订阅主题: " + topic);
     flushOfflineQueue(1);
     publishHeartbeat();
   }
@@ -1407,87 +1946,20 @@ bool mqttReconnect() {
 }
 
 void checkSerial1URC() {
-  String line = readSerialLine(Serial1);
+  String line;
+  if (!dequeuePendingUrc(line)) {
+    line = readSerialLine(Serial1);
+  }
   if (line.length() == 0) return;
-  Serial.println("Debug> " + line);
+  Serial.println("[URC] " + line);
 
   if (asyncTask.active) {
     processAsyncTaskResponse(line);
     if (!asyncTask.active) return;
   }
 
-  if (!urcWaitingPdu) {
-    if (line.startsWith("+CMT:")) {
-      Serial.println("检测到+CMT，等待PDU...");
-      urcWaitingPdu = true;
-    }
-  } else {
-    if (line.length() == 0) return;
-    if (isHexString(line)) {
-      Serial.println("收到PDU数据: " + line);
-      if (!pdu.decodePDU(line.c_str())) {
-        Serial.println("PDU解析失败");
-      } else {
-        Serial.println("PDU解析成功");
-        Serial.println("发送者: " + String(pdu.getSender()));
-        Serial.println("时间戳: " + String(pdu.getTimeStamp()));
-        Serial.println("内容: " + String(pdu.getText()));
-
-        int* concatInfo = pdu.getConcatInfo();
-        int refNumber = concatInfo[0];
-        int partNumber = concatInfo[1];
-        int totalParts = concatInfo[2];
-
-        if (totalParts > 1 && partNumber > 0) {
-          if (isRecentlyCompletedConcat(refNumber, pdu.getSender(), pdu.getTimeStamp())) {
-            Serial.printf("忽略已完成长短信的重复分段 %d/%d\n", partNumber, totalParts);
-            urcWaitingPdu = false;
-            return;
-          }
-
-          if (totalParts > MAX_CONCAT_PARTS) {
-            Serial.printf("长短信分段数超出支持范围: %d/%d，已丢弃\n", partNumber, totalParts);
-            urcWaitingPdu = false;
-            return;
-          }
-
-          Serial.printf("长短信分段 %d/%d\n", partNumber, totalParts);
-          int slot = findOrCreateConcatSlot(refNumber, pdu.getSender(), pdu.getTimeStamp(), totalParts);
-          int partIndex = partNumber - 1;
-          if (partIndex >= 0 && partIndex < MAX_CONCAT_PARTS) {
-            if (!concatBuffer[slot].parts[partIndex].valid) {
-              concatBuffer[slot].parts[partIndex].valid = true;
-              concatBuffer[slot].parts[partIndex].text = String(pdu.getText());
-              concatBuffer[slot].receivedParts++;
-              if (concatBuffer[slot].receivedParts == 1) {
-                concatBuffer[slot].firstPartTime = millis();
-                concatBuffer[slot].sender = String(pdu.getSender());
-                concatBuffer[slot].totalParts = totalParts;
-                concatBuffer[slot].timestamp = String(pdu.getTimeStamp());
-              }
-              Serial.printf("已缓存分段 %d, 已收到 %d/%d\n", partNumber, concatBuffer[slot].receivedParts, totalParts);
-            }
-          }
-          if (concatBuffer[slot].receivedParts >= totalParts) {
-            Serial.println("长短信已收齐，合并转发");
-            String fullText = assembleConcatSms(slot);
-            bool published = publishRawSMS(concatBuffer[slot].sender.c_str(), fullText.c_str(), concatBuffer[slot].timestamp.c_str());
-            if (published) {
-              rememberCompletedConcat(concatBuffer[slot].refNumber, concatBuffer[slot].sender.c_str(), concatBuffer[slot].timestamp.c_str());
-            } else {
-              Serial.println("长短信发布失败，未写入去重缓存");
-            }
-            clearConcatSlot(slot);
-          }
-        } else {
-          publishRawSMS(pdu.getSender(), pdu.getText(), pdu.getTimeStamp());
-        }
-      }
-      urcWaitingPdu = false;
-    } else {
-      urcWaitingPdu = false;
-    }
-  }
+  if (handleSmsUrcLine(line)) return;
+  handleGenericUrcLine(line);
 }
 
 void checkConcatTimeout() {
@@ -1495,7 +1967,7 @@ void checkConcatTimeout() {
   for (int i = 0; i < MAX_CONCAT_MESSAGES; i++) {
     if (concatBuffer[i].inUse) {
       if (now - concatBuffer[i].firstPartTime >= CONCAT_TIMEOUT_MS) {
-        Serial.printf("长短信超时，丢弃不完整分段 (%d/%d)\n", concatBuffer[i].receivedParts, concatBuffer[i].totalParts);
+        Serial.printf("[URC] 长短信超时，丢弃未完整短信 (%d/%d)\n", concatBuffer[i].receivedParts, concatBuffer[i].totalParts);
         clearConcatSlot(i);
       }
     }
@@ -1529,71 +2001,90 @@ void setup() {
     deviceMAC.toLowerCase();
   }
   
-  Serial.println("设备MAC: " + deviceMAC);
+  Serial.println("[BOOT] 设备MAC: " + deviceMAC);
 
   while (!sendATandWaitOK("AT", 1000)) {
-    Serial.println("AT未响应，重试...");
+    Serial.println("[AT] 无响应，正在重试...");
     blink_short();
   }
-  Serial.println("模组AT响应正常");
+  Serial.println("[AT] 模组已就绪");
+
+  {
+    String cgattResp = sendATCommand("AT+CGATT=1", 5000);
+    Serial.println("[NET] 附着分组域响应: " + cgattResp);
+  }
 
   {
     String cgactResp = sendATCommand("AT+CGACT?", 2000);
-    Serial.println("CGACT查询: " + cgactResp);
-    bool disabled = false;
-    for (int i = 0; i < 3; i++) {
-      if (sendATandWaitOK("AT+CGACT=0,1", 5000)) { disabled = true; break; }
-      blink_short();
+    Serial.println("[NET] CGACT查询: " + cgactResp);
+    bool hadActiveContext = isAnyPdpContextActive(cgactResp);
+    if (hadActiveContext) {
+      String verifyResp = deactivateAllPdpContexts(cgactResp);
+      Serial.println("[NET] CGACT复查: " + verifyResp);
+      if (isAnyPdpContextActive(verifyResp)) {
+        Serial.println("[NET] 仍有激活数据上下文 CID=" + getActivePdpContextsSummary(verifyResp) + "，继续启动");
+      }
+      else Serial.println("[NET] 数据连接已禁用");
+    } else {
+      Serial.println("[NET] 数据连接本来就未激活");
     }
-    if (disabled) Serial.println("已禁用数据连接");
-    else Serial.println("禁用数据连接失败");
   }
 
   while (!sendATandWaitOK("AT+CNMI=2,2,0,0,0", 1000)) {
-    Serial.println("设置CNMI失败，重试...");
+    Serial.println("[AT] CNMI配置失败，正在重试...");
     blink_short();
   }
-  Serial.println("CNMI参数设置完成");
+  Serial.println("[AT] CNMI参数配置完成");
 
   while (!sendATandWaitOK("AT+CMGF=0", 1000)) {
-    Serial.println("设置PDU模式失败，重试...");
+    Serial.println("[AT] PDU模式配置失败，正在重试...");
     blink_short();
   }
-  Serial.println("PDU模式设置完成");
+  Serial.println("[AT] PDU模式配置完成");
   refreshPhoneNumberIfNeeded(true);
 
   Serial1.println("AT+CEREG?");
   unsigned long startReg = millis();
   bool registered = false;
+  lastNetworkRegStat = -1;
   while (millis() - startReg < 60000) {
+    checkSerial1URC();
+    if (lastNetworkRegStat == 1 || lastNetworkRegStat == 5) {
+      registered = true;
+      break;
+    }
     String line = readSerialLine(Serial1);
     if (line.length() > 0) {
-      Serial.println("Debug> " + line);
-      if (line.indexOf("+CEREG:") >= 0) {
-        if (line.indexOf(",1") >= 0 || line.indexOf(",5") >= 0) { registered = true; break; }
-        if (line.indexOf(",2") >= 0 || line.indexOf(",0") >= 0) {
-          delay(2000);
-          Serial1.println("AT+CEREG?");
+      if (isDeferredUrcLine(line) || pendingDeferredPduLine) {
+        handleDeferredLineDuringSyncRead(line);
+      } else {
+        Serial.println("[NET] " + line);
+        if (line.indexOf("+CEREG:") >= 0) {
+          int stat = parseCeregStatCode(line);
+          if (stat == 1 || stat == 5) { registered = true; break; }
+          if (stat == 0 || stat == 2) {
+            delay(2000);
+            Serial1.println("AT+CEREG?");
+          }
         }
       }
     }
     delay(10);
   }
-  if (registered) Serial.println("网络已注册");
-  else Serial.println("网络注册超时");
+  if (registered) Serial.println("[NET] 网络已注册");
+  else Serial.println("[NET] 网络注册超时，最后状态码=" + String(lastNetworkRegStat));
 
   WiFi.begin(WIFI_SSID, WIFI_PASS, 0, nullptr, true);
-  Serial.println("连接WiFi: " + String(WIFI_SSID));
+  Serial.println("[WIFI] 正在连接: " + String(WIFI_SSID));
   while (WiFi.status() != WL_CONNECTED) blink_short();
-  Serial.print("WiFi已连接, IP: ");
-  Serial.println(WiFi.localIP());
+  Serial.println("[WIFI] 已连接, IP: " + WiFi.localIP().toString());
 
-  Serial.println("同步NTP时间...");
+  Serial.println("[NTP] 开始同步时间");
   configTime(8 * 3600, 0, "ntp.ntsc.ac.cn", "ntp.aliyun.com", "pool.ntp.org");
   int ntpRetry = 0;
   while (time(nullptr) < 100000 && ntpRetry < 100) { delay(100); ntpRetry++; }
-  if (time(nullptr) >= 100000) { Serial.println("NTP时间同步成功"); }
-  else Serial.println("NTP时间同步失败");
+  if (time(nullptr) >= 100000) { Serial.println("[NTP] 时间同步成功"); }
+  else Serial.println("[NTP] 时间同步失败");
 
   mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
   mqttClient.setBufferSize(MQTT_BUFFER_SIZE);
@@ -1602,15 +2093,15 @@ void setup() {
 
   digitalWrite(LED_BUILTIN, LOW);
   lastHeartbeat = millis();
-  Serial.println("=== 设备启动完成 ===");
-  Serial.println("MQTT Server: " + String(MQTT_SERVER) + ":" + String(MQTT_PORT));
+  Serial.println("[BOOT] 启动完成");
+  Serial.println("[BOOT] MQTT服务器: " + String(MQTT_SERVER) + ":" + String(MQTT_PORT));
 }
 
 void loop() {
   if (!mqttClient.connected()) {
     if (millis() - lastMqttReconnect >= MQTT_RECONNECT_INTERVAL) {
       lastMqttReconnect = millis();
-      Serial.println("[MQTT] 尝试重连...");
+      Serial.println("[MQTT] 正在尝试重连...");
       mqttReconnect();
     }
   } else {
@@ -1629,6 +2120,11 @@ void loop() {
 
   if (shouldRefreshPhoneNumber()) {
     refreshPhoneNumberIfNeeded();
+  }
+
+  if (pendingPhoneRefresh && !isAsyncTaskBusy()) {
+    refreshPhoneNumberIfNeeded(true);
+    pendingPhoneRefresh = false;
   }
 
   checkSerial1URC();

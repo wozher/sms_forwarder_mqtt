@@ -22,6 +22,7 @@ function initDatabase() {
       mac TEXT PRIMARY KEY,
       ip TEXT,
       phone TEXT DEFAULT '',
+      phone_override TEXT DEFAULT '',
       rssi INTEGER DEFAULT 0,
       uptime INTEGER DEFAULT 0,
       version TEXT DEFAULT '',
@@ -38,6 +39,7 @@ function initDatabase() {
       sender TEXT,
       text TEXT,
       phone TEXT,
+      device_phone TEXT DEFAULT '',
       timestamp TEXT,
       received_at TEXT DEFAULT (datetime('now', 'localtime')),
       status TEXT DEFAULT 'pending',
@@ -66,6 +68,8 @@ function initDatabase() {
     CREATE TABLE IF NOT EXISTS scheduled_sms (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       mac TEXT NOT NULL,
+      bind_mode TEXT DEFAULT 'mac',
+      bind_phone TEXT DEFAULT '',
       task_type TEXT DEFAULT 'sms',
       phone TEXT NOT NULL,
       content TEXT NOT NULL,
@@ -116,6 +120,12 @@ function initDatabase() {
     getDatabase().exec('ALTER TABLE scheduled_sms ADD COLUMN interval_minutes INTEGER DEFAULT 0');
   } catch (e) {}
   try {
+    getDatabase().exec("ALTER TABLE scheduled_sms ADD COLUMN bind_mode TEXT DEFAULT 'mac'");
+  } catch (e) {}
+  try {
+    getDatabase().exec("ALTER TABLE scheduled_sms ADD COLUMN bind_phone TEXT DEFAULT ''");
+  } catch (e) {}
+  try {
     getDatabase().exec("ALTER TABLE scheduled_sms ADD COLUMN task_type TEXT DEFAULT 'sms'");
   } catch (e) {}
   try {
@@ -123,6 +133,9 @@ function initDatabase() {
   } catch (e) {}
   try {
     getDatabase().exec('ALTER TABLE sms_messages ADD COLUMN status TEXT DEFAULT "pending"');
+  } catch (e) {}
+  try {
+    getDatabase().exec("ALTER TABLE sms_messages ADD COLUMN device_phone TEXT DEFAULT ''");
   } catch (e) {}
   try {
     getDatabase().exec("ALTER TABLE sms_messages ADD COLUMN direction TEXT DEFAULT 'inbound'");
@@ -146,6 +159,9 @@ function initDatabase() {
     getDatabase().exec("ALTER TABLE devices ADD COLUMN phone TEXT DEFAULT ''");
   } catch (e) {}
   try {
+    getDatabase().exec("ALTER TABLE devices ADD COLUMN phone_override TEXT DEFAULT ''");
+  } catch (e) {}
+  try {
     getDatabase().exec("ALTER TABLE devices ADD COLUMN version TEXT DEFAULT ''");
   } catch (e) {}
   try {
@@ -157,6 +173,11 @@ function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_sms_mac_direction ON sms_messages(mac, direction);
     CREATE INDEX IF NOT EXISTS idx_sms_status ON sms_messages(status);
   `);
+
+  // Indexes that depend on newly added columns must be created after migrations.
+  try {
+    db.exec("CREATE INDEX IF NOT EXISTS idx_schedule_bind_phone ON scheduled_sms(bind_phone)");
+  } catch (e) {}
 
   const adminExists = db.prepare('SELECT COUNT(*) as count FROM users WHERE username = ?').get('admin');
   if (adminExists.count === 0) {
@@ -237,7 +258,8 @@ function getDeviceList() {
   return devices.map(d => ({
     mac: d.mac,
     ip: d.ip,
-    phone: d.phone || '',
+    phone: d.phone_override || d.phone || '',
+    phoneOverride: d.phone_override || '',
     rssi: d.rssi,
     uptime: d.uptime,
     version: d.version || '',
@@ -255,7 +277,8 @@ function getDeviceByMac(mac) {
   return {
     mac: d.mac,
     ip: d.ip,
-    phone: d.phone || '',
+    phone: d.phone_override || d.phone || '',
+    phoneOverride: d.phone_override || '',
     rssi: d.rssi,
     uptime: d.uptime,
     version: d.version || '',
@@ -277,16 +300,22 @@ function updateDeviceRemark(mac, remark) {
   getDatabase().prepare('UPDATE devices SET remark = ? WHERE mac = ?').run(remark, mac);
 }
 
+function updateDevicePhoneOverride(mac, phoneOverride) {
+  const value = phoneOverride == null ? '' : String(phoneOverride).trim();
+  getDatabase().prepare('UPDATE devices SET phone_override = ? WHERE mac = ?').run(value, mac);
+}
+
 function insertSms(msg) {
   const stmt = getDatabase().prepare(`
-    INSERT INTO sms_messages (mac, sender, text, phone, timestamp, received_at, status, direction, source, error_message, request_id, task_id)
-    VALUES (@mac, @sender, @text, @phone, @timestamp, @received_at, @status, @direction, @source, @error_message, @request_id, @task_id)
+    INSERT INTO sms_messages (mac, sender, text, phone, device_phone, timestamp, received_at, status, direction, source, error_message, request_id, task_id)
+    VALUES (@mac, @sender, @text, @phone, @device_phone, @timestamp, @received_at, @status, @direction, @source, @error_message, @request_id, @task_id)
   `);
   const result = stmt.run({
     mac: msg.mac,
     sender: msg.sender || '',
     text: msg.text || '',
     phone: msg.phone || '',
+    device_phone: msg.devicePhone || '',
     timestamp: msg.timestamp || new Date().toISOString(),
     received_at: msg.receivedAt || new Date().toISOString(),
     status: msg.status || 'pending',
@@ -341,6 +370,10 @@ function getSmsList(limit = 100, offset = 0, filters = {}) {
   if (filters.source) {
     conditions.push('m.source = ?');
     params.push(filters.source);
+  }
+  if (filters.phone) {
+    conditions.push('(m.phone = ? OR m.sender = ?)');
+    params.push(filters.phone, filters.phone);
   }
 
   // Push status filter (based on push_history), so pagination matches UI.
@@ -407,6 +440,10 @@ function getSmsCount(filters = {}) {
   if (filters.source) {
     conditions.push('m.source = ?');
     params.push(filters.source);
+  }
+  if (filters.phone) {
+    conditions.push('(m.phone = ? OR m.sender = ?)');
+    params.push(filters.phone, filters.phone);
   }
 
   const pushStatus = filters.pushStatus;
@@ -483,12 +520,16 @@ function getStats() {
 function insertScheduledSms(data) {
   const stmt = getDatabase().prepare(`
     INSERT INTO scheduled_sms 
-    (mac, task_type, phone, content, traffic_kb, schedule_type, scheduled_time, interval_days, interval_hours, interval_minutes, next_run_time)
-    VALUES (@mac, @task_type, @phone, @content, @traffic_kb, @schedule_type, @scheduled_time, @interval_days, @interval_hours, @interval_minutes, @next_run_time)
+    (mac, bind_mode, bind_phone, task_type, phone, content, traffic_kb, schedule_type, scheduled_time, interval_days, interval_hours, interval_minutes, next_run_time)
+    VALUES (@mac, @bind_mode, @bind_phone, @task_type, @phone, @content, @traffic_kb, @schedule_type, @scheduled_time, @interval_days, @interval_hours, @interval_minutes, @next_run_time)
   `);
   const taskType = data.task_type === 'traffic' ? 'traffic' : 'sms';
+  const bindMode = data.bind_mode === 'phone' ? 'phone' : 'mac';
+  const bindPhone = data.bind_phone ? String(data.bind_phone).trim() : '';
   const result = stmt.run({
     mac: data.mac,
+    bind_mode: bindMode,
+    bind_phone: bindPhone,
     task_type: taskType,
     phone: taskType === 'sms' ? (data.phone || '') : '-',
     content: taskType === 'sms' ? (data.content || '') : '[TRAFFIC_TASK]',
@@ -659,6 +700,7 @@ module.exports = {
   getDeviceByMac,
   updateDeviceOffline,
   updateDeviceRemark,
+  updateDevicePhoneOverride,
   insertSms,
   updateSmsStatus,
   getSmsById,
