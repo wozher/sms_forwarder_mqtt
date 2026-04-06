@@ -1032,6 +1032,29 @@ String extractNextResponseLine(const String& resp) {
   return value;
 }
 
+String extractFirstLongDigitLine(const String& resp, int minLen = 10) {
+  int lineStart = 0;
+  for (int i = 0; i <= resp.length(); i++) {
+    if (i == resp.length() || resp.charAt(i) == '\n' || resp.charAt(i) == '\r') {
+      String line = resp.substring(lineStart, i);
+      line.trim();
+      if (line.length() >= minLen) {
+        bool allDigits = true;
+        for (int j = 0; j < line.length(); j++) {
+          char c = line.charAt(j);
+          if (c < '0' || c > '9') {
+            allDigits = false;
+            break;
+          }
+        }
+        if (allDigits) return line;
+      }
+      lineStart = i + 1;
+    }
+  }
+  return "";
+}
+
 String extractCmgsRef(const String& resp) {
   String line = extractLineAfterPrefix(resp, "+CMGS:");
   line.trim();
@@ -1702,6 +1725,10 @@ bool buildSimInfoQueryMessage(String& msg) {
     imsi = extractNextResponseLine(resp);
     if (imsi == "OK" || imsi.length() < 10) imsi = "未知";
   }
+  if (imsi == "未知") {
+    String fallbackImsi = extractFirstLongDigitLine(resp, 10);
+    if (fallbackImsi.length() >= 10) imsi = fallbackImsi;
+  }
 
   resp = sendATCommand("AT+ICCID", 2000);
   String iccid = "未知";
@@ -1758,7 +1785,9 @@ bool buildSignalQueryMessage(String& msg) {
 bool buildNetworkQueryMessage(String& msg) {
   String resp = sendATCommand("AT+CEREG?", 2000);
   String regStatus = "未知";
-  if (resp.indexOf("+CEREG:") >= 0) {
+  if (lastNetworkRegStat >= 0) {
+    regStatus = parseCeregStatusText(lastNetworkRegStat);
+  } else if (resp.indexOf("+CEREG:") >= 0) {
     String tmp = extractLineAfterPrefix(resp, "+CEREG:");
     int commaIdx = tmp.indexOf(',');
     if (commaIdx >= 0) {
