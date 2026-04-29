@@ -372,7 +372,7 @@ board_build.partitions = partitions.csv
 
 ```bash
 cd sms_forwarding-master
-docker-compose up -d
+docker compose up -d
 ```
 
 ### 2. 首次烧录固件

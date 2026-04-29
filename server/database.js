@@ -106,7 +106,21 @@ function initDatabase() {
       retry_count INTEGER DEFAULT 0
     );
 
+    CREATE TABLE IF NOT EXISTS device_diag_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      mac TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      last_seen INTEGER DEFAULT 0,
+      free_heap INTEGER DEFAULT 0,
+      min_free_heap INTEGER DEFAULT 0,
+      pending_urc INTEGER DEFAULT 0,
+      offline_sms INTEGER DEFAULT 0,
+      urc_waiting_pdu INTEGER DEFAULT 0,
+      pending_deferred_pdu INTEGER DEFAULT 0
+    );
+
     CREATE INDEX IF NOT EXISTS idx_push_history_sms_channel_status ON push_history(sms_id, channel, status);
+    CREATE INDEX IF NOT EXISTS idx_device_diag_mac_created_at ON device_diag_history(mac, created_at DESC);
 
     CREATE INDEX IF NOT EXISTS idx_schedule_next_run ON scheduled_sms(next_run_time);
     CREATE INDEX IF NOT EXISTS idx_schedule_mac ON scheduled_sms(mac);
@@ -239,7 +253,7 @@ function upsertDevice(mac, data) {
     uptime: data.uptime || 0,
     version: data.version ? String(data.version).trim() : null,
     status_json: statusJson,
-    last_seen: Date.now()
+    last_seen: Number(data.last_seen) || Date.now()
   });
 }
 
@@ -479,6 +493,40 @@ function getSmsCount(filters = {}) {
   return getDatabase().prepare(sql).get(...params).count;
 }
 
+function deleteSmsById(id) {
+  const smsId = Number(id);
+  if (!Number.isInteger(smsId) || smsId <= 0) {
+    return { deleted: false, changes: 0 };
+  }
+
+  const transaction = getDatabase().transaction((targetId) => {
+    getDatabase().prepare('DELETE FROM push_history WHERE sms_id = ?').run(targetId);
+    const result = getDatabase().prepare('DELETE FROM sms_messages WHERE id = ?').run(targetId);
+    return { deleted: result.changes > 0, changes: result.changes };
+  });
+
+  return transaction(smsId);
+}
+
+function deleteSmsByIds(ids = []) {
+  const smsIds = [...new Set((Array.isArray(ids) ? ids : [])
+    .map(id => Number(id))
+    .filter(id => Number.isInteger(id) && id > 0))];
+
+  if (smsIds.length === 0) {
+    return { deleted: false, deletedCount: 0 };
+  }
+
+  const placeholders = smsIds.map(() => '?').join(',');
+  const transaction = getDatabase().transaction((targetIds) => {
+    getDatabase().prepare(`DELETE FROM push_history WHERE sms_id IN (${placeholders})`).run(...targetIds);
+    const result = getDatabase().prepare(`DELETE FROM sms_messages WHERE id IN (${placeholders})`).run(...targetIds);
+    return { deleted: result.changes > 0, deletedCount: result.changes };
+  });
+
+  return transaction(smsIds);
+}
+
 function getPushConfig() {
   const row = getDatabase().prepare('SELECT config_json FROM push_configs WHERE id = 1').get();
   return row ? JSON.parse(row.config_json) : null;
@@ -515,6 +563,74 @@ function getStats() {
     onlineDevices: onlineCount,
     offlineDevices: deviceList.length - onlineCount
   };
+}
+
+function insertDeviceDiagHistory(data) {
+  const stmt = getDatabase().prepare(`
+    INSERT INTO device_diag_history (
+      mac,
+      created_at,
+      last_seen,
+      free_heap,
+      min_free_heap,
+      pending_urc,
+      offline_sms,
+      urc_waiting_pdu,
+      pending_deferred_pdu
+    )
+    VALUES (
+      @mac,
+      @created_at,
+      @last_seen,
+      @free_heap,
+      @min_free_heap,
+      @pending_urc,
+      @offline_sms,
+      @urc_waiting_pdu,
+      @pending_deferred_pdu
+    )
+  `);
+  const result = stmt.run({
+    mac: String(data.mac || '').trim(),
+    created_at: Number(data.created_at) || Date.now(),
+    last_seen: Number(data.last_seen) || 0,
+    free_heap: Number(data.free_heap) || 0,
+    min_free_heap: Number(data.min_free_heap) || 0,
+    pending_urc: Number(data.pending_urc) || 0,
+    offline_sms: Number(data.offline_sms) || 0,
+    urc_waiting_pdu: data.urc_waiting_pdu ? 1 : 0,
+    pending_deferred_pdu: data.pending_deferred_pdu ? 1 : 0
+  });
+  return result.lastInsertRowid;
+}
+
+function getLatestDeviceDiagHistory(mac) {
+  return getDatabase().prepare(`
+    SELECT *
+    FROM device_diag_history
+    WHERE mac = ?
+    ORDER BY created_at DESC, id DESC
+    LIMIT 1
+  `).get(mac);
+}
+
+function getDeviceDiagHistory(mac, options = {}) {
+  const limit = typeof options === 'number' ? options : options.limit;
+  const safeLimit = Math.max(1, Math.min(parseInt(limit, 10) || 30, 500));
+  const fromTs = Math.max(0, parseInt(options?.fromTs, 10) || 0);
+  let sql = `
+    SELECT *
+    FROM device_diag_history
+    WHERE mac = ?
+  `;
+  const params = [mac];
+  if (fromTs > 0) {
+    sql += ' AND created_at >= ?';
+    params.push(fromTs);
+  }
+  sql += ' ORDER BY created_at DESC, id DESC LIMIT ?';
+  params.push(safeLimit);
+  return getDatabase().prepare(sql).all(...params).reverse();
 }
 
 function insertScheduledSms(data) {
@@ -706,11 +822,16 @@ module.exports = {
   getSmsById,
   getSmsList,
   getSmsCount,
+  deleteSmsById,
+  deleteSmsByIds,
   getPushConfig,
   savePushConfig,
   validateUser,
   changePassword,
   getStats,
+  insertDeviceDiagHistory,
+  getLatestDeviceDiagHistory,
+  getDeviceDiagHistory,
   insertScheduledSms,
   getScheduledSmsList,
   getScheduledSms,

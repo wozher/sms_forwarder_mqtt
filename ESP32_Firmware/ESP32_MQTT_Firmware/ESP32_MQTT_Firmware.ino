@@ -20,7 +20,7 @@
 #define MAX_CONCAT_MESSAGES 5
 #define RECENT_CONCAT_CACHE_SIZE 5
 #define RECENT_CONCAT_IGNORE_MS 120000
-#define PENDING_URC_QUEUE_SIZE 6
+#define PENDING_URC_QUEUE_SIZE 24
 
 #define MQTT_SERVER "192.168.31.197"
 #define MQTT_PORT 1883
@@ -35,11 +35,13 @@ PubSubClient mqttClient(espClient);
 String phoneNumber = "";
 unsigned long lastHeartbeat = 0;
 unsigned long lastMqttReconnect = 0;
+unsigned long lastHealthLogAt = 0;
 String deviceMAC = "";
 String currentRequestId = "";
 unsigned long lastPhoneRefreshAt = 0;
 unsigned long lastQueueFlushAttempt = 0;
 bool pendingPhoneRefresh = false;
+unsigned long urcWaitingPduSince = 0;
 
 #define OFFLINE_QUEUE_SIZE 10
 #define MQTT_BUFFER_SIZE 4096
@@ -169,6 +171,7 @@ bool handleSmsUrcLine(const String& line);
 bool handleGenericUrcLine(const String& line);
 String explainSmsErrorLine(const String& line);
 int parseCeregStatCode(const String& line);
+void logHealthSnapshot(const char* reason = "periodic");
 
 void blink_short(unsigned long gap_time = 500) {
   digitalWrite(LED_BUILTIN, LOW);
@@ -180,6 +183,11 @@ void blink_short(unsigned long gap_time = 500) {
 bool enqueuePendingUrc(const String& line) {
   if (line.length() == 0) return false;
   if (pendingUrcCount >= PENDING_URC_QUEUE_SIZE) {
+    String dropped = pendingUrcLines[pendingUrcHead];
+    dropped.replace("\r", "\\r");
+    dropped.replace("\n", "\\n");
+    if (dropped.length() > 120) dropped = dropped.substring(0, 120) + "...";
+    Serial.println("[URC] 待处理队列已满，丢弃最旧项: " + dropped);
     pendingUrcHead = (pendingUrcHead + 1) % PENDING_URC_QUEUE_SIZE;
     pendingUrcCount--;
   }
@@ -229,6 +237,7 @@ bool handleSmsUrcLine(const String& line) {
     if (line.startsWith("+CMT:")) {
       Serial.println("[URC] 检测到短信通知，等待PDU");
       urcWaitingPdu = true;
+      urcWaitingPduSince = millis();
       return true;
     }
     return false;
@@ -237,6 +246,7 @@ bool handleSmsUrcLine(const String& line) {
   if (line.length() == 0) return true;
   if (!isHexString(line)) {
     urcWaitingPdu = false;
+    urcWaitingPduSince = 0;
     return false;
   }
 
@@ -244,6 +254,7 @@ bool handleSmsUrcLine(const String& line) {
   if (!pdu.decodePDU(line.c_str())) {
     Serial.println("[URC] PDU解析失败");
     urcWaitingPdu = false;
+    urcWaitingPduSince = 0;
     return true;
   }
 
@@ -259,12 +270,14 @@ bool handleSmsUrcLine(const String& line) {
     if (isRecentlyCompletedConcat(refNumber, pdu.getSender(), pdu.getTimeStamp())) {
       Serial.printf("[URC] 忽略重复长短信分段 %d/%d\n", partNumber, totalParts);
       urcWaitingPdu = false;
+      urcWaitingPduSince = 0;
       return true;
     }
 
     if (totalParts > MAX_CONCAT_PARTS) {
       Serial.printf("[URC] 长短信分段超出范围 %d/%d，已丢弃\n", partNumber, totalParts);
       urcWaitingPdu = false;
+      urcWaitingPduSince = 0;
       return true;
     }
 
@@ -304,6 +317,7 @@ bool handleSmsUrcLine(const String& line) {
   }
 
   urcWaitingPdu = false;
+  urcWaitingPduSince = 0;
   return true;
 }
 
@@ -857,9 +871,30 @@ bool shouldRefreshPhoneNumber() {
 void refreshPhoneNumberIfNeeded(bool force = false) {
   if (isAsyncTaskBusy()) return;
   if (!force && !shouldRefreshPhoneNumber()) return;
+  if (pendingUrcCount > 0 || urcWaitingPdu || pendingDeferredPduLine) {
+    Serial.println("[PHONE] 跳过号码刷新：短信接收链路忙碌");
+    pendingPhoneRefresh = true;
+    return;
+  }
+  unsigned long start = millis();
+  Serial.println(String("[PHONE] 开始刷新号码") + (force ? " (force)" : ""));
   phoneNumber = "";
   getPhoneNumber();
   lastPhoneRefreshAt = millis();
+  Serial.println("[PHONE] 刷新号码完成，耗时=" + String(millis() - start) + "ms，结果=" + phoneNumber);
+}
+
+void logHealthSnapshot(const char* reason) {
+  Serial.println(
+    String("[HEALTH] reason=") + reason +
+    " heap=" + String(ESP.getFreeHeap()) +
+    " minHeap=" + String(ESP.getMinFreeHeap()) +
+    " pendingUrc=" + String(pendingUrcCount) +
+    " offlineSms=" + String(queueCount) +
+    " urcWaitingPdu=" + String(urcWaitingPdu ? 1 : 0) +
+    " pendingDeferred=" + String(pendingDeferredPduLine ? 1 : 0) +
+    " mqtt=" + String(mqttClient.connected() ? 1 : 0)
+  );
 }
 
 void beginAsyncTask(AsyncTaskType type, const String& requestId) {
@@ -1313,6 +1348,12 @@ void publishHeartbeat() {
   sim["ready"] = isSimReady();
   JsonObject queue = doc.createNestedObject("queue");
   queue["offlineSms"] = queueCount;
+  JsonObject diag = doc.createNestedObject("diag");
+  diag["pendingUrc"] = pendingUrcCount;
+  diag["urcWaitingPdu"] = urcWaitingPdu;
+  diag["pendingDeferredPdu"] = pendingDeferredPduLine;
+  diag["freeHeap"] = ESP.getFreeHeap();
+  diag["minFreeHeap"] = ESP.getMinFreeHeap();
   JsonObject network = doc.createNestedObject("network");
   network["registered"] = false;
   network["roaming"] = false;
@@ -1339,6 +1380,7 @@ void publishHeartbeat() {
 }
 
 bool publishRawSMS(const char* sender, const char* text, const char* timestamp) {
+  unsigned long start = millis();
   Serial.println("[SMS] 开始转发接收短信");
   Serial.println("[SMS] 发件人=" + String(sender) + ", 长度=" + String(strlen(text)) + ", 时间=" + String(timestamp ? timestamp : "(null)"));
 
@@ -1347,33 +1389,34 @@ bool publishRawSMS(const char* sender, const char* text, const char* timestamp) 
   Serial.println("[SMS] 主题=" + topic + ", 负载长度=" + String(payload.length()));
   if (payload.length() >= MQTT_BUFFER_SIZE) {
     Serial.println("[SMS] 负载过大，存入离线队列");
+    Serial.println("[SMS] 转发路径耗时=" + String(millis() - start) + "ms");
     return enqueueOfflineSMS(sender, text, timestamp);
   }
   
   if (mqttClient.connected()) {
     Serial.println("[SMS] MQTT已连接，开始发布");
-    if (!flushOfflineQueue(1)) {
-      Serial.println("[SMS] 离线队列刷新失败，当前短信改为入队");
-      return enqueueOfflineSMS(sender, text, timestamp);
-    }
     boolean result = publishMqttMessage(topic, payload, 3, 2000, 80);
     Serial.println("[SMS] 发布结果: " + String(result ? "成功" : "失败"));
     if (result) {
       Serial.println("[MQTT] 短信已发布");
+      Serial.println("[SMS] 转发路径耗时=" + String(millis() - start) + "ms");
       return true;
     }
     Serial.println("[SMS] 发布失败，转入离线队列");
+    Serial.println("[SMS] 转发路径耗时=" + String(millis() - start) + "ms");
     return enqueueOfflineSMS(sender, text, timestamp);
   } else {
     Serial.println("[SMS] MQTT未连接，存入离线队列");
+    Serial.println("[SMS] 转发路径耗时=" + String(millis() - start) + "ms");
     return enqueueOfflineSMS(sender, text, timestamp);
   }
 }
 
 bool publishMqttMessage(const String& topic, const String& payload, int retries, int reconnectWindowMs, int retryDelayMs) {
+  unsigned long publishStart = millis();
   if (!mqttClient.connected()) {
-    unsigned long start = millis();
-    while (!mqttClient.connected() && millis() - start < (unsigned long)reconnectWindowMs) {
+    unsigned long reconnectStart = millis();
+    while (!mqttClient.connected() && millis() - reconnectStart < (unsigned long)reconnectWindowMs) {
       mqttReconnect();
       mqttClient.loop();
       delay(120);
@@ -1392,6 +1435,9 @@ bool publishMqttMessage(const String& topic, const String& payload, int retries,
     mqttClient.loop();
     if (published) break;
     delay(retryDelayMs);
+  }
+  if (millis() - publishStart > 400) {
+    Serial.println("[MQTT] publish topic=" + topic + " success=" + String(published ? 1 : 0) + " cost=" + String(millis() - publishStart) + "ms");
   }
   return published;
 }
@@ -1974,21 +2020,29 @@ bool mqttReconnect() {
   return mqttClient.connected();
 }
 
-void checkSerial1URC() {
-  String line;
-  if (!dequeuePendingUrc(line)) {
-    line = readSerialLine(Serial1);
-  }
-  if (line.length() == 0) return;
-  Serial.println("[URC] " + line);
+void checkSerial1URC(uint8_t maxLines = 1) {
+  uint8_t processed = 0;
+  while (processed < maxLines) {
+    String line;
+    if (!dequeuePendingUrc(line)) {
+      line = readSerialLine(Serial1);
+    }
+    if (line.length() == 0) return;
+    Serial.println("[URC] " + line);
 
-  if (asyncTask.active) {
-    processAsyncTaskResponse(line);
-    if (!asyncTask.active) return;
-  }
+    if (asyncTask.active) {
+      processAsyncTaskResponse(line);
+      if (!asyncTask.active) {
+        processed++;
+        continue;
+      }
+    }
 
-  if (handleSmsUrcLine(line)) return;
-  handleGenericUrcLine(line);
+    if (!handleSmsUrcLine(line)) {
+      handleGenericUrcLine(line);
+    }
+    processed++;
+  }
 }
 
 void checkConcatTimeout() {
@@ -2077,7 +2131,7 @@ void setup() {
   bool registered = false;
   lastNetworkRegStat = -1;
   while (millis() - startReg < 60000) {
-    checkSerial1URC();
+    checkSerial1URC(4);
     if (lastNetworkRegStat == 1 || lastNetworkRegStat == 5) {
       registered = true;
       break;
@@ -2142,6 +2196,11 @@ void loop() {
     publishHeartbeat();
   }
 
+  if (millis() - lastHealthLogAt >= 60000UL) {
+    lastHealthLogAt = millis();
+    logHealthSnapshot();
+  }
+
   if (mqttClient.connected() && queueCount > 0 && millis() - lastQueueFlushAttempt >= QUEUE_FLUSH_INTERVAL && !isAsyncTaskBusy()) {
     lastQueueFlushAttempt = millis();
     flushOfflineQueue(1);
@@ -2156,7 +2215,14 @@ void loop() {
     pendingPhoneRefresh = false;
   }
 
-  checkSerial1URC();
+  if (urcWaitingPdu && urcWaitingPduSince > 0 && millis() - urcWaitingPduSince > 15000UL) {
+    Serial.println("[URC] 警告：等待PDU超过15秒，接收状态可能卡住");
+    logHealthSnapshot("pdu-stuck");
+    urcWaitingPdu = false;
+    urcWaitingPduSince = 0;
+  }
+
+  checkSerial1URC(6);
   checkConcatTimeout();
   tickAsyncTask();
 

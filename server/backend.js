@@ -21,6 +21,7 @@ const PORT = parseInt(process.env.PORT || '3000');
 const MQTT_HOST = process.env.MQTT_HOST || '192.168.31.197';
 const MQTT_PORT = parseInt(process.env.MQTT_PORT || '1883');
 const WS_PATH = '/ws';
+const DIAG_HISTORY_INTERVAL_MS = Math.max(60000, parseInt(process.env.DIAG_HISTORY_INTERVAL_MS || '300000', 10) || 300000);
 
 function parseBasicAuthHeader(authHeader) {
   if (!authHeader || !authHeader.startsWith('Basic ')) {
@@ -128,9 +129,75 @@ function buildStatusFromHeartbeat(data = {}) {
     },
     queue: {
       offlineSms: Number(data?.queue?.offlineSms) || 0
+    },
+    diag: {
+      pendingUrc: Number(data?.diag?.pendingUrc) || 0,
+      urcWaitingPdu: data?.diag?.urcWaitingPdu !== undefined ? !!data.diag.urcWaitingPdu : false,
+      pendingDeferredPdu: data?.diag?.pendingDeferredPdu !== undefined ? !!data.diag.pendingDeferredPdu : false,
+      freeHeap: Number(data?.diag?.freeHeap) || 0,
+      minFreeHeap: Number(data?.diag?.minFreeHeap) || 0
     }
   };
   return status;
+}
+
+function buildDiagHistoryPayload(mac, status = {}, lastSeen = Date.now()) {
+  const diag = status?.diag || {};
+  const queue = status?.queue || {};
+  return {
+    mac,
+    created_at: lastSeen,
+    last_seen: lastSeen,
+    free_heap: Number(diag.freeHeap) || 0,
+    min_free_heap: Number(diag.minFreeHeap) || 0,
+    pending_urc: Number(diag.pendingUrc) || 0,
+    offline_sms: Number(queue.offlineSms) || 0,
+    urc_waiting_pdu: !!diag.urcWaitingPdu,
+    pending_deferred_pdu: !!diag.pendingDeferredPdu
+  };
+}
+
+function shouldPersistDiagHistory(mac, status = {}, lastSeen = Date.now()) {
+  if (!mac) return false;
+  const payload = buildDiagHistoryPayload(mac, status, lastSeen);
+  const hasDiag = payload.pending_urc > 0
+    || payload.offline_sms > 0
+    || payload.free_heap > 0
+    || payload.min_free_heap > 0
+    || payload.urc_waiting_pdu
+    || payload.pending_deferred_pdu;
+  const latest = db.getLatestDeviceDiagHistory(mac);
+  if (!hasDiag) {
+    if (!latest) return false;
+    const latestHasDiag = latest.pending_urc > 0
+      || latest.offline_sms > 0
+      || latest.free_heap > 0
+      || latest.min_free_heap > 0
+      || !!latest.urc_waiting_pdu
+      || !!latest.pending_deferred_pdu;
+    if (!latestHasDiag) return false;
+    return true;
+  }
+
+  if (!latest) return true;
+
+  const unchanged = latest.free_heap === payload.free_heap
+    && latest.min_free_heap === payload.min_free_heap
+    && latest.pending_urc === payload.pending_urc
+    && latest.offline_sms === payload.offline_sms
+    && !!latest.urc_waiting_pdu === payload.urc_waiting_pdu
+    && !!latest.pending_deferred_pdu === payload.pending_deferred_pdu;
+  if (!unchanged) return true;
+
+  return (lastSeen - (Number(latest.created_at) || 0)) >= DIAG_HISTORY_INTERVAL_MS;
+}
+
+function persistDiagHistory(mac, status = {}, lastSeen = Date.now()) {
+  if (!shouldPersistDiagHistory(mac, status, lastSeen)) {
+    return false;
+  }
+  db.insertDeviceDiagHistory(buildDiagHistoryPayload(mac, status, lastSeen));
+  return true;
 }
 
 function isTrafficConsumingAction(action) {
@@ -339,6 +406,45 @@ app.get('/api/devices', (req, res) => {
   }
 });
 
+app.get('/api/devices/:mac/diag-history', (req, res) => {
+  try {
+    const { mac } = req.params;
+    const range = String(req.query.range || '').trim().toLowerCase();
+    const rangeMap = {
+      '1h': { duration: 60 * 60 * 1000, limit: 60 },
+      '24h': { duration: 24 * 60 * 60 * 1000, limit: 120 },
+      '7d': { duration: 7 * 24 * 60 * 60 * 1000, limit: 200 }
+    };
+    if (!rangeMap[range]) {
+      return res.status(400).json({ success: false, message: '诊断历史时间范围无效' });
+    }
+    const limit = Math.max(1, Math.min(parseInt(req.query.limit, 10) || rangeMap[range].limit, 200));
+    const fromTs = Date.now() - rangeMap[range].duration;
+    const device = db.getDeviceByMac(mac);
+    if (!device) {
+      return res.status(404).json({ success: false, message: '设备不存在' });
+    }
+
+    const history = db.getDeviceDiagHistory(mac, { limit, fromTs }).map(row => ({
+      id: row.id,
+      mac: row.mac,
+      createdAt: Number(row.created_at) || 0,
+      lastSeen: Number(row.last_seen) || 0,
+      freeHeap: Number(row.free_heap) || 0,
+      minFreeHeap: Number(row.min_free_heap) || 0,
+      pendingUrc: Number(row.pending_urc) || 0,
+      offlineSms: Number(row.offline_sms) || 0,
+      urcWaitingPdu: !!row.urc_waiting_pdu,
+      pendingDeferredPdu: !!row.pending_deferred_pdu
+    }));
+
+    res.json({ success: true, history, meta: { limit, range } });
+  } catch (error) {
+    console.error('[API] Error getting device diag history:', error);
+    res.status(500).json({ success: false, message: '服务暂时不可用，请稍后重试' });
+  }
+});
+
 app.put('/api/devices/:mac/remark', (req, res) => {
   try {
     const { mac } = req.params;
@@ -392,10 +498,8 @@ app.get('/api/messages', (req, res) => {
     // so pagination stays consistent with the UI filter.
     const filters = {
       search: req.query.search || '',
-      device: req.query.device || '',
       phone: req.query.phone || '',
       direction: req.query.direction || '',
-      source: req.query.source || '',
       pushStatus: req.query.status || '',
       enabledPushChannels
     };
@@ -423,6 +527,57 @@ app.get('/api/messages', (req, res) => {
     });
   } catch (error) {
     console.error('[API] Error getting messages:', error);
+    res.status(500).json({ success: false, message: '服务暂时不可用，请稍后重试' });
+  }
+});
+
+app.delete('/api/messages/:id', (req, res) => {
+  try {
+    const smsId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(smsId) || smsId <= 0) {
+      return res.status(400).json({ success: false, message: '短信记录ID无效' });
+    }
+
+    const sms = db.getSmsById(smsId);
+    if (!sms) {
+      return res.status(404).json({ success: false, message: '短信记录不存在' });
+    }
+
+    const result = db.deleteSmsById(smsId);
+    if (!result.deleted) {
+      return res.status(500).json({ success: false, message: '短信删除未完成，请稍后重试' });
+    }
+
+    res.json({ success: true, message: '短信已删除' });
+  } catch (error) {
+    console.error('[API] Error deleting sms:', error);
+    res.status(500).json({ success: false, message: '服务暂时不可用，请稍后重试' });
+  }
+});
+
+app.post('/api/messages/batch-delete', (req, res) => {
+  try {
+    const rawIds = Array.isArray(req.body?.ids) ? req.body.ids : [];
+    const ids = [...new Set(rawIds
+      .map(id => Number(id))
+      .filter(id => Number.isInteger(id) && id > 0))];
+
+    if (ids.length === 0) {
+      return res.status(400).json({ success: false, message: '请选择要删除的短信记录' });
+    }
+
+    const result = db.deleteSmsByIds(ids);
+    if (!result.deleted) {
+      return res.status(500).json({ success: false, message: '短信批量删除未完成，请稍后重试' });
+    }
+
+    res.json({
+      success: true,
+      deletedCount: result.deletedCount,
+      message: `已删除 ${result.deletedCount} 条短信`
+    });
+  } catch (error) {
+    console.error('[API] Error batch deleting sms:', error);
     res.status(500).json({ success: false, message: '服务暂时不可用，请稍后重试' });
   }
 });
@@ -964,7 +1119,7 @@ function parseNetworkRegistered(regText) {
 
 function parseNetworkRoaming(regText) {
   const text = String(regText || '');
-  return text.includes('已注册漫游');
+  return text.includes('已注册漫游') || text.includes('漫游');
 }
 
 function persistStatus(mac, status) {
@@ -1257,6 +1412,7 @@ function connectMQTT() {
           try { data = JSON.parse(msgStr); } catch { data = {}; }
 
           const status = buildStatusFromHeartbeat(data);
+          const lastSeen = Date.now();
 
           db.upsertDevice(mac, {
             ip: data.ip || '',
@@ -1264,8 +1420,15 @@ function connectMQTT() {
             rssi: data.rssi || 0,
             uptime: data.uptime || 0,
             version: data.version || '',
-            statusJson: status
+            statusJson: status,
+            last_seen: lastSeen
           });
+
+          try {
+            persistDiagHistory(mac, status, lastSeen);
+          } catch (diagError) {
+            console.error('[DIAG] Persist history failed:', diagError.message);
+          }
 
           broadcastDeviceList();
         }

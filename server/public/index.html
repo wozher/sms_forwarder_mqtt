@@ -310,6 +310,45 @@
       gap: 8px;
       flex-wrap: wrap;
     }
+    .msg-toolbar-filter-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: nowrap;
+      width: 100%;
+    }
+    .msg-toolbar-filter-main {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .msg-toolbar-filter-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      flex: 0 0 auto;
+    }
+    .msg-toolbar-filter-actions .btn {
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
+    }
+    .msg-search-input {
+      width: 164px !important;
+    }
+    .msg-filter-select {
+      width: 124px !important;
+      min-width: 124px;
+    }
+    .msg-filter-select.phone {
+      width: 132px !important;
+      min-width: 132px;
+    }
+    .msg-filter-select.status {
+      width: 124px !important;
+      min-width: 124px;
+    }
     .toolbar-inline-note {
       font-size: 12px;
       color: var(--muted);
@@ -318,6 +357,73 @@
       background: rgba(255,255,255,0.68);
       border: 1px solid rgba(15,23,42,0.06);
     }
+    .msg-toolbar-status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .msg-toolbar-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-left: auto;
+    }
+    .msg-toolbar-actions .btn {
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
+    }
+    .dashboard-split-grid {
+      display: grid;
+      grid-template-columns: minmax(280px, 4fr) minmax(480px, 8fr);
+      gap: 24px;
+      align-items: start;
+    }
+    .msg-filter-grid {
+      display: grid;
+      grid-template-columns: 240px repeat(3, 130px) auto;
+      gap: 10px;
+      width: 100%;
+      align-items: center;
+    }
+    .msg-filter-grid > * { min-width: 0; }
+    .msg-filter-grid .msg-search-input { min-width: 180px; width: 100%; }
+    .msg-filter-grid .btn { white-space: nowrap; width: 90px; }
+    .msg-toolbar { flex-wrap: wrap; overflow-x: visible; }
+    .msg-sticky-bar {
+      position: sticky;
+      top: 10px;
+      z-index: 6;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(15,23,42,0.08);
+      background: rgba(255,255,255,0.92);
+      box-shadow: 0 4px 12px rgba(15,23,42,0.08);
+      backdrop-filter: blur(8px);
+    }
+    .msg-bulk-left,
+    .msg-bulk-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .msg-master-check {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #334155;
+      white-space: nowrap;
+    }
+    .msg-master-check input { width: auto !important; }
     .tab-strip {
       display: flex;
       gap: 8px;
@@ -350,6 +456,673 @@
     }
     .device-card:hover { box-shadow: var(--shadow-md); }
     .device-card.selected { border-color: rgba(37, 99, 235, 0.45); box-shadow: 0 0 0 4px rgba(37,99,235,0.08), var(--shadow-md); }
+    .toolbox-diag-panel {
+      margin-bottom: 18px;
+    }
+    .diag-dashboard {
+      display: grid;
+      gap: 16px;
+    }
+    .diag-overview-card,
+    .diag-trend-card,
+    .diag-advice-card,
+    .toolbox-diag-card {
+      padding: 14px 16px;
+      border-radius: 16px;
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      background: rgba(255,255,255,0.78);
+      box-shadow: var(--shadow-sm);
+    }
+    .diag-overview-card {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .diag-overview-copy {
+      min-width: 0;
+      flex: 1 1 320px;
+    }
+    .diag-overview-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .diag-overview-text {
+      font-size: 14px;
+      color: #475569;
+      line-height: 1.65;
+    }
+    .diag-overview-meta {
+      min-width: 180px;
+      text-align: right;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      align-items: flex-end;
+    }
+    .toolbox-diag-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+    .toolbox-diag-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .toolbox-diag-meta {
+      font-size: 12px;
+      color: #64748b;
+    }
+    .toolbox-diag-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      border: 1px solid transparent;
+    }
+    .toolbox-diag-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .diag-metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .diag-metric-card {
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.82);
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      box-shadow: var(--shadow-sm);
+    }
+    .diag-metric-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 10px;
+    }
+    .diag-metric-main {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    .diag-metric-value {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--text);
+    }
+    .diag-metric-subvalue {
+      font-size: 13px;
+      color: #64748b;
+      font-weight: 600;
+      text-align: right;
+    }
+    .diag-meter {
+      height: 8px;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.18);
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+    .diag-meter-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.25s ease;
+    }
+    .diag-meter-fill.ok { background: linear-gradient(90deg, #22c55e, #16a34a); }
+    .diag-meter-fill.warn { background: linear-gradient(90deg, #f59e0b, #d97706); }
+    .diag-meter-fill.error { background: linear-gradient(90deg, #ef4444, #dc2626); }
+    .diag-metric-desc {
+      font-size: 13px;
+      line-height: 1.6;
+      color: #475569;
+    }
+    .diag-trend-title,
+    .diag-advice-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 12px;
+    }
+    .diag-trend-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+    .diag-range-switcher {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px;
+      border-radius: 999px;
+      background: rgba(241,245,249,0.95);
+      border: 1px solid rgba(148,163,184,0.18);
+    }
+    .diag-range-btn {
+      border: 0;
+      background: transparent;
+      color: #64748b;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 6px 10px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: all 0.18s ease;
+    }
+    .diag-range-btn.active {
+      background: #ffffff;
+      color: #0f172a;
+      box-shadow: 0 4px 10px rgba(15,23,42,0.08);
+    }
+    .diag-trend-lines {
+      display: grid;
+      gap: 10px;
+    }
+    .diag-trend-line {
+      display: grid;
+      grid-template-columns: 72px 1fr auto;
+      gap: 12px;
+      align-items: center;
+    }
+    .diag-trend-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: #64748b;
+    }
+    .diag-trend-chart {
+      position: relative;
+      height: 42px;
+      border-radius: 12px;
+      background: linear-gradient(180deg, rgba(248,250,252,0.95), rgba(241,245,249,0.8));
+      border: 1px solid rgba(148, 163, 184, 0.14);
+      overflow: hidden;
+    }
+    .diag-trend-chart.memory {
+      height: 60px;
+    }
+    .diag-trend-chart svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    .diag-trend-value {
+      min-width: 68px;
+      text-align: right;
+      font-size: 12px;
+      font-weight: 700;
+      color: #334155;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .diag-trend-empty {
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      color: #94a3b8;
+    }
+    .diag-trend-axis {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 4px;
+      padding: 0 2px;
+      font-size: 11px;
+      color: #94a3b8;
+      font-variant-numeric: tabular-nums;
+    }
+    .diag-trend-axis span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .diag-trend-legend {
+      display: inline-flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+      font-size: 11px;
+      color: #64748b;
+    }
+    .diag-trend-legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .diag-trend-legend-line {
+      width: 16px;
+      height: 3px;
+      border-radius: 999px;
+    }
+    .diag-trend-legend-line.heap { background: #16a34a; }
+    .diag-trend-legend-line.minheap { background: #2563eb; }
+    .diag-trend-note {
+      margin-top: 6px;
+      font-size: 11px;
+      color: #94a3b8;
+    }
+    .diag-trend-stats {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+      font-size: 11px;
+      color: #64748b;
+      font-variant-numeric: tabular-nums;
+    }
+    .diag-simple-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .diag-simple-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .diag-simple-desc {
+      font-size: 13px;
+      color: #64748b;
+      line-height: 1.6;
+    }
+    .diag-summary-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .diag-summary-card {
+      padding: 12px 14px;
+      border-radius: 16px;
+      border: 1px solid rgba(15,23,42,0.08);
+      background: rgba(255,255,255,0.82);
+      box-shadow: var(--shadow-sm);
+    }
+    .diag-summary-card strong {
+      display: block;
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--text);
+      margin-top: 4px;
+    }
+    .diag-summary-label {
+      font-size: 12px;
+      color: #64748b;
+      font-weight: 700;
+    }
+    .diag-focus-card {
+      padding: 18px 20px;
+      border-radius: 18px;
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      background: #ffffff;
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 14px;
+    }
+    .diag-focus-card.ok {
+      border-color: rgba(15, 23, 42, 0.08);
+      background: #ffffff;
+    }
+    .diag-focus-card.warn {
+      border-color: rgba(245, 158, 11, 0.18);
+      background: #ffffff;
+    }
+    .diag-focus-card.error {
+      border-color: rgba(239, 68, 68, 0.18);
+      background: #ffffff;
+    }
+    .diag-focus-card.neutral {
+      border-color: rgba(148, 163, 184, 0.18);
+      background: #ffffff;
+    }
+    .diag-focus-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .diag-focus-title {
+      font-size: 21px;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .diag-focus-subtitle {
+      font-size: 13px;
+      color: #64748b;
+      line-height: 1.6;
+      max-width: 720px;
+    }
+    .diag-focus-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 88px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 800;
+      border: 1px solid transparent;
+    }
+    .diag-focus-card.ok .diag-focus-badge {
+      color: #166534;
+      background: rgba(34, 197, 94, 0.12);
+      border-color: rgba(34, 197, 94, 0.18);
+    }
+    .diag-focus-card.warn .diag-focus-badge {
+      color: #92400e;
+      background: rgba(245, 158, 11, 0.12);
+      border-color: rgba(245, 158, 11, 0.24);
+    }
+    .diag-focus-card.error .diag-focus-badge {
+      color: #991b1b;
+      background: rgba(239, 68, 68, 0.1);
+      border-color: rgba(239, 68, 68, 0.2);
+    }
+    .diag-focus-card.neutral .diag-focus-badge {
+      color: #475569;
+      background: rgba(148, 163, 184, 0.12);
+      border-color: rgba(148, 163, 184, 0.2);
+    }
+    .diag-focus-metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .diag-focus-metric {
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.7);
+      border: 1px solid rgba(148, 163, 184, 0.16);
+    }
+    .diag-focus-metric-label {
+      font-size: 12px;
+      color: #64748b;
+      margin-bottom: 4px;
+    }
+    .diag-focus-metric-value {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--text);
+      line-height: 1.1;
+    }
+    .diag-focus-metric-note {
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 4px;
+    }
+    .diag-focus-issues {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .diag-focus-issue {
+      display: inline-flex;
+      align-items: center;
+      padding: 7px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      background: rgba(255,255,255,0.72);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      color: #334155;
+    }
+    .diag-attention-card {
+      padding: 16px 18px;
+      border-radius: 18px;
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      background: rgba(255,255,255,0.82);
+      box-shadow: var(--shadow-sm);
+    }
+    .diag-section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .diag-section-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--text);
+    }
+    .diag-section-note {
+      font-size: 12px;
+      color: #64748b;
+    }
+    .diag-attention-list {
+      display: grid;
+      gap: 10px;
+    }
+    .diag-attention-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: rgba(248,250,252,0.9);
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      flex-wrap: wrap;
+    }
+    .diag-attention-main {
+      min-width: 0;
+      flex: 1 1 260px;
+    }
+    .diag-attention-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 3px;
+    }
+    .diag-attention-meta {
+      font-size: 12px;
+      color: #64748b;
+    }
+    .diag-attention-reason {
+      font-size: 13px;
+      color: #334155;
+      font-weight: 600;
+      text-align: right;
+      flex: 0 1 320px;
+    }
+    .diag-filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+      padding: 12px 14px;
+      border-radius: 16px;
+      border: 1px solid rgba(15,23,42,0.08);
+      background: rgba(255,255,255,0.76);
+      box-shadow: var(--shadow-sm);
+    }
+    .diag-filter-spacer {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .diag-check {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: #475569;
+      font-weight: 600;
+    }
+    .diag-check input {
+      width: auto !important;
+    }
+    .diag-table-wrap {
+      overflow: auto;
+      border-radius: 18px;
+      border: 1px solid rgba(15,23,42,0.08);
+      background: rgba(255,255,255,0.82);
+      box-shadow: var(--shadow-sm);
+    }
+    .diag-table {
+      width: 100%;
+      min-width: 920px;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 13px;
+    }
+    .diag-table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      padding: 12px;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 700;
+      color: #64748b;
+      background: rgba(248,250,252,0.96);
+      border-bottom: 1px solid rgba(15,23,42,0.08);
+      white-space: nowrap;
+    }
+    .diag-table tbody td {
+      padding: 12px;
+      border-bottom: 1px solid rgba(15,23,42,0.06);
+      vertical-align: middle;
+      color: #1e293b;
+      background: rgba(255,255,255,0.76);
+    }
+    .diag-table tbody tr:hover td {
+      background: rgba(248,250,252,0.94);
+    }
+    .diag-table tbody tr:last-child td {
+      border-bottom: 0;
+    }
+    .diag-device-main {
+      font-weight: 700;
+      color: var(--text);
+    }
+    .diag-device-sub {
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 4px;
+      word-break: break-all;
+    }
+    .diag-level-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+    .diag-level-badge.ok {
+      background: rgba(34,197,94,0.08);
+      border-color: rgba(34,197,94,0.18);
+      color: #166534;
+    }
+    .diag-level-badge.warn {
+      background: rgba(245,158,11,0.1);
+      border-color: rgba(245,158,11,0.22);
+      color: #92400e;
+    }
+    .diag-level-badge.error {
+      background: rgba(239,68,68,0.08);
+      border-color: rgba(239,68,68,0.18);
+      color: #991b1b;
+    }
+    .diag-cell-muted {
+      color: #64748b;
+    }
+    .diag-advice-list {
+      display: grid;
+      gap: 8px;
+      color: #475569;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .diag-advice-item {
+      padding-left: 18px;
+      position: relative;
+    }
+    .diag-advice-item::before {
+      content: '•';
+      position: absolute;
+      left: 0;
+      top: 0;
+      color: #64748b;
+      font-weight: 700;
+    }
+    .toolbox-diag-item {
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(248,250,252,0.9);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+    }
+    .toolbox-diag-label {
+      font-size: 12px;
+      color: #64748b;
+      margin-bottom: 4px;
+    }
+    .toolbox-diag-value {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      word-break: break-word;
+    }
+    .toolbox-diag-card.ok .toolbox-diag-status {
+      background: rgba(34, 197, 94, 0.08);
+      border-color: rgba(34, 197, 94, 0.18);
+      color: #166534;
+    }
+    .toolbox-diag-card.warn .toolbox-diag-status {
+      background: rgba(245, 158, 11, 0.1);
+      border-color: rgba(245, 158, 11, 0.22);
+      color: #92400e;
+    }
+    .toolbox-diag-card.error .toolbox-diag-status {
+      background: rgba(239, 68, 68, 0.08);
+      border-color: rgba(239, 68, 68, 0.18);
+      color: #991b1b;
+    }
+    .toolbox-diag-card.neutral .toolbox-diag-status {
+      background: rgba(148, 163, 184, 0.1);
+      border-color: rgba(148, 163, 184, 0.18);
+      color: #475569;
+    }
+    .toolbox-diag-empty {
+      padding: 14px 16px;
+      border-radius: 16px;
+      border: 1px dashed rgba(148, 163, 184, 0.35);
+      background: rgba(248,250,252,0.75);
+      color: #64748b;
+      font-size: 14px;
+    }
     #deviceList::-webkit-scrollbar { width: 8px; }
     #deviceList::-webkit-scrollbar-track { background: transparent; }
     #deviceList::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.65); border-radius: 999px; }
@@ -391,54 +1164,10 @@
       animation: panelIn 0.28s cubic-bezier(0.22, 1, 0.36, 1);
     }
     .push-card { transition: all 0.15s; }
-    .msg-card {
-      background: rgba(255,255,255,0.94);
-      border: 1px solid var(--line);
-      border-radius: 22px;
-      overflow: hidden;
-      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
-      box-shadow: var(--shadow-sm);
-    }
-    .msg-card:hover {
-      transform: translateY(-2px);
-      box-shadow: var(--shadow-md);
-      border-color: rgba(37, 99, 235, 0.16);
-    }
-    .msg-grid > .msg-card,
     #scheduleList > * ,
     #recentSmsList > * {
       animation: sectionReveal 0.36s cubic-bezier(0.22, 1, 0.36, 1);
     }
-    .msg-card-header {
-      padding: 14px 16px;
-      border-bottom: 1px solid rgba(15, 23, 42, 0.06);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: linear-gradient(180deg, rgba(249,250,251,0.9), rgba(255,255,255,0.72));
-    }
-    .msg-card-body { padding: 16px; min-height: 96px; }
-    .msg-card-footer {
-      padding: 12px 16px;
-      background: rgba(248,250,252,0.9);
-      border-top: 1px solid rgba(15, 23, 42, 0.06);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-    .msg-card-text {
-      font-size: 14px;
-      color: #334155;
-      line-height: 1.7;
-      overflow: hidden;
-      display: -webkit-box;
-      -webkit-line-clamp: 3;
-      -webkit-box-orient: vertical;
-      word-break: break-word;
-    }
-    .msg-card-text.expanded { -webkit-line-clamp: unset; }
     .push-badge {
       display: inline-flex;
       align-items: center;
@@ -452,7 +1181,7 @@
     .push-badge.success { background: var(--green-soft); color: var(--green); border-color: rgba(22,163,74,0.16); }
     .push-badge.failed { background: var(--red-soft); color: var(--red); border-color: rgba(220,38,38,0.16); }
     .push-badge.pending { background: rgba(148,163,184,0.14); color: #64748b; border-color: rgba(148,163,184,0.16); }
-    .msg-card-empty {
+    .msg-empty-state {
       display: flex;
       align-items: center;
       justify-content: center;
@@ -478,7 +1207,7 @@
       z-index: 10060;
     }
 
-    /* Ensure dropdowns render above card grids. */
+    /* Ensure dropdowns render above content panels. */
     #app { position: relative; z-index: 1; }
 
     .msg-panel { display: flex; flex-direction: column; gap: 18px; }
@@ -488,11 +1217,11 @@
       justify-content: space-between;
       gap: 12px;
       flex-wrap: wrap;
-      padding: 14px 16px;
+      padding: 16px 18px;
       border-radius: 22px;
-      background: linear-gradient(180deg, rgba(255,255,255,0.72), rgba(255,255,255,0.58));
-      border: 1px solid rgba(15,23,42,0.06);
-      box-shadow: var(--shadow-sm);
+      background: linear-gradient(180deg, rgba(255,255,255,0.82), rgba(248,250,252,0.72));
+      border: 1px solid rgba(15,23,42,0.07);
+      box-shadow: 0 10px 24px rgba(15,23,42,0.05);
     }
     .msg-toolbar-stat {
       display: inline-flex;
@@ -502,21 +1231,27 @@
       color: var(--muted);
       padding: 8px 12px;
       border-radius: 999px;
-      background: rgba(248,250,252,0.92);
-      border: 1px solid rgba(15,23,42,0.06);
+      background: rgba(255,255,255,0.92);
+      border: 1px solid rgba(15,23,42,0.08);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.75);
     }
     .msg-toolbar-stat strong {
       color: var(--text);
       font-size: 13px;
     }
     .msg-viewport {
-      background: rgba(255,255,255,0.46);
-      border: 1px solid rgba(15, 23, 42, 0.06);
+      background: linear-gradient(180deg, rgba(255,255,255,0.5), rgba(248,250,252,0.4));
+      border: 1px solid rgba(15, 23, 42, 0.05);
       border-radius: 24px;
-      padding: 16px;
+      padding: 18px;
       min-height: 560px;
       max-height: 560px;
       overflow-y: auto;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
+    }
+    .msg-viewport.table-mode {
+      padding: 14px;
+      overflow: hidden;
     }
     .msg-viewport.loading {
       position: relative;
@@ -531,65 +1266,197 @@
       animation: shimmer 1.2s infinite;
       pointer-events: none;
     }
-    .msg-grid { display: grid; grid-template-columns: repeat(1, minmax(0, 1fr)); gap: 14px; align-content: start; min-height: 100%; }
-.msg-grid.grouped { grid-template-columns: 1fr; }
-
-    .msg-group {
-      background: rgba(255,255,255,0.68);
-      border: 1px solid rgba(15,23,42,0.08);
-      border-radius: 24px;
-      overflow: hidden;
+    .msg-table-wrap {
+      width: 100%;
+      min-height: 100%;
+      overflow: auto;
+      border-radius: 20px;
+      border: 1px solid rgba(15,23,42,0.07);
+      background: rgba(255,255,255,0.76);
       box-shadow: var(--shadow-sm);
     }
-    .msg-group-head {
-      padding: 12px 14px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
+    .msg-table {
+      width: 100%;
+      min-width: 1120px;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 13px;
+    }
+    .msg-table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      padding: 11px 12px;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: 0.02em;
+      background: rgba(248,250,252,0.96);
+      border-bottom: 1px solid rgba(15,23,42,0.08);
+      white-space: nowrap;
+    }
+    .msg-table thead th.sortable {
+      cursor: pointer;
+      color: #334155;
+    }
+    .msg-table tbody td {
+      padding: 10px 12px;
       border-bottom: 1px solid rgba(15,23,42,0.06);
-      background: linear-gradient(180deg, rgba(248,250,252,0.92), rgba(255,255,255,0.72));
+      vertical-align: middle;
+      color: #1e293b;
+      background: rgba(255,255,255,0.72);
     }
-    .msg-group-title {
-      min-width: 0;
-      display: flex;
-      align-items: baseline;
-      gap: 10px;
-      flex-wrap: wrap;
+    .msg-table tbody tr:hover td { background: rgba(248,250,252,0.94); }
+    .msg-table tbody tr:last-child td { border-bottom: 0; }
+    .msg-table-check { width: 42px; }
+    .msg-table-time {
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+      color: #334155;
     }
-    .msg-group-badge {
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: #475569;
-      background: rgba(148,163,184,0.18);
-      border: 1px solid rgba(148,163,184,0.24);
-      padding: 4px 8px;
+    .msg-relation {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      max-width: 100%;
+      white-space: nowrap;
+    }
+    .msg-mini-badge {
+      display: inline-flex;
+      align-items: center;
+      max-width: 180px;
+      padding: 4px 9px;
       border-radius: 999px;
-    }
-    .msg-group-value {
-      font-size: 14px;
+      border: 1px solid rgba(15,23,42,0.06);
+      font-size: 12px;
       font-weight: 700;
-      color: var(--text);
-      max-width: 360px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-    .msg-group-meta {
-      font-size: 12px;
+    .msg-mini-badge.sender { background: rgba(239,246,255,0.96); color: #1d4ed8; }
+    .msg-mini-badge.receiver { background: rgba(240,253,244,0.96); color: #15803d; }
+    .msg-arrow { color: var(--muted-soft); font-weight: 700; }
+    .msg-body-preview {
+      max-width: 0;
+    }
+    .msg-body-preview-text {
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      line-height: 1.5;
+      max-height: calc(1.5em * 2);
+      color: #334155;
+    }
+    .msg-hl {
+      font-weight: 800;
+      color: #0f172a;
+      background: linear-gradient(180deg, rgba(250,204,21,0.16), rgba(250,204,21,0.34));
+      border-radius: 5px;
+      padding: 0 2px;
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
+    }
+    .msg-table-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      white-space: nowrap;
+    }
+    .msg-link-btn {
+      border: 0;
+      background: transparent;
+      padding: 0;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
       color: var(--muted);
     }
-    .msg-group-grid {
-      padding: 14px;
+    .msg-link-btn.danger { color: var(--red); }
+    .msg-link-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .message-detail-grid {
       display: grid;
-      grid-template-columns: repeat(1, minmax(0, 1fr));
       gap: 14px;
     }
-    @media (min-width: 768px) { .msg-group-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-    @media (min-width: 1280px) { .msg-group-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-    .msg-group.collapsed .msg-group-grid { display: none; }
+    .message-detail-card {
+      background: rgba(255,255,255,0.78);
+      border: 1px solid rgba(15,23,42,0.07);
+      border-radius: 20px;
+      padding: 16px;
+      box-shadow: var(--shadow-sm);
+    }
+    .message-detail-title {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      color: var(--muted-soft);
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .message-detail-kv {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px 14px;
+    }
+    .message-detail-item {
+      padding: 10px 12px;
+      border-radius: 16px;
+      background: rgba(248,250,252,0.92);
+      border: 1px solid rgba(15,23,42,0.05);
+    }
+    .message-detail-label {
+      font-size: 11px;
+      color: var(--muted-soft);
+      margin-bottom: 4px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+    .message-detail-value {
+      font-size: 14px;
+      color: var(--text);
+      line-height: 1.6;
+      word-break: break-word;
+    }
+    .message-detail-body {
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.8;
+      color: #334155;
+      font-size: 14px;
+    }
+    .message-detail-status-list {
+      display: grid;
+      gap: 10px;
+    }
+    .message-detail-status-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: rgba(248,250,252,0.92);
+      border: 1px solid rgba(15,23,42,0.05);
+    }
+    .message-detail-status-row strong {
+      display: block;
+      font-size: 14px;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .message-detail-status-row span {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
     .msg-skeleton {
       min-height: 192px;
       border-radius: 22px;
@@ -620,49 +1487,92 @@
     .msg-skeleton-line.short { width: 36%; }
     .msg-skeleton-line.mid { width: 62%; }
     .msg-skeleton-line.long { width: 100%; }
-    @media (min-width: 768px) { .msg-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-    @media (min-width: 1280px) { .msg-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
     .msg-pagination { min-height: 98px; }
     .pagination-container {
       display: flex;
       flex-direction: column;
-      align-items: center;
       gap: 12px;
-      padding: 16px 20px;
-      background: rgba(255,255,255,0.62);
-      border: 1px solid rgba(15,23,42,0.05);
+      padding: 14px 18px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.74), rgba(248,250,252,0.68));
+      border: 1px solid rgba(15,23,42,0.06);
       border-radius: 22px;
+      box-shadow: 0 10px 24px rgba(15,23,42,0.04);
     }
-    .pagination-info, .pagination-jump-inline { font-size: 13px; color: var(--muted); }
-    .pagination-controls { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center; }
+    .pagination-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .pagination-info {
+      font-size: 13px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      font-weight: 500;
+    }
+    .pagination-mobile-summary {
+      display: none;
+      font-size: 13px;
+      color: var(--muted);
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.72);
+      border: 1px solid rgba(15,23,42,0.06);
+    }
+    .pagination-main {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .pagination-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .pagination-page-buttons {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
     .pagination-btn {
       min-width: 36px;
       height: 34px;
       padding: 0 10px;
-      background: rgba(255,255,255,0.9);
-      border: 1px solid rgba(15,23,42,0.08);
+      background: rgba(255,255,255,0.92);
+      border: 1px solid rgba(15,23,42,0.07);
       border-radius: 999px;
       color: #475569;
       font-size: 13px;
+      font-weight: 600;
       cursor: pointer;
-      transition: all 0.18s ease;
+      transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.72);
     }
-    .pagination-btn:hover:not(:disabled) { background: #fff; border-color: rgba(37,99,235,0.2); color: var(--text); }
-    .pagination-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-    .pagination-btn.active { background: var(--text); border-color: var(--text); color: #fff; }
-    .pagination-ellipsis { padding: 0 8px; color: var(--muted-soft); }
-    .pagination-input {
-      width: 54px;
-      height: 30px;
-      padding: 0 8px;
-      background: rgba(255,255,255,0.9);
-      border: 1px solid rgba(15,23,42,0.08);
-      border-radius: 999px;
+    .pagination-btn:hover:not(:disabled) {
+      background: #fff;
+      border-color: rgba(37,99,235,0.2);
       color: var(--text);
-      font-size: 13px;
-      text-align: center;
+      transform: translateY(-1px);
+      box-shadow: 0 8px 18px rgba(37,99,235,0.08);
     }
-    .pagination-input:focus { outline: none; border-color: rgba(37,99,235,0.35); box-shadow: 0 0 0 4px rgba(37,99,235,0.08); }
+    .pagination-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .pagination-btn.active {
+      background: linear-gradient(180deg, #1e293b, #0f172a);
+      border-color: #0f172a;
+      color: #fff;
+      box-shadow: 0 10px 20px rgba(15,23,42,0.18);
+    }
+    .pagination-btn.pagination-edge { min-width: auto; padding: 0 12px; }
+    .pagination-ellipsis { padding: 0 8px; color: var(--muted-soft); }
     .push-card.disabled { opacity: 0.5; }
     .config-section { display: none; }
     .config-section.active { display: block; }
@@ -738,6 +1648,14 @@
     .btn-success:hover:not(:disabled) { background: rgba(22,163,74,0.07); }
     .btn-purple { background: rgba(37,99,235,0.08); color: var(--blue); border-color: rgba(37,99,235,0.12); }
     .btn-purple:hover:not(:disabled) { background: rgba(37,99,235,0.12); }
+    .btn-primary.btn-sm, .btn-primary.btn-xs {
+      background: rgba(239,246,255,0.96);
+      color: var(--blue);
+      border-color: rgba(37,99,235,0.14);
+    }
+    .btn-primary.btn-sm:hover:not(:disabled), .btn-primary.btn-xs:hover:not(:disabled) {
+      background: rgba(219,234,254,0.98);
+    }
     .btn-gray { background: rgba(255,255,255,0.72); color: #334155; border-color: rgba(15,23,42,0.08); }
     .btn-gray:hover:not(:disabled) { background: #fff; }
     .btn-sm { padding: 7px 12px; font-size: 13px; }
@@ -815,10 +1733,21 @@
     .bg-indigo-900 { background: rgba(79,70,229,0.1) !important; }
     .text-indigo-300 { color: #4f46e5 !important; }
     @media (max-width: 767px) {
+      #app { 
+        max-width: 100% !important; 
+        width: 100% !important;
+        margin-left: 0 !important; 
+        margin-right: 0 !important; 
+        padding-left: 8px !important; 
+        padding-right: 8px !important;
+        margin: 0 !important;
+      }
       .app-shell { padding-top: 18px; padding-bottom: 24px; }
       .hero-panel { padding: 22px; border-radius: 28px; }
-      .section-card { border-radius: 24px; }
+      .section-card { border-radius: 24px; width: 100%; overflow-x: hidden; }
       .content-card, .settings-card, .subtle-panel { border-radius: 20px; }
+      .dashboard-split-grid { grid-template-columns: 1fr; width: 100%; }
+      .push-provider-card { width: 100%; max-width: 100%; }
       .metric-card { padding: 18px; }
       .metric-value { font-size: 1.85rem; }
       .section-heading { gap: 12px; margin-bottom: 16px; }
@@ -828,13 +1757,40 @@
       .toolbar-row > * { width: 100%; }
       .toolbar-row .btn, .toolbar-row select, .toolbar-row input { width: 100% !important; }
       .toolbar-row span { width: auto; }
+      .msg-toolbar-filter-row { align-items: stretch; }
+      .msg-filter-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+      .msg-filter-grid > div:first-child { flex: 1 1 100%; }
+      .msg-filter-grid .msg-filter-select { flex: 1 1 45%; min-width: 0; }
+      .msg-filter-grid .msg-search-input { width: 100%; }
+      .msg-filter-grid .btn { flex: 1 1 45%; }
+      .msg-toolbar-filter-main, .msg-toolbar-filter-actions { width: 100%; }
+      .msg-search-input, .msg-filter-select, .msg-filter-select.phone, .msg-filter-select.status { width: 100% !important; min-width: 0; }
+      .msg-toolbar-status-row { align-items: stretch; }
+      .msg-toolbar-actions { width: 100%; margin-left: 0; justify-content: stretch; }
+      .msg-toolbar-actions > * { width: 100%; }
+      .msg-sticky-bar { top: 8px; padding: 6px 10px; border-radius: 10px; box-shadow: 0 2px 8px rgba(15,23,42,0.06); }
+      .msg-bulk-left, .msg-bulk-right { width: 100%; }
+      .msg-bulk-right { justify-content: flex-start; }
       .toolbox-device-select { min-width: 0; max-width: 100%; width: 100%; }
       .tab-strip { padding-bottom: 2px; margin-inline: -4px; padding-inline: 4px; }
       .tab-strip .tab-btn { padding-inline: 14px; }
+      .diag-overview-meta { min-width: 0; text-align: left; align-items: flex-start; }
+      .diag-metrics-grid { grid-template-columns: 1fr; }
+      .toolbox-diag-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .diag-trend-head { align-items: stretch; }
+      .diag-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .diag-focus-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .msg-viewport { min-height: 460px; max-height: none; border-radius: 20px; padding: 12px; }
       .msg-toolbar { padding: 12px; }
-      .msg-card, .device-card { border-radius: 18px; }
-      .msg-card-header, .msg-card-body, .msg-card-footer { padding-inline: 14px; }
+      .device-card { border-radius: 18px; overflow: hidden; }
+      .device-card .space-y-2 > div { flex-wrap: wrap; }
+      .device-card .space-y-2 > div > span:last-child { text-align: left; word-break: break-all; min-width: 0; }
+      .pagination-container { padding: 14px; }
+      .pagination-topbar, .pagination-main { flex-direction: column; align-items: stretch; }
+      .pagination-info { display: none; }
+      .pagination-mobile-summary { display: inline-flex; justify-content: center; }
+      .pagination-controls { justify-content: center; }
+      .pagination-page-buttons, .pagination-btn.pagination-edge { display: none; }
       .settings-row { flex-direction: column; align-items: flex-start; padding: 14px 16px; }
       .input-action-row { flex-direction: column; align-items: stretch; }
       .input-action-row .btn, .input-action-row input { width: 100%; }
@@ -844,24 +1800,42 @@
       .modal-actions { flex-direction: column; }
       .modal-actions .btn { width: 100%; }
       .msg-viewport { min-height: 460px; max-height: none; }
-      .pagination-jump-inline { margin-left: 0; }
       .pagination-controls { gap: 8px; }
-      .pagination-jump-inline { width: 100%; justify-content: center; flex-wrap: wrap; }
       #userMenu { right: 0; left: auto; min-width: 10rem; }
     }
     @media (max-width: 479px) {
+      #app { width: 100% !important; padding-left: 6px !important; padding-right: 6px !important; margin: 0 !important; }
       .hero-panel { padding: 18px; }
       .metric-card { padding: 16px; }
       .content-card { padding: 15px; }
+      .section-card { width: 100%; }
+      .dashboard-split-grid { grid-template-columns: 1fr; gap: 18px; width: 100%; }
+      .toolbox-diag-grid { grid-template-columns: 1fr; }
+      .diag-trend-line { grid-template-columns: 1fr; gap: 6px; }
+      .diag-trend-value { text-align: left; min-width: 0; }
+      .diag-trend-axis { gap: 8px; font-size: 10px; }
+      .diag-range-switcher { width: 100%; justify-content: space-between; }
+      .diag-range-btn { flex: 1 1 0; text-align: center; }
+      .diag-summary-grid { grid-template-columns: 1fr; }
+      .diag-focus-metrics { grid-template-columns: 1fr; }
+      .diag-attention-reason { text-align: left; flex-basis: 100%; }
+      .diag-filter-bar { align-items: stretch; }
+      .diag-filter-bar > input,
+      .diag-filter-bar > select,
+      .diag-filter-bar > .diag-filter-spacer,
+      .diag-filter-bar > label { width: 100%; }
+      .msg-filter-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+      .msg-filter-grid > div:first-child { flex: 1 1 100%; }
+      .msg-filter-grid .msg-filter-select { flex: 1 1 45%; min-width: 0; }
+      .msg-filter-grid .msg-search-input { width: 100%; }
+      .msg-filter-grid .btn { flex: 1 1 45%; }
       .quick-actions .btn { width: 100%; }
+      .message-detail-kv { grid-template-columns: 1fr; }
       .msg-party-badge { width: 100%; justify-content: center; }
-      .msg-card-footer { align-items: stretch; }
-      .msg-card-footer > * { width: 100%; }
-      .msg-card-footer .btn { width: 100%; }
     }
   </style>
 </head>
-<body class="min-h-screen">
+<body class="min-h-screen" onload="alert('页面加载完成')">
   <div id="loginOverlay" class="login-overlay flex hidden">
     <div class="glass-card rounded-[32px] p-8 w-full max-w-sm">
       <div class="text-center mb-8">
@@ -963,11 +1937,62 @@
       </div>
     </header>
 
-    <div class="grid grid-cols-1 xl:grid-cols-[360px_minmax(0,1fr)] gap-6 mb-6">
-      <section class="section-card p-5 lg:p-6 flex flex-col">
+    <section class="section-card p-5 lg:p-6 mb-6">
+        <div class="section-heading flex-wrap">
+          <div>
+            <h2 class="text-2xl">实时消息 <span id="msgCount" class="text-base font-medium text-slate-400 ml-1">(0)</span></h2>
+            <p>统一查看短信收件箱、推送状态和筛选结果。</p>
+          </div>
+        </div>
+        <div class="msg-panel">
+          <div class="msg-toolbar">
+            <div class="toolbar-row msg-toolbar-filter-row">
+              <div class="msg-filter-grid">
+                <div class="relative">
+                  <input type="text" id="msgSearchInput" placeholder="搜索内容 / 号码" class="msg-search-input !text-sm" oninput="queueMessageSearch()">
+                </div>
+                <select id="msgPhoneFilter" class="msg-filter-select !text-sm" onchange="filterMessages()">
+                  <option value="">全部手机号</option>
+                </select>
+                <select id="msgDirectionFilter" class="msg-filter-select !text-sm" onchange="filterMessages()">
+                  <option value="">全部方向</option>
+                  <option value="inbound">收件</option>
+                  <option value="outbound">发件</option>
+                </select>
+                <select id="msgStatusFilter" class="msg-filter-select status !text-sm" onchange="filterMessages()">
+                  <option value="">全部状态</option>
+                  <option value="success">成功</option>
+                  <option value="failed">失败</option>
+                  <option value="pending">推送中</option>
+                </select>
+                <button class="btn btn-gray btn-sm" onclick="refreshMessages()">🔄 刷新</button>
+              </div>
+            </div>
+            <div class="msg-sticky-bar">
+              <div class="msg-bulk-left">
+                <label class="msg-master-check"><input type="checkbox" id="masterSelectCheckbox" onchange="toggleSelectMessagesOnPage(this.checked)"><span>全选</span></label>
+                <span class="toolbar-inline-note" id="msgSelectionMeta">已选 0 条</span>
+                <button class="btn btn-danger btn-sm" id="batchDeleteBtn" onclick="deleteSelectedMessages()" disabled>批量删除</button>
+              </div>
+            </div>
+            <div class="toolbar-row msg-toolbar-status-row">
+              <div class="msg-toolbar-stat"><strong id="msgFocusValue">全部消息</strong></div>
+            </div>
+          </div>
+          <div id="msgViewport" class="msg-viewport msg-scroll">
+            <div id="msgContainer">
+              <div class="empty-state msg-empty-state"><strong>暂无短信记录</strong><span>新短信到达后，会自动出现在这里并显示推送状态。</span></div>
+            </div>
+          </div>
+          <div id="msgPagination" class="msg-pagination"></div>
+        </div>
+    </section>
+
+    <section class="section-card p-5 lg:p-6 mb-6">
+      <div class="dashboard-split-grid">
+        <section class="flex flex-col">
         <div class="section-heading">
           <div>
-            <div class="eyebrow">设备总览</div>
             <h2 class="text-2xl">设备概览 <span id="deviceCount" class="text-base font-medium text-slate-400 ml-1">(0)</span></h2>
             <p>查看在线状态、IP、手机号与信号强度。</p>
           </div>
@@ -975,86 +2000,27 @@
         <div id="deviceList" style="max-height: 800px; overflow-y: auto;">
           <div class="empty-state"><strong>暂无设备连接</strong><span>设备上线后会在这里显示状态、号码与信号信息。</span></div>
         </div>
-      </section>
+        </section>
 
-      <section class="section-card p-5 lg:p-6">
-        <div class="section-heading flex-wrap">
-          <div>
-            <div class="eyebrow">消息中心</div>
-            <h2 class="text-2xl">实时消息中心 <span id="msgCount" class="text-base font-medium text-slate-400 ml-1">(0)</span></h2>
-            <p>统一查看短信收件箱、推送状态和筛选结果。</p>
+        <section id="toolboxSection" class="section-card p-5 lg:p-6">
+<div class="section-heading">
+            <h2 class="text-2xl">设备工具</h2>
           </div>
-        </div>
-        <div class="msg-panel">
-          <div class="msg-toolbar">
-            <div class="toolbar-row">
-              <div class="relative">
-                <input type="text" id="msgSearchInput" placeholder="搜索内容 / 号码" class="!w-52 !text-sm" oninput="queueMessageSearch()">
-              </div>
-              <input type="hidden" id="msgPhoneFilter" value="">
-              <select id="msgPhoneFilterSelect" class="!w-auto !text-sm" onchange="handlePhoneFilterChange(this.value)">
-                <option value="">全部手机号</option>
-              </select>
-              <select id="msgDeviceFilter" class="!w-auto !text-sm" onchange="filterMessages()">
-                <option value="">全部设备(MAC)</option>
-              </select>
-              <select id="msgDirectionFilter" class="!w-auto !text-sm" onchange="filterMessages()">
-                <option value="">全部方向</option>
-                <option value="inbound">收件</option>
-                <option value="outbound">发件</option>
-              </select>
-              <select id="msgStatusFilter" class="!w-auto !text-sm" onchange="filterMessages()">
-                <option value="">全部状态</option>
-                <option value="success">成功</option>
-                <option value="failed">失败</option>
-                <option value="pending">推送中</option>
-              </select>
-              <button class="btn btn-gray btn-sm" onclick="resetFilters()">重置筛选</button>
-            </div>
-            <div class="toolbar-row">
-              <div class="msg-toolbar-stat"><strong id="msgFocusValue">全部消息</strong><span id="msgFocusMeta">最近一页</span></div>
-              <div class="toolbar-inline-note" id="msgFilterHint">输入关键词会自动延迟搜索，减少频繁刷新。</div>
-            </div>
-          </div>
-          <div id="msgViewport" class="msg-viewport msg-scroll">
-            <div id="msgContainer" class="msg-grid">
-              <div class="empty-state msg-card-empty"><strong>暂无短信记录</strong><span>新短信到达后，会自动出现在这里并显示推送状态。</span></div>
-            </div>
-          </div>
-          <div id="msgPagination" class="msg-pagination"></div>
-        </div>
-      </section>
-    </div>
 
-    <div id="toolboxSection">
-      <div class="section-card p-5 lg:p-6">
-        <div class="section-heading flex-wrap">
-          <div>
-            <div class="eyebrow">设备操作</div>
-            <h2 class="text-2xl">设备工具箱</h2>
-            <p>围绕当前设备完成推送配置、短信发送、状态查询与自动化任务管理。</p>
+<div class="tab-strip mb-6 p-2 rounded-full bg-white/60 border border-slate-200">
+            <button class="tab-btn active px-4 py-2 rounded-full text-sm font-medium text-slate-500 border border-transparent transition-all" data-tab="diag" onclick="switchTab('diag')">诊断</button>
+            <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium text-slate-500 border border-transparent transition-all" data-tab="push" onclick="switchTab('push')">推送配置</button>
+            <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium text-slate-500 border border-transparent transition-all" data-tab="sms" onclick="switchTab('sms')">发送短信</button>
+            <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium text-slate-500 border border-transparent transition-all" data-tab="query" onclick="switchTab('query')">信息查询</button>
+            <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium text-slate-500 border border-transparent transition-all" data-tab="ping" onclick="switchTab('ping')">网络测试</button>
+            <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium text-slate-500 border border-transparent transition-all" data-tab="flight" onclick="switchTab('flight')">飞行模式</button>
+            <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium text-slate-500 border border-transparent transition-all" data-tab="at" onclick="switchTab('at')">AT</button>
+            <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium text-slate-500 border border-transparent transition-all" data-tab="schedule" onclick="switchTab('schedule')">定时任务</button>
           </div>
-          <div class="toolbar-row w-full sm:w-auto">
-            <span class="text-sm text-slate-400 whitespace-nowrap">当前设备</span>
-            <select id="toolboxDeviceSelect" class="toolbox-device-select" onchange="handleToolboxDeviceChange(this.value)">
-              <option value="">暂无可用设备</option>
-            </select>
-          </div>
-        </div>
 
-        <div class="tab-strip mb-6 p-2 rounded-full bg-white/60 border border-slate-200">
-          <button class="tab-btn active px-4 py-2 rounded-full text-sm font-medium text-slate-500 border border-transparent transition-all" data-tab="push" onclick="switchTab('push')">推送配置</button>
-          <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium text-slate-500 border border-transparent transition-all" data-tab="sms" onclick="switchTab('sms')">发送短信</button>
-          <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium text-slate-500 border border-transparent transition-all" data-tab="query" onclick="switchTab('query')">信息查询</button>
-          <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium text-slate-500 border border-transparent transition-all" data-tab="ping" onclick="switchTab('ping')">网络测试</button>
-          <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium text-slate-500 border border-transparent transition-all" data-tab="flight" onclick="switchTab('flight')">飞行模式</button>
-          <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium text-slate-500 border border-transparent transition-all" data-tab="at" onclick="switchTab('at')">AT</button>
-          <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium text-slate-500 border border-transparent transition-all" data-tab="schedule" onclick="switchTab('schedule')">定时任务</button>
-        </div>
-
-        <div id="tab-push" class="tab-content">
+        <div id="tab-push" class="tab-content hidden">
           <h3 class="text-lg font-semibold text-slate-900 mb-4">全局推送配置</h3>
-          <p class="panel-note mb-4">按渠道开启提醒方式，保存后新短信会自动按你的配置分发到对应平台。</p>
+          <p class="panel-note mb-4">新短信会自动分发到对应平台。</p>
           
           <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             <div class="push-provider-card" id="provider-card-tg">
@@ -1210,11 +2176,10 @@
 
         </div>
 
-        <div id="tab-sms" class="tab-content hidden">
+<div id="tab-sms" class="tab-content hidden">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <div class="content-card">
-                <div class="section-kicker">手动发送</div>
                 <div class="form-row">
                   <label>目标号码</label>
                   <input type="text" id="smsPhone" placeholder="13800138000">
@@ -1229,9 +2194,8 @@
             </div>
             <div>
                <div class="content-card h-full">
-                <div class="section-kicker">发送记录</div>
                 <div class="flex items-center justify-between mb-2">
-                   <span class="text-sm font-medium text-slate-700">全部设备发送记录</span>
+                   <span class="text-sm font-medium text-slate-700">发送记录</span>
                   <button class="btn btn-gray btn-sm" onclick="loadOutboundSmsHistory()">刷新</button>
                 </div>
                 <div id="recentSmsList" class="space-y-2 max-h-72 overflow-y-auto">
@@ -1245,10 +2209,7 @@
         <div id="tab-query" class="tab-content hidden">
           <div class="content-card">
             <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
-               <div>
-                <div class="section-kicker mb-2">信息查询</div>
-                <div class="text-sm text-slate-400">当前固件版本</div>
-               </div>
+               <div class="text-sm text-slate-400">固件版本</div>
                <div id="currentFirmware" class="px-3 py-1 rounded-full bg-white border border-slate-200 text-slate-700 font-mono text-sm shadow-sm">-</div>
             </div>
             <div class="quick-actions mb-4">
@@ -1258,17 +2219,14 @@
               <button class="btn btn-purple" onclick="doQuery('network')">网络状态</button>
               <button class="btn btn-gray" onclick="doQuery('wifi')">WiFi 状态</button>
             </div>
-            <div id="queryResult" class="result-card min-h-16">
-              <div class="panel-note">选择上方任意项目后，这里会展示当前设备的查询结果。</div>
-            </div>
+            <div id="queryResult" class="result-card min-h-16"></div>
           </div>
         </div>
 
         <div id="tab-ping" class="tab-content hidden">
           <div class="content-card max-w-xl">
-            <div class="section-kicker">网络测试</div>
-             <p class="panel-note mb-4">用于快速验证设备网络是否可达，会向公共地址发送一次轻量测试请求。</p>
-            <button class="btn btn-warning w-full text-lg py-3" id="pingBtn" onclick="doPing()">执行 Ping 测试</button>
+<div class="section-kicker">网络测试</div>
+             <button class="btn btn-warning w-full text-lg py-3" id="pingBtn" onclick="alert('点击成功');doPing()">执行 Ping 测试</button>
             <div id="pingResult" class="mt-4"></div>
           </div>
         </div>
@@ -1281,9 +2239,7 @@
               <button class="btn btn-success py-3" id="flightOffBtn" onclick="doFlightMode(0)">关闭飞行模式</button>
               <button class="btn btn-gray py-3" id="flightQueryBtn" onclick="doFlightMode(-1)">查询当前状态</button>
             </div>
-            <div id="flightResult" class="result-card mt-4">
-              <div class="panel-note">你可以在这里查看飞行模式的切换结果和当前状态反馈。</div>
-            </div>
+            <div id="flightResult" class="result-card mt-4"></div>
           </div>
         </div>
 
@@ -1309,12 +2265,11 @@
           </div>
         </div>
 
-        <div id="tab-schedule" class="tab-content hidden">
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div id="tab-schedule" class="tab-content hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div>
                <div class="content-card">
-                 <div class="section-kicker">新建任务</div>
-                 <h3 class="text-lg font-medium text-slate-900 mb-4">新建定时任务</h3>
+<h3 class="text-lg font-medium text-slate-900 mb-4">新建定时任务</h3>
                 <div class="form-row">
                   <label>任务类型</label>
                   <select id="scheduleTaskType" onchange="onScheduleTypeChange()">
@@ -1364,10 +2319,9 @@
                </div>
              </div>
              <div>
-               <div class="content-card">
-                 <div class="section-kicker">任务列表</div>
+<div class="content-card">
                 <div class="flex items-center justify-between mb-3">
-                   <span class="font-medium text-slate-900">任务列表 (<span id="scheduleCount">0</span>)</span>
+                   <span class="font-medium text-slate-900">定时任务 (<span id="scheduleCount">0</span>)</span>
                   <button class="btn btn-gray btn-sm" onclick="loadScheduleList()">刷新</button>
                 </div>
                  <div id="scheduleList" class="space-y-2 max-h-[400px] overflow-y-auto">
@@ -1376,8 +2330,15 @@
               </div>
             </div>
           </div>
+          </div>
+
+          <div id="tab-diag" class="tab-content">
+            <div id="toolboxDiagPanel" class="toolbox-diag-panel">
+              <div class="toolbox-diag-empty">当前设备暂无诊断数据，等待新固件心跳。</div>
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
     </div>
   </div>
 
@@ -1410,6 +2371,21 @@
     </div>
   </div>
 
+  <div id="messageDetailModal" class="modal-overlay hidden">
+    <div class="modal" style="max-width: 720px;">
+      <div class="flex items-center justify-between gap-4 mb-4">
+        <div>
+<h3 class="text-xl font-semibold text-slate-900">短信详情</h3>
+        </div>
+        <button class="text-slate-400 hover:text-slate-900 text-2xl leading-none" onclick="closeMessageDetailModal()">&times;</button>
+      </div>
+      <div id="messageDetailContent"></div>
+      <div class="modal-actions mt-4">
+        <button class="btn btn-gray flex-1" onclick="closeMessageDetailModal()">关闭</button>
+      </div>
+    </div>
+  </div>
+
   <div id="toastContainer" class="toast-container"></div>
 
   <!-- BUILD:JS -->
@@ -1419,26 +2395,28 @@
     let devices = [];
     let messages = [];
     let filteredMessages = [];
-    let currentFilters = { search: '', device: '', phone: '', direction: '', status: '' };
-    let pushStatusCache = {};
+    let currentFilters = { search: '', phone: '', direction: '', status: '' };
     let atSeq = 0;
     let pendingRespCallback = null;
     let pendingConfirm = null;
     let serverTimeInterval = null;
     let currentFirmwareVersion = null;
     let outboundSmsList = [];
+    let diagFilters = { search: '', level: '', onlyAbnormal: false };
     let currentPage = 1;
     let totalMessagesCount = 0;
     let totalPages = 1;
-    let hasMoreMessages = false;
     let newMessagesCount = 0;
     let enabledPushChannels = [];
+    let selectedMessageIds = new Set();
+    let messageSort = { field: 'time', order: 'desc' };
+    let currentDetailSmsId = null;
     let pushConfigCache = null;
     let pushSaveTimer = null;
     let searchDebounceTimer = null;
     let messageLoading = false;
     let smsCharBound = false;
-    const MESSAGE_PAGE_SIZE = 6;
+    const MESSAGE_PAGE_SIZE = 10;
     const PUSH_CHANNEL_NAMES = { telegram: 'TG', dingtalk: '钉钉', pushplus: 'PP', serverchan: 'SC', feishu: '飞书', bark: 'Bark', gotify: 'Gotify', postJson: 'POST', customTemplate: '自定义' };
     const PUSH_PROVIDER_DOM_MAP = { telegram: 'tg', dingtalk: 'dt', pushplus: 'pp', serverchan: 'sc', feishu: 'fs', bark: 'bark', gotify: 'gotify', postJson: 'post', customTemplate: 'custom' };
     function setCurrentFirmwareDisplay(value = '-') {
@@ -1574,7 +2552,110 @@
       smsCharBound = true;
     }
 
-    function loadStats() { /* removed */ }
+    async function refreshStats() {
+      try {
+        const res = await fetch('/api/stats', { credentials: 'include', headers: authHeader() });
+        const data = await res.json();
+        if (!data.success || !data.stats) return;
+        totalMessagesCount = data.stats.totalSms || 0;
+        const msgCountEl = document.getElementById('msgCount');
+        if (msgCountEl) {
+          msgCountEl.textContent = `(${totalMessagesCount})`;
+        }
+      } catch (e) {
+        console.error('刷新统计失败:', e);
+      }
+    }
+
+    function loadStats() {
+      refreshStats();
+    }
+
+    function getCurrentPageMessageIds() {
+      return filteredMessages
+        .map(m => Number(m.id))
+        .filter(id => Number.isInteger(id) && id > 0);
+    }
+
+    function getSelectedMessageCountOnPage() {
+      const pageIds = new Set(getCurrentPageMessageIds());
+      let count = 0;
+      selectedMessageIds.forEach(id => {
+        if (pageIds.has(id)) count += 1;
+      });
+      return count;
+    }
+
+    function syncSelectedMessagesWithCurrentPage() {
+      const pageIds = new Set(getCurrentPageMessageIds());
+      selectedMessageIds = new Set([...selectedMessageIds].filter(id => pageIds.has(id)));
+      updateMessageSelectionBar();
+    }
+
+    function updateMessageSelectionBar() {
+      const selectedCount = getSelectedMessageCountOnPage();
+      const totalCount = getCurrentPageMessageIds().length;
+      const meta = document.getElementById('msgSelectionMeta');
+      const batchBtn = document.getElementById('batchDeleteBtn');
+      const masterCheckbox = document.getElementById('masterSelectCheckbox');
+
+      if (meta) {
+        meta.textContent = `已选 ${selectedCount} 条`;
+      }
+      if (batchBtn) {
+        batchBtn.disabled = selectedCount === 0;
+      }
+      if (masterCheckbox) {
+        masterCheckbox.checked = totalCount > 0 && selectedCount === totalCount;
+        masterCheckbox.indeterminate = selectedCount > 0 && selectedCount < totalCount;
+        masterCheckbox.disabled = totalCount === 0;
+      }
+      const viewport = document.getElementById('msgViewport');
+      if (viewport) viewport.classList.add('table-mode');
+    }
+
+    function toggleMessageSort(field) {
+      if (messageSort.field === field) {
+        messageSort.order = messageSort.order === 'asc' ? 'desc' : 'asc';
+      } else {
+        messageSort.field = field;
+        messageSort.order = field === 'time' ? 'desc' : 'asc';
+      }
+      renderMessages();
+    }
+
+    function isMessageSelected(id) {
+      return selectedMessageIds.has(Number(id));
+    }
+
+    function toggleMessageSelection(id, checked) {
+      const smsId = Number(id);
+      if (!Number.isInteger(smsId) || smsId <= 0) return;
+      if (checked) {
+        selectedMessageIds.add(smsId);
+      } else {
+        selectedMessageIds.delete(smsId);
+      }
+      updateMessageSelectionBar();
+    }
+
+    function toggleSelectMessagesOnPage(forceChecked) {
+      const pageIds = getCurrentPageMessageIds();
+      const shouldSelect = typeof forceChecked === 'boolean'
+        ? forceChecked
+        : !(pageIds.length > 0 && pageIds.every(id => selectedMessageIds.has(id)));
+
+      pageIds.forEach(id => {
+        if (shouldSelect) {
+          selectedMessageIds.add(id);
+        } else {
+          selectedMessageIds.delete(id);
+        }
+      });
+
+      updateMessageSelectionBar();
+      renderMessages();
+    }
 
     function authHeader() {
       const username = localStorage.getItem('sms_admin_user') || 'admin';
@@ -1637,11 +2718,9 @@
 
     function updateMessageToolbarMeta() {
       const focusValue = document.getElementById('msgFocusValue');
-      const focusMeta = document.getElementById('msgFocusMeta');
-      const hint = document.getElementById('msgFilterHint');
       const filters = [];
       if (currentFilters.search) filters.push(`关键词: ${currentFilters.search}`);
-      if (currentFilters.device) filters.push(`设备: ${currentFilters.device.substring(0, 12)}`);
+      if (currentFilters.phone) filters.push(`手机号: ${currentFilters.phone}`);
       if (currentFilters.direction) {
         const dirText = currentFilters.direction === 'inbound' ? '收件' : currentFilters.direction === 'outbound' ? '发件' : currentFilters.direction;
         filters.push(`方向: ${dirText}`);
@@ -1650,9 +2729,7 @@
         const statusText = currentFilters.status === 'success' ? '成功' : currentFilters.status === 'failed' ? '失败' : '推送中';
         filters.push(`状态: ${statusText}`);
       }
-      if (focusValue) focusValue.textContent = filters.length > 0 ? '筛选结果' : '全部消息';
-      if (focusMeta) focusMeta.textContent = filters.length > 0 ? filters.join(' / ') : `第 ${currentPage} 页，共 ${totalPages} 页`;
-      if (hint) hint.textContent = messageLoading ? '正在刷新消息列表...' : '输入关键词会自动延迟搜索，减少频繁刷新。';
+      if (focusValue) focusValue.textContent = filters.length > 0 ? `筛选结果 · ${filters.join(' / ')}` : '全部消息';
     }
 
     function startServerTime() { /* removed */ }
@@ -1687,7 +2764,6 @@
           messages = data.messages || [];
           totalMessagesCount = messages.length;
           totalPages = 1;
-          hasMoreMessages = messages.length >= MESSAGE_PAGE_SIZE;
         }
         currentPage = 1;
         newMessagesCount = 0;
@@ -1695,11 +2771,6 @@
         renderMessages();
         updateNewMsgIndicator();
         
-        // Sync phone filter with current selection
-        if (currentFilters.phone) {
-          document.getElementById('msgPhoneFilter').value = currentFilters.phone;
-          document.getElementById('msgPhoneFilterSelect').value = currentFilters.phone;
-        }
       } else if (data.type === 'devices') {
         devices = data.devices || [];
         renderDevices();
@@ -1711,7 +2782,6 @@
         }
         upsertMessageItem(messages, data.sms, true);
         renderMessages();
-        clearPushStatusCache();
         loadStats();
       } else if (data.type === 'resp') {
         handleDeviceResp(data.mac, data.data);
@@ -1757,9 +2827,8 @@
 
     function renderDevices() {
       const list = document.getElementById('deviceList');
-      const online = devices.filter(d => d.online);
-      const offline = devices.filter(d => !d.online);
       document.getElementById('deviceCount').textContent = `(${devices.length})`;
+      renderToolboxDiagPanel();
       // Header stats widgets were removed; keep device counts internal only.
       
       if (devices.length === 0) {
@@ -1836,7 +2905,7 @@
           card.className = `device-card p-4 ${selectedMac === d.mac ? 'selected' : ''}`;
           card.dataset.mac = d.mac;
           card.dataset.phone = d.phone || '';
-          card.onclick = () => selectDevice(d.mac, true);
+          card.onclick = () => selectDevice(d.mac, false);
           card.innerHTML = `
             <div class="flex items-start justify-between mb-3 gap-3">
               <div class="flex items-center gap-2 min-w-0">
@@ -1869,16 +2938,6 @@
 
     function loadUiPreferences() {
       // Preferences loaded
-    }
-
-    function toggleMessageGroupByPhone(enabled) {
-      groupMessagesByPhone = !!enabled;
-      try { localStorage.setItem('sms_group_by_phone', groupMessagesByPhone ? '1' : '0'); } catch {}
-      const grid = document.getElementById('msgContainer');
-      if (grid) {
-        grid.classList.toggle('grouped', groupMessagesByPhone);
-      }
-      renderMessageCards();
     }
 
     async function editDeviceRemark(mac, currentRemark) {
@@ -2041,6 +3100,696 @@
       };
     }
 
+    function formatHeapKb(value) {
+      const num = Number(value) || 0;
+      if (!num) return '-';
+      return `${Math.round(num / 1024)}KB`;
+    }
+
+    function formatLastSeenText(timestamp) {
+      const num = Number(timestamp) || 0;
+      if (!num) return '等待心跳';
+      const diff = Math.max(0, Date.now() - num);
+      if (diff < 5000) return '刚刚更新';
+      if (diff < 60000) return `${Math.floor(diff / 1000)} 秒前更新`;
+      if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前更新`;
+      return `最后更新 ${formatTimeStr(new Date(num).toISOString())}`;
+    }
+
+    function getDiagOverview(device) {
+      const summary = getDeviceDiagSummary(device);
+      const levelText = {
+        ok: '正常',
+        warn: '关注',
+        error: '异常',
+        neutral: '暂无'
+      }[summary.level] || '暂无';
+      const description = {
+        ok: '当前接收链路稳定，未发现明显积压。',
+        warn: '检测到轻微积压或补发，建议继续观察。',
+        error: '检测到接收链路异常，建议查看串口日志。',
+        neutral: '当前设备暂无诊断数据，等待新固件心跳。'
+      }[summary.level] || '当前设备暂无诊断数据。';
+      return {
+        level: summary.level,
+        title: `状态：${levelText}`,
+        description,
+        badge: summary.headline.replace(/^诊断\s*/, '')
+      };
+    }
+
+    function getDiagAdvice(device) {
+      const diag = device?.status?.diag || {};
+      const offlineSms = Number(device?.status?.queue?.offlineSms) || 0;
+      const pendingUrc = Number(diag.pendingUrc) || 0;
+      const summary = getDeviceDiagSummary(device);
+      if (summary.level === 'error') {
+        return [
+          '继续观察 5~10 分钟，确认异常是否持续。',
+          pendingUrc >= 6 ? 'URC 积压较高，建议优先查看串口日志。' : '建议查看串口日志，确认接收状态机是否卡住。',
+          '如果重启后恢复，基本可判断存在运行期状态退化。'
+        ];
+      }
+      if (summary.level === 'warn') {
+        return [
+          '当前状态可继续观察，重点关注 URC 和 Heap 变化。',
+          offlineSms > 0 ? '存在离线短信待补发，建议关注网络状态。' : '如 URC 持续上升，建议连接串口抓一段日志。'
+        ];
+      }
+      return [
+        '当前状态正常，可继续观察。',
+        '若后续出现收不到短信，再结合串口日志做进一步定位。'
+      ];
+    }
+
+    function getMetricTone(value, warnThreshold, errorThreshold, inverse = false) {
+      if (inverse) {
+        if (value > 0 && value <= errorThreshold) return 'error';
+        if (value > 0 && value <= warnThreshold) return 'warn';
+        return 'ok';
+      }
+      if (value >= errorThreshold) return 'error';
+      if (value >= warnThreshold) return 'warn';
+      return 'ok';
+    }
+
+    function getDiagTrendColor(kind) {
+      if (kind === 'heap') return '#16a34a';
+      if (kind === 'minheap') return '#2563eb';
+      return '#f59e0b';
+    }
+
+    function formatDiagTrendValue(kind, value) {
+      if (kind === 'heap' || kind === 'minheap') {
+        return formatHeapKb(value);
+      }
+      return String(Number(value) || 0);
+    }
+
+    function formatDiagTrendTooltip(kind, point) {
+      const labelMap = {
+        heap: 'Heap',
+        minheap: 'MinHeap',
+        urc: 'URC积压'
+      };
+      const label = labelMap[kind] || '趋势';
+      const value = formatDiagTrendValue(kind, point?.value);
+      const time = formatTimeStr(point?.ts || 0);
+      return `${label}: ${value} | ${time}`;
+    }
+
+    function formatRelativeTimeLabel(ts, nowTs = Date.now()) {
+      const num = Number(ts) || 0;
+      if (!num) return '--';
+      const diffMs = Math.max(0, Number(nowTs) - num);
+      const diffSec = Math.round(diffMs / 1000);
+      if (diffSec < 30) return '刚刚';
+      if (diffSec < 60) return `${diffSec}秒前`;
+      const diffMin = Math.round(diffSec / 60);
+      if (diffMin < 60) return `${diffMin}分钟前`;
+      const diffHour = Math.round(diffMin / 60);
+      if (diffHour < 24) return `${diffHour}小时前`;
+      const diffDay = Math.round(diffHour / 24);
+      return `${diffDay}天前`;
+    }
+
+    function formatDiagTrendAxisLabel(ts, nowTs = Date.now()) {
+      const num = Number(ts) || 0;
+      if (!num) return '--';
+      return formatRelativeTimeLabel(num, nowTs);
+    }
+
+    function renderDiagTrendAxis(values) {
+      const points = Array.isArray(values) ? values : [];
+      if (!points.length) {
+        return '<div class="diag-trend-axis"><span>--</span><span>--</span><span>--</span></div>';
+      }
+      const nowTs = Date.now();
+      const first = points[0];
+      const middle = points[Math.floor((points.length - 1) / 2)];
+      const last = points[points.length - 1];
+      return `<div class="diag-trend-axis"><span>${escapeHtml(formatDiagTrendAxisLabel(first?.ts, nowTs))}</span><span>${escapeHtml(formatDiagTrendAxisLabel(middle?.ts, nowTs))}</span><span>${escapeHtml(formatDiagTrendAxisLabel(last?.ts, nowTs))}</span></div>`;
+    }
+
+    function renderDiagTrendLegend(items) {
+      const safeItems = Array.isArray(items) ? items : [];
+      return `<div class="diag-trend-legend">${safeItems.map(item => `<span class="diag-trend-legend-item"><span class="diag-trend-legend-line ${escapeAttr(item.kind)}"></span><span>${escapeHtml(item.label)}</span></span>`).join('')}</div>`;
+    }
+
+    function downsampleDiagTrendPoints(points, maxPoints = 90) {
+      const safePoints = Array.isArray(points) ? points : [];
+      const safeMax = Math.max(3, parseInt(maxPoints, 10) || 90);
+      if (safePoints.length <= safeMax) {
+        return safePoints;
+      }
+
+      const result = [];
+      const lastIndex = safePoints.length - 1;
+      const step = lastIndex / (safeMax - 1);
+      let prevIndex = -1;
+      for (let i = 0; i < safeMax; i += 1) {
+        const index = i === safeMax - 1 ? lastIndex : Math.round(i * step);
+        if (index === prevIndex) continue;
+        result.push(safePoints[index]);
+        prevIndex = index;
+      }
+
+      if (result[result.length - 1] !== safePoints[lastIndex]) {
+        result[result.length - 1] = safePoints[lastIndex];
+      }
+      return result;
+    }
+
+    function downsamplePeakAwareDiagTrendPoints(points, maxPoints = 90) {
+      const safePoints = Array.isArray(points) ? points : [];
+      const safeMax = Math.max(3, parseInt(maxPoints, 10) || 90);
+      if (safePoints.length <= safeMax) {
+        return safePoints;
+      }
+
+      const resultMap = new Map();
+      const lastIndex = safePoints.length - 1;
+      resultMap.set(0, safePoints[0]);
+      resultMap.set(lastIndex, safePoints[lastIndex]);
+
+      const bucketCount = Math.max(1, safeMax - 2);
+      const innerCount = Math.max(0, safePoints.length - 2);
+      const bucketSize = Math.max(1, innerCount / bucketCount);
+
+      for (let bucket = 0; bucket < bucketCount; bucket += 1) {
+        const start = 1 + Math.floor(bucket * bucketSize);
+        const end = Math.min(lastIndex, 1 + Math.floor((bucket + 1) * bucketSize));
+        if (start >= lastIndex) break;
+
+        let maxIndex = start;
+        let maxValue = Number(safePoints[start]?.value) || 0;
+        for (let i = start; i < end; i += 1) {
+          const value = Number(safePoints[i]?.value) || 0;
+          if (value >= maxValue) {
+            maxValue = value;
+            maxIndex = i;
+          }
+        }
+        resultMap.set(maxIndex, safePoints[maxIndex]);
+      }
+
+      const result = Array.from(resultMap.entries())
+        .sort((a, b) => a[0] - b[0])
+        .map(([, point]) => point);
+
+      if (result.length > safeMax) {
+        return downsampleDiagTrendPoints(result, safeMax);
+      }
+      return result;
+    }
+
+    function getDiagTrendMaxPoints(range) {
+      if (range === '7d') return 90;
+      if (range === '24h') return 80;
+      return 60;
+    }
+
+    function getDiagTrendDelta(points) {
+      const safePoints = Array.isArray(points) ? points : [];
+      if (!safePoints.length) return 0;
+      const values = safePoints.map(point => Number(point?.value) || 0);
+      return Math.max(...values) - Math.min(...values);
+    }
+
+    function renderDualTrendLineChart(seriesList, options = {}) {
+      const safeSeries = Array.isArray(seriesList)
+        ? seriesList
+          .map(series => ({
+            kind: series?.kind || 'heap',
+            label: series?.label || '趋势',
+            points: Array.isArray(series?.points)
+              ? series.points.map(item => ({ value: Number(item?.value) || 0, ts: Number(item?.ts) || 0 }))
+              : []
+          }))
+          .filter(series => series.points.length)
+        : [];
+      if (!safeSeries.length) {
+        return '<div class="diag-trend-empty">暂无历史</div>';
+      }
+
+      const width = 220;
+      const height = 42;
+      const paddingX = 8;
+      const paddingY = 6;
+      const allValues = safeSeries.flatMap(series => series.points.map(point => point.value));
+      const min = Math.min(...allValues);
+      const max = Math.max(...allValues);
+      const range = max - min;
+      const baselineY = height - paddingY;
+      const backgroundBands = Array.isArray(options.bands)
+        ? options.bands
+            .map(band => {
+              const fromValue = Number(band?.from);
+              const toValue = Number(band?.to);
+              if (!Number.isFinite(fromValue) || !Number.isFinite(toValue)) return '';
+              const fromRatio = range === 0 ? 0.5 : (fromValue - min) / range;
+              const toRatio = range === 0 ? 0.5 : (toValue - min) / range;
+              const fromY = height - paddingY - fromRatio * (height - paddingY * 2);
+              const toY = height - paddingY - toRatio * (height - paddingY * 2);
+              const top = Math.max(paddingY, Math.min(height - paddingY, Math.min(fromY, toY)));
+              const bottom = Math.max(paddingY, Math.min(height - paddingY, Math.max(fromY, toY)));
+              const rectHeight = Math.max(0, bottom - top);
+              if (rectHeight <= 0) return '';
+              return `<rect x="0" y="${top.toFixed(2)}" width="${width}" height="${rectHeight.toFixed(2)}" fill="${band.color || 'rgba(148,163,184,0.08)'}"></rect>`;
+            })
+            .join('')
+        : '';
+      const guideLines = Array.isArray(options.guides)
+        ? options.guides
+            .map(guide => {
+              const value = Number(guide?.value);
+              if (!Number.isFinite(value)) return '';
+              const ratio = range === 0 ? 0.5 : (value - min) / range;
+              const y = height - paddingY - ratio * (height - paddingY * 2);
+              const clampedY = Math.max(paddingY, Math.min(height - paddingY, y));
+              const stroke = guide.color || 'rgba(148,163,184,0.35)';
+              return `<line x1="0" y1="${clampedY.toFixed(2)}" x2="${width}" y2="${clampedY.toFixed(2)}" stroke="${stroke}" stroke-width="1" stroke-dasharray="4 4"></line>`;
+            })
+            .join('')
+        : '';
+
+      const seriesMarkup = safeSeries.map(series => {
+        const stroke = getDiagTrendColor(series.kind);
+        const points = series.points.map((point, index) => {
+          const x = series.points.length === 1
+            ? width / 2
+            : paddingX + ((width - paddingX * 2) * index) / (series.points.length - 1);
+          const ratio = range === 0 ? 0.5 : (point.value - min) / range;
+          const y = height - paddingY - ratio * (height - paddingY * 2);
+          return { x, y, value: point.value, ts: point.ts };
+        });
+        const polyline = points.map(point => `${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(' ');
+        const lastPoint = points[points.length - 1];
+        const hoverTargets = points.map(point => `<circle cx="${point.x.toFixed(2)}" cy="${point.y.toFixed(2)}" r="8" fill="transparent"><title>${escapeHtml(formatDiagTrendTooltip(series.kind, point))}</title></circle>`).join('');
+        return `
+          <polyline points="${polyline}" fill="none" stroke="${stroke}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></polyline>
+          <circle cx="${lastPoint.x.toFixed(2)}" cy="${lastPoint.y.toFixed(2)}" r="2.5" fill="${stroke}"></circle>
+          ${hoverTargets}`;
+      }).join('');
+
+      return `
+        <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">
+          ${backgroundBands}
+          <line x1="0" y1="${baselineY}" x2="${width}" y2="${baselineY}" stroke="rgba(148,163,184,0.28)" stroke-width="1"></line>
+          ${guideLines}
+          ${seriesMarkup}
+        </svg>`;
+    }
+
+    function renderTrendLineChart(values, kind, options = {}) {
+      const normalized = Array.isArray(values)
+        ? values
+          .map(item => {
+            if (item && typeof item === 'object') {
+              return {
+                value: Number(item.value) || 0,
+                ts: Number(item.ts) || 0
+              };
+            }
+            return {
+              value: Number(item) || 0,
+              ts: 0
+            };
+          })
+          .filter(item => Number.isFinite(item.value))
+        : [];
+      if (!normalized.length) {
+        return '<div class="diag-trend-empty">暂无历史</div>';
+      }
+
+      const width = 220;
+      const height = 42;
+      const paddingX = 8;
+      const paddingY = 6;
+      const stroke = getDiagTrendColor(kind);
+      const valuesOnly = normalized.map(item => item.value);
+      const min = Math.min(...valuesOnly);
+      const max = Math.max(...valuesOnly);
+      const range = max - min;
+      const points = normalized.map((item, index) => {
+        const x = normalized.length === 1
+          ? width / 2
+          : paddingX + ((width - paddingX * 2) * index) / (normalized.length - 1);
+        const ratio = range === 0 ? 0.5 : (item.value - min) / range;
+        const y = height - paddingY - ratio * (height - paddingY * 2);
+        return { x, y, value: item.value, ts: item.ts };
+      });
+      const polyline = points.map(point => `${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(' ');
+      const baselineY = height - paddingY;
+      const backgroundRegions = kind === 'urc'
+        ? points.map((point, index) => {
+            const nextPoint = points[index + 1];
+            if (!nextPoint) return '';
+            const maxValue = Math.max(point.value, nextPoint.value);
+            if (maxValue < 2) return '';
+            const fill = maxValue >= 6 ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)';
+            const widthRect = Math.max(0, nextPoint.x - point.x);
+            return `<rect x="${point.x.toFixed(2)}" y="0" width="${widthRect.toFixed(2)}" height="${height}" fill="${fill}"></rect>`;
+          }).join('')
+        : '';
+      const markerDots = options.showDots
+        ? points.map(point => {
+            let fill = stroke;
+            if (kind === 'urc') {
+              if (point.value >= 6) fill = '#ef4444';
+              else if (point.value >= 2) fill = '#f59e0b';
+            }
+            return `<circle cx="${point.x.toFixed(2)}" cy="${point.y.toFixed(2)}" r="2.9" fill="${fill}" stroke="#ffffff" stroke-width="1"><title>${escapeHtml(formatDiagTrendTooltip(kind, point))}</title></circle>`;
+          }).join('')
+        : '';
+      const lastPoint = points[points.length - 1];
+      const endDot = options.showDots ? '' : `<circle cx="${lastPoint.x.toFixed(2)}" cy="${lastPoint.y.toFixed(2)}" r="2.5" fill="${stroke}"></circle>`;
+      const hoverTargets = points.map(point => `<circle cx="${point.x.toFixed(2)}" cy="${point.y.toFixed(2)}" r="8" fill="transparent"><title>${escapeHtml(formatDiagTrendTooltip(kind, point))}</title></circle>`).join('');
+
+      return `
+        <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">
+          ${backgroundRegions}
+          <line x1="0" y1="${baselineY}" x2="${width}" y2="${baselineY}" stroke="rgba(148,163,184,0.28)" stroke-width="1"></line>
+          <polyline points="${polyline}" fill="none" stroke="${stroke}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></polyline>
+          ${markerDots}
+          ${endDot}
+          ${hoverTargets}
+        </svg>`;
+    }
+
+    function getDeviceDiagSummary(device) {
+      const diag = device?.status?.diag || {};
+      const offlineSms = Number(device?.status?.queue?.offlineSms) || 0;
+      const pendingUrc = Number(diag.pendingUrc) || 0;
+      const freeHeap = Number(diag.freeHeap) || 0;
+      const minFreeHeap = Number(diag.minFreeHeap) || 0;
+      const urcWaitingPdu = !!diag.urcWaitingPdu;
+      const pendingDeferredPdu = !!diag.pendingDeferredPdu;
+
+      const hasDiag = pendingUrc > 0 || offlineSms > 0 || freeHeap > 0 || minFreeHeap > 0 || urcWaitingPdu || pendingDeferredPdu;
+      if (!hasDiag) {
+        return {
+          level: 'neutral',
+          headline: '诊断 暂无',
+          detail: '等待新固件心跳'
+        };
+      }
+
+      let level = 'ok';
+      if (pendingUrc >= 6 || urcWaitingPdu || pendingDeferredPdu || (freeHeap > 0 && freeHeap < 100000)) {
+        level = 'error';
+      } else if (pendingUrc >= 2 || offlineSms > 0 || (minFreeHeap > 0 && minFreeHeap < 140000)) {
+        level = 'warn';
+      }
+
+      let headline = `诊断 ${level === 'error' ? '异常' : level === 'warn' ? '关注' : '正常'}`;
+      if (level === 'error') {
+        const parts = [];
+        if (pendingUrc > 0) parts.push(`URC ${pendingUrc}`);
+        if (urcWaitingPdu) parts.push('PDU等待');
+        if (pendingDeferredPdu) parts.push('延迟PDU');
+        if (freeHeap > 0) parts.push(`Heap ${formatHeapKb(freeHeap)}`);
+        if (parts.length) headline += ` · ${parts.join(' · ')}`;
+      } else if (level === 'warn') {
+        const parts = [];
+        if (pendingUrc > 0) parts.push(`URC ${pendingUrc}`);
+        if (offlineSms > 0) parts.push(`离线 ${offlineSms}`);
+        if (freeHeap > 0) parts.push(`Heap ${formatHeapKb(freeHeap)}`);
+        if (parts.length) headline += ` · ${parts.join(' · ')}`;
+      } else {
+        headline += ` · Heap ${formatHeapKb(freeHeap)}`;
+      }
+
+      const detailParts = [];
+      if (level === 'ok') {
+        detailParts.push(`URC ${pendingUrc}`);
+      }
+      detailParts.push(`离线短信 ${offlineSms}`);
+      if (minFreeHeap > 0) detailParts.push(`Min ${formatHeapKb(minFreeHeap)}`);
+
+      return {
+        level,
+        headline,
+        detail: detailParts.join(' · ') || '诊断信息可用'
+      };
+    }
+
+    function getDiagLevelRank(level) {
+      if (level === 'error') return 0;
+      if (level === 'warn') return 1;
+      return 2;
+    }
+
+    function getSimpleDiagReason(device, summary) {
+      const diag = device?.status?.diag || {};
+      const freeHeap = Number(diag.freeHeap) || 0;
+      const minFreeHeap = Number(diag.minFreeHeap) || 0;
+      const pendingUrc = Number(diag.pendingUrc) || 0;
+      const reasons = [];
+      if (diag.urcWaitingPdu) reasons.push('PDU等待');
+      if (diag.pendingDeferredPdu) reasons.push('延迟PDU');
+      if (pendingUrc >= 2) reasons.push(`URC ${pendingUrc}`);
+      if (freeHeap > 0 && freeHeap < 100000) reasons.push(`Heap ${formatHeapKb(freeHeap)}`);
+      else if (minFreeHeap > 0 && minFreeHeap < 140000) reasons.push(`MinHeap ${formatHeapKb(minFreeHeap)}`);
+      if (!reasons.length) {
+        return summary?.headline ? summary.headline.replace(/^诊断\s*/, '') : '状态稳定';
+      }
+      return reasons.join(' / ');
+    }
+
+    function getDiagStatusText(level) {
+      return {
+        ok: '正常',
+        warn: '需关注',
+        error: '异常',
+        neutral: '暂无数据'
+      }[level] || '暂无数据';
+    }
+
+    function getDiagMainMessage(device, summary) {
+      if (!device) return '请选择一个设备查看诊断状态。';
+      if (summary.level === 'error') return '短信接收链路可能已经卡住，建议先查看串口日志或重启设备观察。';
+      if (summary.level === 'warn') return '发现轻微积压或补发迹象，建议继续观察 5 到 10 分钟。';
+      if (summary.level === 'ok') return '当前接收链路稳定，暂时不需要处理。';
+      return '等待新固件心跳后显示诊断结果。';
+    }
+
+    function getDiagIssueChips(device, summary) {
+      const diag = device?.status?.diag || {};
+      const offlineSms = Number(device?.status?.queue?.offlineSms) || 0;
+      const pendingUrc = Number(diag.pendingUrc) || 0;
+      const freeHeap = Number(diag.freeHeap) || 0;
+      const minFreeHeap = Number(diag.minFreeHeap) || 0;
+      const chips = [];
+      if (diag.urcWaitingPdu) chips.push('正在等待 PDU');
+      if (diag.pendingDeferredPdu) chips.push('存在延迟 PDU');
+      if (pendingUrc >= 2) chips.push(`URC 积压 ${pendingUrc}`);
+      if (offlineSms > 0) chips.push(`离线短信 ${offlineSms}`);
+      if (freeHeap > 0 && freeHeap < 100000) chips.push(`内存偏低 ${formatHeapKb(freeHeap)}`);
+      else if (minFreeHeap > 0 && minFreeHeap < 140000) chips.push(`最低内存 ${formatHeapKb(minFreeHeap)}`);
+      if (!chips.length) chips.push(summary.level === 'neutral' ? '等待心跳数据' : '没有发现明显问题');
+      return chips;
+    }
+
+    function renderCurrentDeviceDiagCard(device) {
+      if (!device) {
+        return '<div class="toolbox-diag-empty">当前暂无设备可供诊断。</div>';
+      }
+      const diag = device?.status?.diag || {};
+      const summary = getDeviceDiagSummary(device);
+      const title = (device.remark && String(device.remark).trim()) || (device.phone && String(device.phone).trim()) || device.mac;
+      const metrics = [
+        { label: 'URC 积压', value: String(Number(diag.pendingUrc) || 0), note: '2 以上开始关注' },
+        { label: '离线短信', value: String(Number(device?.status?.queue?.offlineSms) || 0), note: '等待补发数量' },
+        { label: '可用内存', value: formatHeapKb(diag.freeHeap), note: '低于 100KB 异常' },
+        { label: '最后心跳', value: formatLastSeenText(device.lastSeen), note: device.online ? '设备在线' : '设备离线' }
+      ];
+      return `
+        <div class="diag-focus-card ${escapeAttr(summary.level)}">
+          <div class="diag-focus-head">
+            <div>
+              <div class="diag-focus-title">${escapeHtml(title)}</div>
+              <div class="diag-focus-subtitle">${escapeHtml(getDiagMainMessage(device, summary))}</div>
+            </div>
+            <span class="diag-focus-badge">${escapeHtml(getDiagStatusText(summary.level))}</span>
+          </div>
+          <div class="diag-focus-metrics">
+            ${metrics.map(metric => `
+              <div class="diag-focus-metric">
+                <div class="diag-focus-metric-label">${escapeHtml(metric.label)}</div>
+                <div class="diag-focus-metric-value">${escapeHtml(metric.value)}</div>
+                <div class="diag-focus-metric-note">${escapeHtml(metric.note)}</div>
+              </div>`).join('')}
+          </div>
+          <div class="diag-focus-issues">
+            ${getDiagIssueChips(device, summary).map(chip => `<span class="diag-focus-issue">${escapeHtml(chip)}</span>`).join('')}
+          </div>
+        </div>`;
+    }
+
+    function getAllDeviceDiagRows() {
+      return (devices || []).map(device => {
+        const diag = device?.status?.diag || {};
+        const summary = getDeviceDiagSummary(device);
+        const title = (device.remark && String(device.remark).trim()) || (device.phone && String(device.phone).trim()) || device.mac;
+        return {
+          mac: device.mac,
+          title,
+          phone: device.phone || '',
+          remark: device.remark || '',
+          lastSeen: Number(device.lastSeen) || 0,
+          lastSeenText: formatLastSeenText(device.lastSeen),
+          online: !!device.online,
+          freeHeap: Number(diag.freeHeap) || 0,
+          minFreeHeap: Number(diag.minFreeHeap) || 0,
+          pendingUrc: Number(diag.pendingUrc) || 0,
+          offlineSms: Number(device?.status?.queue?.offlineSms) || 0,
+          urcWaitingPdu: !!diag.urcWaitingPdu,
+          pendingDeferredPdu: !!diag.pendingDeferredPdu,
+          level: summary.level,
+          levelText: summary.level === 'error' ? '异常' : summary.level === 'warn' ? '关注' : '正常',
+          summaryText: getSimpleDiagReason(device, summary)
+        };
+      });
+    }
+
+    function filterDiagRows(rows) {
+      const search = String(diagFilters.search || '').trim().toLowerCase();
+      return (rows || []).filter(row => {
+        if (diagFilters.onlyAbnormal && !['warn', 'error'].includes(row.level)) return false;
+        if (diagFilters.level && row.level !== diagFilters.level) return false;
+        if (!search) return true;
+        const haystack = [row.title, row.phone, row.mac, row.remark].map(v => String(v || '').toLowerCase()).join(' ');
+        return haystack.includes(search);
+      });
+    }
+
+    function sortDiagRows(rows) {
+      return [...(rows || [])].sort((a, b) => {
+        const levelDiff = getDiagLevelRank(a.level) - getDiagLevelRank(b.level);
+        if (levelDiff !== 0) return levelDiff;
+        if (!!a.online !== !!b.online) return a.online ? -1 : 1;
+        const timeDiff = (Number(b.lastSeen) || 0) - (Number(a.lastSeen) || 0);
+        if (timeDiff !== 0) return timeDiff;
+        return (Number(b.pendingUrc) || 0) - (Number(a.pendingUrc) || 0);
+      });
+    }
+
+    function getDiagOverviewStats(rows) {
+      return {
+        onlineCount: rows.filter(row => row.online).length,
+        errorCount: rows.filter(row => row.level === 'error').length,
+        warnCount: rows.filter(row => row.level === 'warn').length,
+        pduWaitingCount: rows.filter(row => row.urcWaitingPdu).length,
+        urcBacklogCount: rows.filter(row => row.pendingUrc >= 2).length
+      };
+    }
+
+    function renderDiagOverviewCards(stats) {
+      const cards = [
+        { label: '在线设备', value: stats.onlineCount },
+        { label: '异常', value: stats.errorCount },
+        { label: '关注', value: stats.warnCount },
+        { label: 'PDU等待', value: stats.pduWaitingCount },
+        { label: 'URC积压', value: stats.urcBacklogCount }
+      ];
+      return `<div class="diag-summary-grid">${cards.map(card => `<div class="diag-summary-card"><div class="diag-summary-label">${escapeHtml(card.label)}</div><strong>${escapeHtml(String(card.value))}</strong></div>`).join('')}</div>`;
+    }
+
+    function renderDiagOverviewTable(rows) {
+      if (!rows.length) {
+        return '<div class="toolbox-diag-empty">没有符合条件的设备。</div>';
+      }
+      return `
+        <div class="diag-table-wrap">
+          <table class="diag-table">
+            <thead>
+              <tr>
+                <th>设备</th>
+                <th>最后心跳</th>
+                <th>Heap</th>
+                <th>MinHeap</th>
+                <th>URC</th>
+                <th>PDU等待</th>
+                <th>延迟PDU</th>
+                <th>状态</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.map(row => `
+                <tr>
+                  <td><div class="diag-device-main">${escapeHtml(row.title)}</div><div class="diag-device-sub">${escapeHtml(row.phone || row.mac)}</div></td>
+                  <td class="diag-cell-muted">${escapeHtml(row.lastSeenText)}</td>
+                  <td>${escapeHtml(formatHeapKb(row.freeHeap))}</td>
+                  <td>${escapeHtml(formatHeapKb(row.minFreeHeap))}</td>
+                  <td>${escapeHtml(String(row.pendingUrc))}</td>
+                  <td>${escapeHtml(row.urcWaitingPdu ? '是' : '否')}</td>
+                  <td>${escapeHtml(row.pendingDeferredPdu ? '是' : '否')}</td>
+                  <td><span class="diag-level-badge ${escapeAttr(row.level)}" title="${escapeAttr(row.summaryText)}">${escapeHtml(row.levelText)}</span></td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`;
+    }
+
+    function renderDiagOverviewPanel() {
+      const panel = document.getElementById('toolboxDiagPanel');
+      if (!panel) return;
+      const allRows = sortDiagRows(getAllDeviceDiagRows());
+      if (!allRows.length) {
+        panel.innerHTML = '<div class="toolbox-diag-empty">当前暂无设备可供诊断。</div>';
+        return;
+      }
+      const selectedDevice = getSelectedDevice() || devices.find(device => device.online) || devices[0];
+      const attentionRows = allRows.filter(row => ['error', 'warn'].includes(row.level) && row.mac !== selectedDevice?.mac).slice(0, 5);
+      const okCount = allRows.filter(row => row.level === 'ok').length;
+      const waitingCount = allRows.filter(row => row.level === 'neutral').length;
+      panel.innerHTML = `
+        <div class="diag-dashboard">
+          ${renderCurrentDeviceDiagCard(selectedDevice)}
+          <div class="diag-attention-card">
+            <div class="diag-section-head">
+              <div>
+                <div class="diag-section-title">需要关注的其他设备</div>
+                <div class="diag-section-note">${escapeHtml(`正常 ${okCount} 台，等待数据 ${waitingCount} 台`)}</div>
+              </div>
+              <span class="diag-section-note">${escapeHtml(`共 ${attentionRows.length} 台`)}</span>
+            </div>
+            ${attentionRows.length ? `
+              <div class="diag-attention-list">
+                ${attentionRows.map(row => `
+                  <div class="diag-attention-item">
+                    <div class="diag-attention-main">
+                      <div class="diag-attention-name">${escapeHtml(row.title)}</div>
+                      <div class="diag-attention-meta">${escapeHtml(row.lastSeenText)} · ${escapeHtml(row.phone || row.mac)}</div>
+                    </div>
+                    <span class="diag-level-badge ${escapeAttr(row.level)}">${escapeHtml(row.levelText)}</span>
+                    <div class="diag-attention-reason">${escapeHtml(row.summaryText)}</div>
+                  </div>`).join('')}
+              </div>` : '<div class="toolbox-diag-empty">其他设备暂时没有需要处理的问题。</div>'}
+          </div>
+        </div>`;
+    }
+
+    function handleDiagSearch(value) {
+      diagFilters.search = String(value || '');
+      renderDiagOverviewPanel();
+    }
+
+    function handleDiagLevelFilter(value) {
+      diagFilters.level = String(value || '');
+      renderDiagOverviewPanel();
+    }
+
+    function handleDiagOnlyAbnormalChange(checked) {
+      diagFilters.onlyAbnormal = !!checked;
+      renderDiagOverviewPanel();
+    }
+
+    async function renderToolboxDiagPanel() {
+      renderDiagOverviewPanel();
+    }
+
     async function checkDeviceRoamingStatus() {
       const device = getSelectedDevice();
       // 直接使用设备心跳数据中的漫游状态
@@ -2106,7 +3855,6 @@
     function buildMessageQueryParams(page = 1, filters = currentFilters) {
       const params = new URLSearchParams({ page: String(page), pageSize: String(MESSAGE_PAGE_SIZE) });
       if (filters.search) params.append('search', filters.search);
-      if (filters.device) params.append('device', filters.device);
       if (filters.phone) params.append('phone', filters.phone);
       if (filters.direction) params.append('direction', filters.direction);
       if (filters.status) params.append('status', filters.status);
@@ -2115,7 +3863,10 @@
 
     function scrollMessageViewportToTop() {
       const viewport = document.getElementById('msgViewport');
-      if (viewport) viewport.scrollTo({ top: 0, behavior: 'smooth' });
+      if (!viewport) return;
+      const tableWrap = viewport.querySelector('.msg-table-wrap');
+      const scrollTarget = tableWrap || viewport;
+      scrollTarget.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     async function loadMessagesPage(page = 1, filters = currentFilters) {
@@ -2129,8 +3880,8 @@
       enabledPushChannels = data.meta?.enabledPushChannels || enabledPushChannels;
       totalMessagesCount = data.pagination?.total || messages.length;
       totalPages = data.pagination?.totalPages || 1;
-      hasMoreMessages = data.pagination?.hasMore || false;
       currentPage = data.pagination?.page || page;
+      syncSelectedMessagesWithCurrentPage();
       updateMessageToolbarMeta();
       return data;
     }
@@ -2139,7 +3890,8 @@
       filteredMessages = [...messages];
       newMessagesCount = 0;
       updateNewMsgIndicator();
-      await renderMessageCards();
+      syncSelectedMessagesWithCurrentPage();
+      await renderMessageTable();
       updateMessageToolbarMeta();
     }
 
@@ -2171,7 +3923,6 @@
 
     async function filterMessages() {
       currentFilters.search = document.getElementById('msgSearchInput').value.toLowerCase().trim();
-      currentFilters.device = document.getElementById('msgDeviceFilter').value;
       currentFilters.phone = document.getElementById('msgPhoneFilter').value;
       currentFilters.direction = document.getElementById('msgDirectionFilter').value;
       currentFilters.status = document.getElementById('msgStatusFilter').value;
@@ -2189,130 +3940,184 @@
       newMessagesCount = 0;
       updateNewMsgIndicator();
       scrollMessageViewportToTop();
-      renderMessageCards();
+      renderMessages();
     }
 
-    function handlePhoneFilterChange(phone) {
-      currentFilters.phone = phone;
-      document.getElementById('msgPhoneFilter').value = phone;
-      filterMessages();
-    }
-
-    async function resetFilters() {
-      clearTimeout(searchDebounceTimer);
-      document.getElementById('msgSearchInput').value = '';
-      document.getElementById('msgDeviceFilter').value = '';
-      document.getElementById('msgPhoneFilter').value = '';
-      document.getElementById('msgPhoneFilterSelect').value = '';
-      document.getElementById('msgDirectionFilter').value = '';
-      document.getElementById('msgStatusFilter').value = '';
-      // grouping toggle is a UI preference; keep it.
-      currentFilters = { search: '', device: '', phone: '', direction: '', status: '' };
-      clearPushStatusCache();
-      currentPage = 1;
-      newMessagesCount = 0;
-      updateNewMsgIndicator();
-      
+    async function refreshMessages() {
       try {
         setMessageLoading(true, true);
-        updateMessageToolbarMeta();
+        // 重置筛选条件到默认值（查询全部）
+        currentFilters = { search: '', phone: '', direction: '', status: '' };
+        document.getElementById('msgSearchInput').value = '';
+        document.getElementById('msgPhoneFilter').value = '';
+        document.getElementById('msgDirectionFilter').value = '';
+        document.getElementById('msgStatusFilter').value = '';
+        // 清除已选中消息
+        selectedMessageIds.clear();
+        const masterCheck = document.getElementById('masterSelectCheckbox');
+        if (masterCheck) masterCheck.checked = false;
+        // 回到第一页并刷新
+        currentPage = 1;
         await loadMessagesPage(1, currentFilters);
+        renderMessages();
+        updateMessageToolbarMeta();
+        updateMessageSelectionBar();
+        scrollMessageViewportToTop();
+        showToast('已刷新', 'success');
       } catch (e) {
-        console.error('重置筛选失败:', e);
+        console.error('刷新消息失败:', e);
+        showToast('刷新失败', 'error');
       } finally {
         setMessageLoading(false);
       }
-      
-      scrollMessageViewportToTop();
-      renderMessageCards();
     }
 
-    async function renderMessageCards() {
+    function getSortedMessagesForView() {
+      const list = [...filteredMessages];
+      const factor = messageSort.order === 'asc' ? 1 : -1;
+      list.sort((a, b) => {
+        if (messageSort.field === 'time') {
+          const aTime = new Date(a.receivedAt || a.timestamp || 0).getTime() || 0;
+          const bTime = new Date(b.receivedAt || b.timestamp || 0).getTime() || 0;
+          return (aTime - bTime) * factor;
+        }
+        return ((a.id || 0) - (b.id || 0)) * factor;
+      });
+      return list;
+    }
+
+    function getSortIndicator(field) {
+      if (messageSort.field !== field) return '↕';
+      return messageSort.order === 'asc' ? '▲' : '▼';
+    }
+
+    function getMessageRelationHtml(message) {
+      const isOutbound = message.direction === 'outbound';
+      const inboundPhoneDisplay = message.phone && message.phone !== '未知' ? String(message.phone) : (message.devicePhone || '-');
+      const senderDisplay = isOutbound ? (message.devicePhone || '本机') : formatPhone(message.sender);
+      const receiverDisplay = isOutbound ? (message.phone ? String(message.phone) : '-') : inboundPhoneDisplay;
+      return `
+        <div class="msg-relation">
+          <span class="msg-mini-badge sender">${escapeHtml(senderDisplay)}</span>
+          <span class="msg-arrow">➜</span>
+          <span class="msg-mini-badge receiver">${escapeHtml(receiverDisplay)}</span>
+        </div>`;
+    }
+
+    function highlightMessagePreview(text) {
+      const raw = String(text || '');
+      if (!raw) return '-';
+      const ranges = [];
+      const addRange = (start, end) => {
+        if (start >= end) return;
+        ranges.push([start, end]);
+      };
+
+      const contextRegex = /(验证码|校验码|动态码|code)([^\d]{0,8})(\d{4,8})/gi;
+      let match;
+      while ((match = contextRegex.exec(raw))) {
+        const digits = match[3];
+        const full = match[0];
+        const start = match.index + full.lastIndexOf(digits);
+        addRange(start, start + digits.length);
+      }
+
+      const amountRegex = /(?:￥|¥)?\d+(?:\.\d{1,2})?\s*元/g;
+      while ((match = amountRegex.exec(raw))) {
+        addRange(match.index, match.index + match[0].length);
+      }
+
+      const numberRegex = /\d{4,}/g;
+      while ((match = numberRegex.exec(raw))) {
+        addRange(match.index, match.index + match[0].length);
+      }
+
+      if (ranges.length === 0) return escapeHtml(raw);
+      ranges.sort((a, b) => a[0] - b[0]);
+      const merged = [];
+      for (const current of ranges) {
+        const last = merged[merged.length - 1];
+        if (!last || current[0] > last[1]) {
+          merged.push([...current]);
+        } else {
+          last[1] = Math.max(last[1], current[1]);
+        }
+      }
+
+      let cursor = 0;
+      let html = '';
+      merged.forEach(([start, end]) => {
+        html += escapeHtml(raw.slice(cursor, start));
+        html += `<span class="msg-hl">${escapeHtml(raw.slice(start, end))}</span>`;
+        cursor = end;
+      });
+      html += escapeHtml(raw.slice(cursor));
+      return html;
+    }
+
+    function renderMessageTableRows(items) {
+      return items.map(m => {
+        const selected = isMessageSelected(m.id);
+        return `
+          <tr>
+            <td class="msg-table-check"><input type="checkbox" class="w-auto" ${selected ? 'checked' : ''} onchange="toggleMessageSelection(${m.id}, this.checked)"></td>
+            <td class="msg-table-time" style="width: 168px; min-width: 168px;">${escapeHtml(formatTimeStr(m.receivedAt || m.timestamp))}</td>
+            <td style="width: 260px; min-width: 260px; max-width: 260px;">${getMessageRelationHtml(m)}</td>
+            <td class="msg-body-preview" title="${escapeAttr(m.text || '')}"><div class="msg-body-preview-text">${highlightMessagePreview(m.text || '')}</div></td>
+            <td style="width: 72px; min-width: 72px;">
+              <div class="msg-table-actions">
+                <button class="msg-link-btn" onclick="openMessageDetail(${m.id})">详情</button>
+              </div>
+            </td>
+          </tr>`;
+      }).join('');
+    }
+
+    async function renderMessageTable() {
       const container = document.getElementById('msgContainer');
       const paginationEl = document.getElementById('msgPagination');
-      const hasFilter = currentFilters.search || currentFilters.device || currentFilters.phone || currentFilters.direction || currentFilters.status;
-      
-      updateDeviceFilterOptions();
+      const hasFilter = currentFilters.search || currentFilters.phone || currentFilters.direction || currentFilters.status;
+
+      updatePhoneFilterOptions();
       updateMessageToolbarMeta();
-      
+
       if (filteredMessages.length === 0) {
         container.innerHTML = hasFilter
-          ? '<div class="empty-state msg-card-empty"><strong>没有匹配的消息记录</strong><span>试试清空筛选条件，或换一个关键词重新查看。</span></div>'
-          : '<div class="empty-state msg-card-empty"><strong>暂无短信记录</strong><span>新短信到达后，会自动出现在这里并显示推送状态。</span></div>';
+          ? '<div class="empty-state msg-empty-state"><strong>没有匹配的消息记录</strong><span>试试清空筛选条件，或换一个关键词重新查看。</span></div>'
+          : '<div class="empty-state msg-empty-state"><strong>暂无短信记录</strong><span>新短信到达后，会自动出现在这里并显示推送状态。</span></div>';
         paginationEl.innerHTML = getPaginationHtml();
         document.getElementById('msgCount').textContent = '(0)';
+        updateMessageSelectionBar();
         return;
       }
-      
-      const cards = [];
 
-      for (const m of filteredMessages) {
-        const pushStatus = getPushSummaryForMessage(m);
-        
-        const statusHtml = enabledPushChannels.map(ch => {
-          const s = pushStatus[ch];
-          const name = PUSH_CHANNEL_NAMES[ch] || ch;
-          if (!s || s.status === 'pending') return `<span class="push-badge pending" title="推送中">${name}...</span>`;
-          if (s.status === 'success') return `<span class="push-badge success" title="推送成功">${name}</span>`;
-          if (s.status === 'failed') return `<span class="push-badge failed" title="${s.error || '推送失败'}">${name}</span>`;
-          return '';
-        }).join(' ');
-        
-        const hasFailed = enabledPushChannels.some(ch => pushStatus[ch]?.status === 'failed');
-        
-        const isOnline = devices.some(d => d.mac === m.mac && d.online);
-        const isOutbound = m.direction === 'outbound';
-        const inboundPhoneDisplay = m.phone && m.phone !== '未知' ? String(m.phone) : (m.devicePhone || '-');
-        const senderDisplay = isOutbound
-          ? (m.devicePhone || '本机')
-          : formatPhone(m.sender);
-        const receiverDisplay = isOutbound
-          ? (m.phone ? String(m.phone) : '-')
-          : inboundPhoneDisplay;
-        const timeStr = formatTimeStr(m.receivedAt || m.timestamp);
-        const deviceMac = m.mac || '';
-        
-        cards.push(`<div class="msg-card">
-          <div class="msg-card-header">
-            <div class="flex items-center gap-2">
-              <span class="text-xs text-blue-400 font-mono" title="${deviceMac}">${deviceMac.substring(0, 12)}</span>
-              <span class="w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-slate-500'}"></span>
-            </div>
-            <span class="text-xs text-slate-500">${timeStr}</span>
-          </div>
-          <div class="msg-card-body">
-            <div class="flex items-center gap-2 mb-2 flex-wrap">
-              <span class="msg-party-badge sender">发件人 ${escapeHtml(senderDisplay)}</span>
-              <span class="msg-party-badge receiver">收件人 ${escapeHtml(receiverDisplay)}</span>
-              ${isOutbound ? `<span class="push-badge pending" title="发送来源">${escapeHtml(getOutboundSourceLabel(m.source))}</span>` : ''}
-              ${isOutbound ? `<span class="push-badge ${m.status === 'success' ? 'success' : m.status === 'failed' ? 'failed' : 'pending'}" title="短信提交状态${getOutboundStatusTitle(m.status, m.errorMessage) ? `: ${escapeAttr(getOutboundStatusTitle(m.status, m.errorMessage))}` : ''}">${escapeHtml(getOutboundStatusLabel(m.status, m.errorMessage))}</span>` : ''}
-            </div>
-            <div class="msg-card-text">${escapeHtml(m.text||'')}</div>
-            <button class="msg-expand-btn text-xs text-blue-400 mt-2 hover:underline hidden" onclick="toggleMsgExpand(this, event)">展开全部</button>
-          </div>
-          <div class="msg-card-footer">
-            <div class="flex flex-wrap gap-1.5">${statusHtml || '<span class="text-slate-500 text-xs">未配置推送</span>'}</div>
-            <div class="flex items-center gap-2">
-              ${hasFailed ? `<button class="btn btn-warning btn-xs" onclick="event.stopPropagation();retryPushForSms(${m.id});delete pushStatusCache[${m.id}]">重推</button>` : ''}
-            </div>
-          </div>
-        </div>`);
-      }
-      
-      document.getElementById('msgCount').textContent = `(${totalMessagesCount})`;
-      container.innerHTML = cards.length > 0
-        ? cards.join('')
-        : '<div class="empty-state msg-card-empty"><strong>没有匹配的消息记录</strong><span>试试清空筛选条件，或换一个关键词重新查看。</span></div>';
+      const rows = renderMessageTableRows(getSortedMessagesForView());
+      container.innerHTML = `
+        <div class="msg-table-wrap">
+          <table class="msg-table">
+            <thead>
+              <tr>
+                <th class="msg-table-check"><input type="checkbox" class="w-auto" ${getSelectedMessageCountOnPage() > 0 && getSelectedMessageCountOnPage() === getCurrentPageMessageIds().length ? 'checked' : ''} onchange="toggleSelectMessagesOnPage(this.checked)"></th>
+                <th class="sortable" style="width: 168px; min-width: 168px;" onclick="toggleMessageSort('time')">接收时间 ${getSortIndicator('time')}</th>
+                <th style="width: 260px; min-width: 260px;">收发关系</th>
+                <th>短信正文</th>
+                <th style="width: 72px; min-width: 72px;">操作</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
       paginationEl.innerHTML = getPaginationHtml();
-
-      // Defer to ensure layout is computed before measuring truncation.
-      requestAnimationFrame(updateMessageExpandButtons);
+      document.getElementById('msgCount').textContent = `(${totalMessagesCount})`;
+      updateMessageSelectionBar();
     }
     
     function getPaginationHtml() {
       if (totalMessagesCount === 0) return '';
       
       const cp = currentPage;
+      const prevPage = Math.max(1, cp - 1);
+      const nextPage = Math.min(totalPages, cp + 1);
       
       let pageButtons = '';
       
@@ -2347,19 +4152,23 @@
       
       return `
         <div class="pagination-container">
-          <div class="pagination-info">
-            共 ${totalMessagesCount} 条  第 ${cp}/${totalPages} 页
+          <div class="pagination-topbar">
+            <div class="pagination-info">
+              <span>共 ${totalMessagesCount} 条</span>
+              <span>第 ${cp} / ${totalPages} 页</span>
+            </div>
+            <div class="pagination-mobile-summary">第 ${cp} / ${totalPages} 页 · 共 ${totalMessagesCount} 条</div>
           </div>
-          <div class="pagination-controls">
-            <button class="pagination-btn" onclick="goToPage(1)" ${cp === 1 ? 'disabled' : ''}>首页</button>
-            <button class="pagination-btn" onclick="goToPage(${cp - 1})" ${cp === 1 ? 'disabled' : ''}>上一页</button>
-            ${pageButtons}
-            <button class="pagination-btn" onclick="goToPage(${cp + 1})" ${cp === totalPages ? 'disabled' : ''}>下一页</button>
-            <button class="pagination-btn" onclick="goToPage(${totalPages})" ${cp === totalPages ? 'disabled' : ''}>末页</button>
-            <span class="pagination-jump-inline">
-              跳至 <input type="number" id="jumpPageInput" class="pagination-input" min="1" max="${totalPages}" value="${cp}"> 页 
-              <button class="pagination-btn" onclick="jumpToPage()">跳转</button>
-            </span>
+          <div class="pagination-main">
+            <div class="pagination-controls">
+              <button class="pagination-btn pagination-edge" onclick="goToPage(1)" ${cp === 1 ? 'disabled' : ''}>首页</button>
+              <button class="pagination-btn" onclick="goToPage(${prevPage})" ${cp === 1 ? 'disabled' : ''}>上一页</button>
+              <div class="pagination-page-buttons">
+                ${pageButtons}
+              </div>
+              <button class="pagination-btn" onclick="goToPage(${nextPage})" ${cp === totalPages ? 'disabled' : ''}>下一页</button>
+              <button class="pagination-btn pagination-edge" onclick="goToPage(${totalPages})" ${cp === totalPages ? 'disabled' : ''}>末页</button>
+            </div>
           </div>
         </div>`;
     }
@@ -2378,20 +4187,11 @@
         updateMessageToolbarMeta();
         await loadMessagesPage(page, currentFilters);
         scrollMessageViewportToTop();
-        renderMessageCards();
+        renderMessages();
       } catch (e) {
         console.error('跳转页面失败:', e);
       } finally {
         setMessageLoading(false);
-      }
-    }
-    
-    function jumpToPage() {
-      const input = document.getElementById('jumpPageInput');
-      if (!input) return;
-      const page = parseInt(input.value);
-      if (!isNaN(page)) {
-        goToPage(page);
       }
     }
     
@@ -2427,44 +4227,26 @@
       updateNewMsgIndicator();
       if (currentPage === 1) {
         scrollMessageViewportToTop();
-        renderMessageCards();
+        renderMessages();
         return;
       }
       goToPage(1);
     }
 
-    function updateDeviceFilterOptions() {
-      const select = document.getElementById('msgDeviceFilter');
-      const currentValue = select.value;
-      const devicesInMessages = [...new Set(messages.map(m => m.mac).filter(Boolean))];
-      
-      select.innerHTML = '<option value="">全部设备(MAC)</option>' + 
-        devicesInMessages.map(mac => `<option value="${mac}">${mac.substring(0, 12)}...</option>`).join('');
-      
-      if (devicesInMessages.includes(currentValue)) {
-        select.value = currentValue;
-      }
-
-      // Update phone filter dropdown
-      updatePhoneFilterOptions();
-    }
-
     function updatePhoneFilterOptions() {
-      const select = document.getElementById('msgPhoneFilterSelect');
-      if (!select) return;
+      const select = document.getElementById('msgPhoneFilter');
       const currentValue = select.value;
+      // 收集所有手机号：发送方(devicePhone/sender) 和 接收方(phone)
       const phonesInMessages = [...new Set(
-        messages.flatMap(m => [m.phone, m.sender]).filter(Boolean)
+        messages.flatMap(m => [m.devicePhone, m.sender, m.phone])
+          .map(p => (p == null ? '' : String(p).trim()))
+          .filter(p => p && p !== '未知')
       )];
       
-      // Get phones from devices as well
-      const devicePhones = devices.map(d => d.phone).filter(Boolean);
-      const allPhones = [...new Set([...phonesInMessages, ...devicePhones])].sort();
-      
       select.innerHTML = '<option value="">全部手机号</option>' + 
-        allPhones.map(phone => `<option value="${phone}">${phone}</option>`).join('');
+        phonesInMessages.map(phone => `<option value="${phone}">${phone}</option>`).join('');
       
-      if (currentValue && allPhones.includes(currentValue)) {
+      if (phonesInMessages.includes(currentValue)) {
         select.value = currentValue;
       }
     }
@@ -2490,15 +4272,6 @@
     function getMessageGroupKey(m) {
       const phone = getMessageGroupPhone(m);
       return phone || '__NO_PHONE__';
-    }
-
-    function getMessageGroupTitle(key) {
-      if (!key || key === '__NO_PHONE__') return '未设置本机号码';
-      return key;
-    }
-
-    function clearPushStatusCache() {
-      pushStatusCache = {};
     }
 
     function formatTimeStr(timeStr) {
@@ -2557,25 +4330,16 @@
       const dev = devices.find(d => d.mac === mac);
       updateToolboxDeviceSelector();
       document.getElementById('toolboxSection').classList.remove('hidden');
-      
-      // Auto-filter messages by phone when device is selected
-      if (dev && dev.phone) {
-        currentFilters.phone = dev.phone;
-        document.getElementById('msgPhoneFilter').value = dev.phone;
-        document.getElementById('msgPhoneFilterSelect').value = dev.phone;
-      } else {
-        currentFilters.phone = '';
-        document.getElementById('msgPhoneFilter').value = '';
-        document.getElementById('msgPhoneFilterSelect').value = '';
-      }
-      
-      // Load filtered messages
+      // Keep message center focused on all numbers by default.
       loadMessagesPage(1, currentFilters).then(() => {
-        renderMessageCards();
+        renderMessages();
         updateMessageToolbarMeta();
       }).catch(e => console.error('Filter messages failed:', e));
       
       renderDevices();
+      if (document.getElementById('tab-diag') && !document.getElementById('tab-diag').classList.contains('hidden')) {
+        renderToolboxDiagPanel();
+      }
       if (switchToSmsTab) {
         switchTab('sms');
       }
@@ -2593,7 +4357,8 @@
       renderDevices();
     }
 
-    const deviceTabs = ['sms', 'query', 'status', 'selftest', 'ping', 'flight', 'at', 'schedule'];
+    const deviceTabs = ['sms', 'query', 'status', 'selftest', 'ping', 'flight', 'at', 'schedule', 'diag'];
+    const deviceRequiredTabs = ['sms', 'query', 'status', 'selftest', 'ping', 'flight', 'at', 'schedule'];
 
     function requireDevice() {
       const device = ensureSelectedDevice(true, true);
@@ -2609,7 +4374,7 @@
     }
 
     function switchTab(tab) {
-      if (deviceTabs.includes(tab) && !selectedMac) {
+      if (deviceRequiredTabs.includes(tab) && !selectedMac) {
         const device = ensureSelectedDevice(true, true) || ensureSelectedDevice(false, true);
         if (!device) {
           showToast('当前没有可用设备', 'warning');
@@ -2637,6 +4402,8 @@
         loadScheduleList();
       } else if (tab === 'sms') {
         loadOutboundSmsHistory();
+      } else if (tab === 'diag') {
+        renderToolboxDiagPanel();
       }
     }
 
@@ -2681,17 +4448,12 @@
         '短信发送请求已发送...': '发送请求已提交，正在等待设备处理',
         '短信发送成功': '短信已提交到设备',
         '短信已提交到模组/网络': '短信已提交到设备',
-        '短信发送失败': '短信发送未完成，请稍后再试',
+'短信发送失败': '短信发送未完成，请稍后再试',
         '定时任务已创建': '定时任务已创建',
-        '定时任务已创建，系统会按计划自动执行': '定时任务已创建，系统会按计划自动执行',
         '任务已暂停': '任务已暂停',
         '任务已恢复': '任务已恢复',
         '任务已删除': '任务已删除',
         '推送配置保存成功': '推送设置已保存',
-        '重试成功': '已重新发送',
-        '推送已重新发送': '推送已重新发送',
-        '没有失败的推送渠道': '当前没有需要重试的推送渠道',
-        '重推失败': '重新发送未完成，请稍后再试',
         '消息已清空': '消息列表已清空',
         '短信已删除': '短信记录已移除',
         'Ping 测试执行中...': '网络测试进行中，请稍候',
@@ -2716,10 +4478,6 @@
       if (normalized.startsWith('已切换到设备 ')) {
         return normalized.replace('已切换到设备 ', '当前设备已切换为 ');
       }
-      if (normalized.startsWith('已重推 ')) {
-        return normalized.replace('已重推 ', '已重新发送 ').replace(' 个渠道', ' 个渠道');
-      }
-
       return normalized;
     }
 
@@ -3259,7 +5017,20 @@
       }
     }
 
-    async function doPing() {
+async function doPing() {
+      alert('[调试] doPing 被点击');
+      const device = getSelectedDevice();
+      let roamingStatus;
+      if (device?.online) {
+        roamingStatus = await checkDeviceRoamingStatus();
+      } else {
+        roamingStatus = device?.status?.network?.roaming ?? device?.roaming;
+      }
+      console.log('[DEBUG] device:', device?.name, 'online:', device?.online, 'roamingStatus:', roamingStatus, 'network:', device?.status?.network);
+      alert('[调试] 设备: ' + (device?.name || device?.mac) + '\n在线: ' + device?.online + '\n漫游状态: ' + roamingStatus + '\nnetwork.roaming: ' + device?.status?.network?.roaming);
+      if (roamingStatus === true || roamingStatus === undefined) {
+        alert('[调试] 应该弹漫游确认');
+      }
       const btn = document.getElementById('pingBtn');
       const resultEl = document.getElementById('pingResult');
       btn.disabled = true;
@@ -3360,42 +5131,60 @@
 
     function clearMessages() {
       messages = [];
+      selectedMessageIds.clear();
       renderMessages();
       showToast('消息已清空', 'info');
     }
 
-    async function deleteSms(id) {
-      openConfirm('移除短信记录', '这会从当前列表中移除这条短信，便于你快速清理视图。', () => {
-        messages = messages.filter(m => m.id !== id);
-        renderMessages();
-        showToast('短信已删除', 'success');
-      });
+    function removeSmsBatchFromCurrentLists(ids = []) {
+      const idSet = new Set((Array.isArray(ids) ? ids : []).map(id => Number(id)).filter(id => Number.isInteger(id) && id > 0));
+      messages = messages.filter(m => !idSet.has(Number(m.id)));
+      filteredMessages = filteredMessages.filter(m => !idSet.has(Number(m.id)));
+      outboundSmsList = outboundSmsList.filter(m => !idSet.has(Number(m.id)));
+      selectedMessageIds = new Set([...selectedMessageIds].filter(id => !idSet.has(id)));
     }
 
-    async function retryPushForSms(smsId) {
-      try {
-        const cfg = await fetch('/api/push-config', { credentials: 'include', headers: authHeader() }).then(r => r.json()).catch(() => null);
-        const cfgData = cfg?.config || {};
-        const history = await fetch(`/api/push-history/sms/${smsId}`, { credentials: 'include', headers: authHeader() }).then(r => r.json()).catch(() => null);
-        const records = history?.history || [];
-        const failedChannels = records.filter(r => r.status === 'failed').map(r => r.channel);
-        if (failedChannels.length === 0) {
-          showToast('没有失败的推送渠道', 'warning');
-          return;
-        }
-        let retryCount = 0;
-        for (const channel of failedChannels) {
-          const record = records.find(r => r.channel === channel);
-          if (record) {
-            await fetch(`/api/push-history/${record.id}/retry`, { method: 'POST', credentials: 'include', headers: authHeader() });
-            retryCount++;
-          }
-        }
-        showToast(`已重推 ${retryCount} 个渠道`, 'success');
-        renderMessages();
-      } catch (e) {
-        showToast('重新发送未完成，请稍后再试', 'error');
+    async function deleteSelectedMessages() {
+      const ids = filteredMessages
+        .map(m => Number(m.id))
+        .filter(id => Number.isInteger(id) && selectedMessageIds.has(id));
+
+      if (ids.length === 0) {
+        showToast('请先选择要删除的短信', 'warning');
+        return;
       }
+
+      openConfirm('批量删除短信', `将物理删除当前页选中的 ${ids.length} 条短信记录，并清理关联推送历史，此操作不可恢复。`, async () => {
+        try {
+          const resp = await fetch('/api/messages/batch-delete', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json', ...authHeader() },
+            body: JSON.stringify({ ids })
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok || !data.success) {
+            throw new Error(data.message || '批量删除失败');
+          }
+
+          removeSmsBatchFromCurrentLists(ids);
+
+          const targetPage = messages.length === 0 && currentPage > 1 ? currentPage - 1 : currentPage;
+          try {
+            setMessageLoading(true, true);
+            await loadMessagesPage(targetPage, currentFilters);
+          } finally {
+            setMessageLoading(false);
+          }
+
+          renderMessages();
+          renderRecentSms();
+          loadStats();
+          showToast(data.message || `已删除 ${ids.length} 条短信`, 'success');
+        } catch (e) {
+          showToast(e.message || '批量删除失败', 'error');
+        }
+      });
     }
 
     function togglePushCard(id) {
@@ -3437,6 +5226,16 @@
           document.getElementById('cfg_custom_en').checked = cfg.customTemplate?.enabled || false;
           document.getElementById('cfg_custom_url').value = cfg.customTemplate?.url || '';
           document.getElementById('cfg_custom_body').value = cfg.customTemplate?.body || '';
+          // 同步更新状态文本和颜色
+          const providers = ['tg', 'dt', 'pp', 'sc', 'fs', 'bark', 'gotify', 'post', 'custom'];
+          providers.forEach(p => {
+            const enabled = document.getElementById(`cfg_${p}_en`).checked;
+            const statusEl = document.getElementById(`provider-status-${p}`);
+            if (statusEl) {
+              statusEl.textContent = enabled ? '已启用' : '未启用';
+              statusEl.style.color = enabled ? '#16a34a' : 'var(--muted-soft)';
+            }
+          });
         }
       } catch {}
     }
@@ -3489,6 +5288,72 @@
       closeConfirm();
     }
 
+    function openMessageDetail(id) {
+      const smsId = Number(id);
+      const message = messages.find(item => Number(item.id) === smsId) || filteredMessages.find(item => Number(item.id) === smsId);
+      if (!message) {
+        showToast('短信记录不存在', 'warning');
+        return;
+      }
+
+      currentDetailSmsId = smsId;
+      const isOutbound = message.direction === 'outbound';
+      const inboundPhoneDisplay = message.phone && message.phone !== '未知' ? String(message.phone) : (message.devicePhone || '-');
+      const senderDisplay = isOutbound ? (message.devicePhone || '本机') : formatPhone(message.sender);
+      const receiverDisplay = isOutbound ? (message.phone ? String(message.phone) : '-') : inboundPhoneDisplay;
+      const pushStatus = getPushSummaryForMessage(message);
+      const pushRows = enabledPushChannels.length > 0
+        ? enabledPushChannels.map(ch => {
+            const status = pushStatus[ch]?.status || 'pending';
+            const statusText = status === 'success' ? '成功' : status === 'failed' ? '失败' : '推送中';
+            const icon = status === 'success' ? '✅' : status === 'failed' ? '❌' : '⏳';
+            const errorText = pushStatus[ch]?.error ? `<span>${escapeHtml(pushStatus[ch].error)}</span>` : '';
+            return `<div class="message-detail-status-row"><div><strong>${escapeHtml(PUSH_CHANNEL_NAMES[ch] || ch)}</strong><span>${statusText}</span>${errorText}</div><div class="text-sm">${icon}</div></div>`;
+          }).join('')
+        : '<div class="empty-state"><strong>暂无推送渠道</strong><span>当前没有可展示的推送状态。</span></div>';
+
+      const sourceText = message.direction === 'outbound'
+        ? getOutboundSourceLabel(message.source || '')
+        : '接收短信';
+
+      document.getElementById('messageDetailContent').innerHTML = `
+        <div class="message-detail-grid">
+          <section class="message-detail-card">
+            <div class="message-detail-title">基础信息</div>
+            <div class="message-detail-kv">
+              <div class="message-detail-item"><div class="message-detail-label">接收时间</div><div class="message-detail-value">${escapeHtml(formatTimeStr(message.receivedAt || message.timestamp))}</div></div>
+              <div class="message-detail-item"><div class="message-detail-label">方向</div><div class="message-detail-value">${message.direction === 'outbound' ? '发件' : '收件'}</div></div>
+              <div class="message-detail-item"><div class="message-detail-label">发件人</div><div class="message-detail-value">${escapeHtml(senderDisplay)}</div></div>
+              <div class="message-detail-item"><div class="message-detail-label">收件人</div><div class="message-detail-value">${escapeHtml(receiverDisplay)}</div></div>
+            </div>
+          </section>
+          <section class="message-detail-card">
+            <div class="message-detail-title">短信正文</div>
+            <div class="message-detail-body">${escapeHtml(message.text || '-')}</div>
+          </section>
+          <section class="message-detail-card">
+            <div class="message-detail-title">推送状态</div>
+            <div class="message-detail-status-list">${pushRows}</div>
+          </section>
+          <section class="message-detail-card">
+            <div class="message-detail-title">次要信息</div>
+            <div class="message-detail-kv">
+              <div class="message-detail-item"><div class="message-detail-label">设备 MAC</div><div class="message-detail-value">${escapeHtml(message.mac || '-')}</div></div>
+              <div class="message-detail-item"><div class="message-detail-label">来源</div><div class="message-detail-value">${escapeHtml(sourceText)}</div></div>
+              <div class="message-detail-item"><div class="message-detail-label">请求 ID</div><div class="message-detail-value">${escapeHtml(message.requestId || message.request_id || '-')}</div></div>
+              <div class="message-detail-item"><div class="message-detail-label">设备号码</div><div class="message-detail-value">${escapeHtml(message.devicePhone || '-')}</div></div>
+            </div>
+          </section>
+        </div>`;
+
+      document.getElementById('messageDetailModal').classList.remove('hidden');
+    }
+
+    function closeMessageDetailModal() {
+      currentDetailSmsId = null;
+      document.getElementById('messageDetailModal').classList.add('hidden');
+    }
+
     function toggleUserMenu() {
       const menu = document.getElementById('userMenu');
       menu.classList.toggle('hidden');
@@ -3508,52 +5373,6 @@
       document.getElementById('pwdNew1').value = '';
       document.getElementById('pwdNew2').value = '';
       document.getElementById('changePwdModal').classList.remove('hidden');
-    }
-
-    function toggleMsgExpand(btn, event) {
-      if (event) event.stopPropagation();
-      if (!btn) return;
-      const textEl = btn.previousElementSibling;
-      if (!textEl) return;
-      textEl.classList.toggle('expanded');
-      btn.textContent = textEl.classList.contains('expanded') ? '收起' : '展开全部';
-    }
-
-    function updateMessageExpandButtons() {
-      const cards = document.querySelectorAll('#msgContainer .msg-card');
-      cards.forEach((card) => {
-        const textEl = card.querySelector('.msg-card-text');
-        const btn = card.querySelector('.msg-expand-btn');
-        if (!textEl || !btn) return;
-
-        // If expanded, always keep the button so it can be collapsed.
-        if (textEl.classList.contains('expanded')) {
-          btn.classList.remove('hidden');
-          btn.textContent = '收起';
-          return;
-        }
-
-        // Detect actual truncation instead of relying on text length.
-        // +1px tolerance avoids false positives due to sub-pixel rounding.
-        const isTruncated = textEl.scrollHeight > textEl.clientHeight + 1;
-        if (isTruncated) {
-          btn.classList.remove('hidden');
-          btn.textContent = '展开全部';
-        } else {
-          btn.classList.add('hidden');
-          btn.textContent = '展开全部';
-        }
-      });
-    }
-
-    function toggleMsgGroup(btn) {
-      if (!btn) return;
-      const group = btn.closest('.msg-group');
-      if (!group) return;
-      group.classList.toggle('collapsed');
-      btn.textContent = group.classList.contains('collapsed') ? '展开' : '收起';
-      // Re-check truncation after layout changes.
-      requestAnimationFrame(updateMessageExpandButtons);
     }
 
     function closeChangePwdModal() {

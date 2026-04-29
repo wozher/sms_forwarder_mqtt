@@ -62,19 +62,21 @@ npm start
 cd sms_forwarder_mqtt
 
 # 构建并启动
-docker-compose up -d
+docker compose up -d
 
 # 查看日志
-docker-compose logs -f
+docker compose logs -f
 
 # 停止
-docker-compose down
+docker compose down
 ```
+
+说明：本文档统一使用 `docker compose`。
 
 飞牛 Docker 部署时，如果你更新了 `server/package.json` 或 `server/Dockerfile`，请用下面命令重建镜像，确保新依赖已经进容器：
 
 ```bash
-docker-compose up -d --build
+docker compose up -d --build
 ```
 
 重启不会丢失数据的前提是保留下面的数据挂载目录，它保存数据库和配置：
@@ -83,7 +85,7 @@ docker-compose up -d --build
 ./data:/app/data
 ```
 
-也就是说，正常执行 `docker-compose down`、`docker-compose up -d --build`、飞牛面板里的重启/重建容器，都不会清空短信记录、账号密码和推送配置；真正会导致数据丢失的情况通常只有手动删除宿主机上的 `data` 目录，或者取消这个卷挂载。
+也就是说，正常执行 `docker compose down`、`docker compose up -d --build`、飞牛面板里的重启/重建容器，都不会清空短信记录、账号密码和推送配置；真正会导致数据丢失的情况通常只有手动删除宿主机上的 `data` 目录，或者取消这个卷挂载。
 
 ### 3. 访问 Web 后台
 
@@ -119,10 +121,11 @@ npm start
 - **实时接收**：WebSocket 推送，支持实时显示新短信
 - **分页显示**：每页10条，支持跳转任意页面
 - **搜索功能**：支持按短信内容、发送者、接收号码搜索
-- **设备筛选**：按设备 MAC 地址筛选
+- **手机号筛选**：按手机号筛选（包含发送方与接收方）
 - **状态筛选**：按推送状态筛选（成功/失败/待推送）
-- **号码展示**：短信卡片中发件人/收件人号码高亮显示
-- **重新推送**：失败的消息支持一键重推
+- 说明：`pending` 在界面中显示为“推送中”
+- **列表视图**：消息中心以表格展示，操作列仅提供“详情”，推送状态仅在详情中展示
+- **删除**：支持当前页勾选后批量删除短信记录（物理删除服务端历史记录）
 
 ### 3. 设备工具箱
 
@@ -361,7 +364,7 @@ SQLite 数据库文件位于 `data/sms_forwarder.db`
 
 ## Docker 部署
 
-### docker-compose.yml
+### Compose 配置（docker-compose.yml）
 
 ```yaml
 version: '3.8'
@@ -384,17 +387,24 @@ services:
 
 ```bash
 # 构建并启动
-docker-compose up -d --build
+docker compose up -d --build
 
 # 查看日志
-docker-compose logs -f
+docker compose logs -f
 
 # 停止
-docker-compose down
+docker compose down
 
 # 查看运行状态
-docker-compose ps
+docker compose ps
 ```
+
+### 构建失败排查（前端打包）
+
+如果 `docker compose build` 在 `npm run build:web` 阶段失败，通常是 `server/public/index.html` 内联脚本存在语法错误导致打包工具崩溃。
+
+- 优先检查最近编辑的前端逻辑是否有多余的括号/引号/模板字符串未闭合
+- 可以在宿主机进入 `server/` 目录执行 `npm run build:web` 复现并定位错误
 
 ## 故障排查
 
