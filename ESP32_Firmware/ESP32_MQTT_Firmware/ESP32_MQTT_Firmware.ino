@@ -13,14 +13,14 @@
 #define LED_BUILTIN 8
 #endif
 
-#define SERIAL_BUFFER_SIZE 500
+#define SERIAL_BUFFER_SIZE 1536
 #define MAX_PDU_LENGTH 300
 #define MAX_CONCAT_PARTS 20
 #define CONCAT_TIMEOUT_MS 30000
 #define MAX_CONCAT_MESSAGES 5
 #define RECENT_CONCAT_CACHE_SIZE 5
 #define RECENT_CONCAT_IGNORE_MS 120000
-#define PENDING_URC_QUEUE_SIZE 24
+#define PENDING_URC_QUEUE_SIZE 64
 
 #define MQTT_SERVER "192.168.31.197"
 #define MQTT_PORT 1883
@@ -90,6 +90,7 @@ String pendingUrcLines[PENDING_URC_QUEUE_SIZE];
 uint8_t pendingUrcHead = 0;
 uint8_t pendingUrcTail = 0;
 uint8_t pendingUrcCount = 0;
+unsigned long pendingUrcDropped = 0;
 bool pendingDeferredPduLine = false;
 int lastNetworkRegStat = -1;
 
@@ -117,11 +118,21 @@ QueryCacheEntry signalCache = { "", 0, false };
 QueryCacheEntry networkCache = { "", 0, false };
 QueryCacheEntry simInfoCache = { "", 0, false };
 
+// Inbound SMS delivery ACK tracking (backend confirms it has received the raw_sms)
+static const uint8_t SMS_ACK_QUEUE_SIZE = 8;
+String pendingSmsAckIds[SMS_ACK_QUEUE_SIZE];
+uint8_t pendingSmsAckHead = 0;
+uint8_t pendingSmsAckTail = 0;
+uint8_t pendingSmsAckCount = 0;
+
 struct PendingSms {
   String sender;
   String text;
   String timestamp;
   String phone;
+  bool queued;
+  String queuedAt;
+  String smsId;
 };
 
 PendingSms offlineQueue[OFFLINE_QUEUE_SIZE];
@@ -172,12 +183,62 @@ bool handleGenericUrcLine(const String& line);
 String explainSmsErrorLine(const String& line);
 int parseCeregStatCode(const String& line);
 void logHealthSnapshot(const char* reason = "periodic");
+void checkSerial1URC(uint8_t maxLines = 1);
+
+bool enqueueSmsAckWait(const String& smsId);
+void markSmsAckReceived(const String& smsId);
+bool isSmsAckPending(const String& smsId);
 
 void blink_short(unsigned long gap_time = 500) {
   digitalWrite(LED_BUILTIN, LOW);
   delay(50);
   digitalWrite(LED_BUILTIN, HIGH);
   delay(gap_time);
+}
+
+bool enqueueSmsAckWait(const String& smsId) {
+  if (smsId.length() == 0) return false;
+  // De-dupe: avoid unbounded growth when retransmitting same smsId.
+  for (uint8_t i = 0; i < pendingSmsAckCount; i++) {
+    uint8_t idx = (pendingSmsAckHead + i) % SMS_ACK_QUEUE_SIZE;
+    if (pendingSmsAckIds[idx] == smsId) return true;
+  }
+  if (pendingSmsAckCount >= SMS_ACK_QUEUE_SIZE) {
+    // Drop oldest to keep system moving; we'll fall back to offline queue anyway.
+    pendingSmsAckIds[pendingSmsAckHead] = "";
+    pendingSmsAckHead = (pendingSmsAckHead + 1) % SMS_ACK_QUEUE_SIZE;
+    pendingSmsAckCount--;
+  }
+  pendingSmsAckIds[pendingSmsAckTail] = smsId;
+  pendingSmsAckTail = (pendingSmsAckTail + 1) % SMS_ACK_QUEUE_SIZE;
+  pendingSmsAckCount++;
+  return true;
+}
+
+void markSmsAckReceived(const String& smsId) {
+  if (smsId.length() == 0 || pendingSmsAckCount == 0) return;
+  for (uint8_t i = 0; i < pendingSmsAckCount; i++) {
+    uint8_t idx = (pendingSmsAckHead + i) % SMS_ACK_QUEUE_SIZE;
+    if (pendingSmsAckIds[idx] == smsId) {
+      pendingSmsAckIds[idx] = "";
+      // Compaction is handled lazily by isSmsAckPending / dequeue logic.
+      return;
+    }
+  }
+}
+
+bool isSmsAckPending(const String& smsId) {
+  if (smsId.length() == 0 || pendingSmsAckCount == 0) return false;
+  // Also compact cleared entries at the head.
+  while (pendingSmsAckCount > 0 && pendingSmsAckIds[pendingSmsAckHead].length() == 0) {
+    pendingSmsAckHead = (pendingSmsAckHead + 1) % SMS_ACK_QUEUE_SIZE;
+    pendingSmsAckCount--;
+  }
+  for (uint8_t i = 0; i < pendingSmsAckCount; i++) {
+    uint8_t idx = (pendingSmsAckHead + i) % SMS_ACK_QUEUE_SIZE;
+    if (pendingSmsAckIds[idx] == smsId) return true;
+  }
+  return false;
 }
 
 bool enqueuePendingUrc(const String& line) {
@@ -188,6 +249,7 @@ bool enqueuePendingUrc(const String& line) {
     dropped.replace("\n", "\\n");
     if (dropped.length() > 120) dropped = dropped.substring(0, 120) + "...";
     Serial.println("[URC] 待处理队列已满，丢弃最旧项: " + dropped);
+    pendingUrcDropped++;
     pendingUrcHead = (pendingUrcHead + 1) % PENDING_URC_QUEUE_SIZE;
     pendingUrcCount--;
   }
@@ -568,14 +630,32 @@ bool waitForSmsPrompt(unsigned long timeout) {
 }
 
 bool sendATandWaitOK(const char* cmd, unsigned long timeout) {
-  while (Serial1.available()) Serial1.read();
+  // Don't drop URCs (e.g. +CMT:) while issuing commands; defer them to the URC queue.
+  while (Serial1.available()) {
+    String line = readSerialLine(Serial1);
+    if (line.length() == 0) break;
+    if (isDeferredUrcLine(line) || pendingDeferredPduLine || line.startsWith("+CMT:")) {
+      handleDeferredLineDuringSyncRead(line);
+    } else {
+      // Non-URC junk / echoes are ignored.
+    }
+  }
   Serial1.println(cmd);
   String resp = readATResponse(timeout);
   return resp.indexOf("\nOK") >= 0 || resp == "OK";
 }
 
 String sendATCommand(const char* cmd, unsigned long timeout) {
-  while (Serial1.available()) Serial1.read();
+  // Don't drop URCs (e.g. +CMT:) while issuing commands; defer them to the URC queue.
+  while (Serial1.available()) {
+    String line = readSerialLine(Serial1);
+    if (line.length() == 0) break;
+    if (isDeferredUrcLine(line) || pendingDeferredPduLine || line.startsWith("+CMT:")) {
+      handleDeferredLineDuringSyncRead(line);
+    } else {
+      // Non-URC junk / echoes are ignored.
+    }
+  }
   Serial1.println(cmd);
   unsigned long start = millis();
   String resp = readATResponse(timeout);
@@ -814,16 +894,26 @@ bool isHexString(const String& str) {
 String readSerialLine(HardwareSerial& port) {
   static char lineBuf[SERIAL_BUFFER_SIZE];
   static int linePos = 0;
+  static bool overflowDiscarding = false;
   while (port.available()) {
     char c = port.read();
     if (c == '\n') {
+      overflowDiscarding = false;
       lineBuf[linePos] = 0;
       String res = String(lineBuf);
       linePos = 0;
       return res;
     } else if (c != '\r') {
-      if (linePos < SERIAL_BUFFER_SIZE - 1) lineBuf[linePos++] = c;
-      else linePos = 0;
+      if (overflowDiscarding) {
+        continue;
+      }
+      if (linePos < SERIAL_BUFFER_SIZE - 1) {
+        lineBuf[linePos++] = c;
+      } else {
+        // Too long: discard the remainder of this line until '\n'
+        overflowDiscarding = true;
+        linePos = 0;
+      }
     }
   }
   return "";
@@ -1239,7 +1329,23 @@ String getLocalTimeStr() {
   return String(buf);
 }
 
-String buildSmsPayload(const char* sender, const char* text, const char* timestamp) {
+String buildInboundSmsId(const char* sender, const char* timestamp, const char* text) {
+  // Stable enough for ACK within a short window; avoids adding extra libs.
+  uint32_t h = 2166136261u;
+  const char* parts[] = { sender ? sender : "", timestamp ? timestamp : "", text ? text : "" };
+  for (int p = 0; p < 3; p++) {
+    const char* s = parts[p];
+    for (size_t i = 0; s[i]; i++) {
+      h ^= (uint8_t)s[i];
+      h *= 16777619u;
+    }
+    h ^= (uint8_t)'|';
+    h *= 16777619u;
+  }
+  return deviceMAC + "_" + String(h, HEX);
+}
+
+String buildSmsPayload(const char* sender, const char* text, const char* timestamp, const char* smsId, bool queued, const char* queuedAt) {
   String formattedTime = formatTime(timestamp);
   if (formattedTime.length() == 0) {
     formattedTime = getLocalTimeStr();
@@ -1249,12 +1355,17 @@ String buildSmsPayload(const char* sender, const char* text, const char* timesta
   if (phone == "未知") {
     requestPhoneNumberRefresh();
   }
-  size_t capacity = JSON_OBJECT_SIZE(4) + formattedTime.length() + phone.length() + strlen(sender) + strlen(text) + 256;
+  size_t capacity = JSON_OBJECT_SIZE(7) + formattedTime.length() + phone.length() + strlen(sender) + strlen(text) + (smsId ? strlen(smsId) : 0) + 256;
   DynamicJsonDocument doc(capacity);
   doc["sender"] = sender;
   doc["text"] = text;
   doc["timestamp"] = formattedTime;
   doc["phone"] = phone;
+  doc["smsId"] = smsId ? smsId : "";
+  doc["queued"] = queued;
+  if (queuedAt && strlen(queuedAt) > 0) {
+    doc["queuedAt"] = queuedAt;
+  }
 
   String payload;
   payload.reserve(capacity);
@@ -1262,7 +1373,7 @@ String buildSmsPayload(const char* sender, const char* text, const char* timesta
   return payload;
 }
 
-bool enqueueOfflineSMS(const char* sender, const char* text, const char* timestamp) {
+bool enqueueOfflineSMS(const char* sender, const char* text, const char* timestamp, const char* smsId) {
   if (queueCount >= OFFLINE_QUEUE_SIZE) {
     uint8_t oldHead = queueHead;
     queueHead = (queueHead + 1) % OFFLINE_QUEUE_SIZE;
@@ -1275,6 +1386,9 @@ bool enqueueOfflineSMS(const char* sender, const char* text, const char* timesta
   offlineQueue[queueTail].text = String(text);
   offlineQueue[queueTail].timestamp = ts.length() > 0 ? ts : getLocalTimeStr();
   offlineQueue[queueTail].phone = getCachedPhoneNumber();
+  offlineQueue[queueTail].queued = true;
+  offlineQueue[queueTail].queuedAt = getLocalTimeStr();
+  offlineQueue[queueTail].smsId = smsId ? String(smsId) : "";
   if (offlineQueue[queueTail].phone == "未知") {
     requestPhoneNumberRefresh();
   }
@@ -1301,20 +1415,38 @@ bool flushOfflineQueue(uint8_t maxMessages = 1) {
 
     String payload;
     {
-      size_t capacity = JSON_OBJECT_SIZE(4) + offlineQueue[queueHead].sender.length() + offlineQueue[queueHead].text.length() + offlineQueue[queueHead].timestamp.length() + offlineQueue[queueHead].phone.length() + 256;
+      size_t capacity = JSON_OBJECT_SIZE(7) + offlineQueue[queueHead].sender.length() + offlineQueue[queueHead].text.length() + offlineQueue[queueHead].timestamp.length() + offlineQueue[queueHead].phone.length() + offlineQueue[queueHead].queuedAt.length() + offlineQueue[queueHead].smsId.length() + 256;
       DynamicJsonDocument doc(capacity);
       doc["sender"] = offlineQueue[queueHead].sender;
       doc["text"] = offlineQueue[queueHead].text;
       doc["timestamp"] = offlineQueue[queueHead].timestamp;
       doc["phone"] = offlineQueue[queueHead].phone;
+      doc["smsId"] = offlineQueue[queueHead].smsId;
+      doc["queued"] = true;
+      doc["queuedAt"] = offlineQueue[queueHead].queuedAt;
       payload.reserve(capacity);
       serializeJson(doc, payload);
     }
 
     String topic = "sms_forwarder/raw_sms/" + deviceMAC;
+    enqueueSmsAckWait(offlineQueue[queueHead].smsId);
     bool ok = publishMqttMessage(topic, payload, 3, 2000, 80);
     if (!ok) {
-      Serial.println("[Queue] 队列补发失败，保留当前短信");
+      Serial.println("[Queue] 队列补发失败(发布失败)，保留当前短信");
+      return false;
+    }
+
+    unsigned long ackStart = millis();
+    while (millis() - ackStart < 3000UL) {
+      mqttClient.loop();
+      checkSerial1URC(2);
+      if (!isSmsAckPending(offlineQueue[queueHead].smsId)) {
+        break;
+      }
+      delay(10);
+    }
+    if (isSmsAckPending(offlineQueue[queueHead].smsId)) {
+      Serial.println("[Queue] 队列补发失败(ACK超时)，保留当前短信");
       return false;
     }
 
@@ -1323,6 +1455,9 @@ bool flushOfflineQueue(uint8_t maxMessages = 1) {
     offlineQueue[queueHead].text = "";
     offlineQueue[queueHead].timestamp = "";
     offlineQueue[queueHead].phone = "";
+    offlineQueue[queueHead].queued = false;
+    offlineQueue[queueHead].queuedAt = "";
+    offlineQueue[queueHead].smsId = "";
     queueHead = (queueHead + 1) % OFFLINE_QUEUE_SIZE;
     queueCount--;
     flushed++;
@@ -1350,6 +1485,7 @@ void publishHeartbeat() {
   queue["offlineSms"] = queueCount;
   JsonObject diag = doc.createNestedObject("diag");
   diag["pendingUrc"] = pendingUrcCount;
+  diag["urcDropped"] = pendingUrcDropped;
   diag["urcWaitingPdu"] = urcWaitingPdu;
   diag["pendingDeferredPdu"] = pendingDeferredPduLine;
   diag["freeHeap"] = ESP.getFreeHeap();
@@ -1384,13 +1520,15 @@ bool publishRawSMS(const char* sender, const char* text, const char* timestamp) 
   Serial.println("[SMS] 开始转发接收短信");
   Serial.println("[SMS] 发件人=" + String(sender) + ", 长度=" + String(strlen(text)) + ", 时间=" + String(timestamp ? timestamp : "(null)"));
 
-  String payload = buildSmsPayload(sender, text, timestamp);
+  String smsId = buildInboundSmsId(sender, timestamp, text);
+  enqueueSmsAckWait(smsId);
+  String payload = buildSmsPayload(sender, text, timestamp, smsId.c_str(), false, "");
   String topic = "sms_forwarder/raw_sms/" + deviceMAC;
   Serial.println("[SMS] 主题=" + topic + ", 负载长度=" + String(payload.length()));
   if (payload.length() >= MQTT_BUFFER_SIZE) {
     Serial.println("[SMS] 负载过大，存入离线队列");
     Serial.println("[SMS] 转发路径耗时=" + String(millis() - start) + "ms");
-    return enqueueOfflineSMS(sender, text, timestamp);
+    return enqueueOfflineSMS(sender, text, timestamp, smsId.c_str());
   }
   
   if (mqttClient.connected()) {
@@ -1398,17 +1536,29 @@ bool publishRawSMS(const char* sender, const char* text, const char* timestamp) 
     boolean result = publishMqttMessage(topic, payload, 3, 2000, 80);
     Serial.println("[SMS] 发布结果: " + String(result ? "成功" : "失败"));
     if (result) {
-      Serial.println("[MQTT] 短信已发布");
+      Serial.println("[MQTT] 短信已发布，等待ACK确认");
+      unsigned long ackStart = millis();
+      while (millis() - ackStart < 3000UL) {
+        mqttClient.loop();
+        checkSerial1URC(2);
+        if (!isSmsAckPending(smsId)) {
+          Serial.println("[SMS] ACK已收到");
+          Serial.println("[SMS] 转发路径耗时=" + String(millis() - start) + "ms");
+          return true;
+        }
+        delay(10);
+      }
+      Serial.println("[SMS] 等待ACK超时，转入离线队列");
       Serial.println("[SMS] 转发路径耗时=" + String(millis() - start) + "ms");
-      return true;
+      return enqueueOfflineSMS(sender, text, timestamp, smsId.c_str());
     }
     Serial.println("[SMS] 发布失败，转入离线队列");
     Serial.println("[SMS] 转发路径耗时=" + String(millis() - start) + "ms");
-    return enqueueOfflineSMS(sender, text, timestamp);
+    return enqueueOfflineSMS(sender, text, timestamp, smsId.c_str());
   } else {
     Serial.println("[SMS] MQTT未连接，存入离线队列");
     Serial.println("[SMS] 转发路径耗时=" + String(millis() - start) + "ms");
-    return enqueueOfflineSMS(sender, text, timestamp);
+    return enqueueOfflineSMS(sender, text, timestamp, smsId.c_str());
   }
 }
 
@@ -2005,6 +2155,15 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   if (t == macTopic) {
     handleCmdMessage(topic, payload, length);
   }
+  String ackTopic = "sms_forwarder/raw_sms_ack/" + deviceMAC;
+  if (t == ackTopic) {
+    String msg = "";
+    msg.reserve(length + 4);
+    for (unsigned int i = 0; i < length; i++) msg += (char)payload[i];
+    msg.trim();
+    Serial.println("[ACK] " + msg);
+    markSmsAckReceived(msg);
+  }
 }
 
 bool mqttReconnect() {
@@ -2014,13 +2173,17 @@ bool mqttReconnect() {
     String topic = "sms_forwarder/cmd/" + deviceMAC;
     mqttClient.subscribe(topic.c_str());
     Serial.println("[MQTT] 已订阅主题: " + topic);
-    flushOfflineQueue(1);
+    String ackTopic = "sms_forwarder/raw_sms_ack/" + deviceMAC;
+    mqttClient.subscribe(ackTopic.c_str());
+    Serial.println("[MQTT] 已订阅主题: " + ackTopic);
+    // On reconnect, flush a small batch to reduce long delays after brief outages.
+    flushOfflineQueue(5);
     publishHeartbeat();
   }
   return mqttClient.connected();
 }
 
-void checkSerial1URC(uint8_t maxLines = 1) {
+void checkSerial1URC(uint8_t maxLines) {
   uint8_t processed = 0;
   while (processed < maxLines) {
     String line;
@@ -2203,7 +2366,7 @@ void loop() {
 
   if (mqttClient.connected() && queueCount > 0 && millis() - lastQueueFlushAttempt >= QUEUE_FLUSH_INTERVAL && !isAsyncTaskBusy()) {
     lastQueueFlushAttempt = millis();
-    flushOfflineQueue(1);
+    flushOfflineQueue(3);
   }
 
   if (shouldRefreshPhoneNumber()) {

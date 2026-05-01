@@ -36,12 +36,15 @@ function initDatabase() {
     CREATE TABLE IF NOT EXISTS sms_messages (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       mac TEXT NOT NULL,
+      sms_id TEXT DEFAULT '',
       sender TEXT,
       text TEXT,
       phone TEXT,
       device_phone TEXT DEFAULT '',
       timestamp TEXT,
       received_at TEXT DEFAULT (datetime('now', 'localtime')),
+      queued INTEGER DEFAULT 0,
+      queued_at TEXT DEFAULT '',
       status TEXT DEFAULT 'pending',
       direction TEXT DEFAULT 'inbound',
       source TEXT DEFAULT 'device',
@@ -167,6 +170,15 @@ function initDatabase() {
     getDatabase().exec('ALTER TABLE sms_messages ADD COLUMN task_id INTEGER DEFAULT NULL');
   } catch (e) {}
   try {
+    getDatabase().exec('ALTER TABLE sms_messages ADD COLUMN queued INTEGER DEFAULT 0');
+  } catch (e) {}
+  try {
+    getDatabase().exec("ALTER TABLE sms_messages ADD COLUMN queued_at TEXT DEFAULT ''");
+  } catch (e) {}
+  try {
+    getDatabase().exec("ALTER TABLE sms_messages ADD COLUMN sms_id TEXT DEFAULT ''");
+  } catch (e) {}
+  try {
     getDatabase().exec("ALTER TABLE devices ADD COLUMN remark TEXT DEFAULT ''");
   } catch (e) {}
   try {
@@ -186,6 +198,7 @@ function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_sms_direction_received ON sms_messages(direction, received_at DESC);
     CREATE INDEX IF NOT EXISTS idx_sms_mac_direction ON sms_messages(mac, direction);
     CREATE INDEX IF NOT EXISTS idx_sms_status ON sms_messages(status);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_sms_mac_smsid ON sms_messages(mac, sms_id) WHERE sms_id <> '';
   `);
 
   // Indexes that depend on newly added columns must be created after migrations.
@@ -321,17 +334,20 @@ function updateDevicePhoneOverride(mac, phoneOverride) {
 
 function insertSms(msg) {
   const stmt = getDatabase().prepare(`
-    INSERT INTO sms_messages (mac, sender, text, phone, device_phone, timestamp, received_at, status, direction, source, error_message, request_id, task_id)
-    VALUES (@mac, @sender, @text, @phone, @device_phone, @timestamp, @received_at, @status, @direction, @source, @error_message, @request_id, @task_id)
+    INSERT INTO sms_messages (mac, sms_id, sender, text, phone, device_phone, timestamp, received_at, queued, queued_at, status, direction, source, error_message, request_id, task_id)
+    VALUES (@mac, @sms_id, @sender, @text, @phone, @device_phone, @timestamp, @received_at, @queued, @queued_at, @status, @direction, @source, @error_message, @request_id, @task_id)
   `);
   const result = stmt.run({
     mac: msg.mac,
+    sms_id: msg.smsId || '',
     sender: msg.sender || '',
     text: msg.text || '',
     phone: msg.phone || '',
     device_phone: msg.devicePhone || '',
     timestamp: msg.timestamp || new Date().toISOString(),
     received_at: msg.receivedAt || new Date().toISOString(),
+    queued: msg.queued ? 1 : 0,
+    queued_at: msg.queuedAt ? String(msg.queuedAt) : '',
     status: msg.status || 'pending',
     direction: msg.direction || 'inbound',
     source: msg.source || 'device',

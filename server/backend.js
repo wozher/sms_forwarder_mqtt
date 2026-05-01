@@ -219,6 +219,8 @@ function buildSmsResponsePayload(row) {
     phone: row.phone,
     timestamp: row.timestamp,
     receivedAt: row.received_at,
+    queued: !!row.queued,
+    queuedAt: row.queued_at || '',
     status: row.status,
     direction: row.direction || 'inbound',
     source: row.source || 'device',
@@ -1236,6 +1238,13 @@ async function dispatchPush(sms, smsId = null) {
 }
 
 function formatPushMessage(sender, text, timestamp, phone) {
+  const escapeHtml = (value) => String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
   let timeStr = timestamp || new Date().toISOString();
   try {
     const date = new Date(timeStr);
@@ -1244,20 +1253,37 @@ function formatPushMessage(sender, text, timestamp, phone) {
     }
   } catch (e) {}
 
-  const separator = '────────────────────────────────';
-  const content = text.replace(/\n/g, '\n📝 ');
+  const senderSafe = sender || '-';
+  const phoneSafe = phone || '-';
+  const textSafe = text || '';
+  const textHtml = escapeHtml(textSafe).replace(/\n/g, '<br>');
 
-  const msgHtml = `📱 <b>短信转发提醒</b><br>${separator.replace(/─/g, '<br>')}<br>👤 <b>发件人:</b> ${sender}<br>📞 <b>手机号:</b> ${phone}<br>⏰ <b>时间:</b> ${timeStr}<br>${separator.replace(/─/g, '<br>')}<br>📝 <b>短信内容:</b><br>${text.replace(/\n/g, '<br>')}<br>${separator.replace(/─/g, '<br>')}`;
+  const msgHtml = `
+    <div style="font-size:16px;font-weight:700;margin-bottom:10px;">📩 短信转发提醒</div>
+    <div style="line-height:1.7;font-size:14px;color:#111827;">
+      <div><b>发件人：</b>${escapeHtml(senderSafe)}</div>
+      <div><b>手机号：</b>${escapeHtml(phoneSafe)}</div>
+      <div><b>时间：</b>${escapeHtml(timeStr)}</div>
+    </div>
+    <div style="margin:12px 0 8px;font-weight:700;">短信内容</div>
+    <div style="padding:12px 14px;border:1px solid #e5e7eb;border-radius:12px;background:#f8fafc;white-space:normal;word-break:break-word;line-height:1.65;">${textHtml}</div>
+  `.trim();
 
-  const msgPlain = `📱 短信转发提醒\n${separator}\n👤 发件人: ${sender}\n📞 手机号: ${phone}\n⏰ 时间: ${timeStr}\n${separator}\n📝 短信内容:\n${text}\n${separator}`;
-
-  const msgTg = `📱 短信转发提醒\n${separator}\n👤 发件人: ${sender}\n📞 手机号: ${phone}\n⏰ 时间: ${timeStr}\n${separator}\n📝 短信内容:\n${text}\n${separator}`;
+  const msgPlain = [
+    '📩 短信转发提醒',
+    `发件人：${senderSafe}`,
+    `手机号：${phoneSafe}`,
+    `时间：${timeStr}`,
+    '',
+    '短信内容：',
+    textSafe
+  ].join('\n');
 
   return {
     html: msgHtml,
     plain: msgPlain,
-    telegram: msgTg,
-    title: `📱 短信转发提醒 - ${sender}`
+    telegram: msgPlain,
+    title: `📩 短信转发提醒 - ${senderSafe}`
   };
 }
 
@@ -1460,6 +1486,14 @@ function connectMQTT() {
             return rawPhone;
           })();
 
+          const queued = (() => {
+            if (data.queued === true) return true;
+            if (data.queued === 1 || data.queued === '1') return true;
+            return false;
+          })();
+          const queuedAt = queued ? String(data.queuedAt || '').trim() : '';
+          const incomingSmsId = String(data.smsId || '').trim();
+
           const smsRecord = {
             id: crypto.randomUUID(),
             mac,
@@ -1469,7 +1503,9 @@ function connectMQTT() {
             text: data.text || '',
             timestamp: smsTimestamp,
             phone: normalizedPhone,
-            receivedAt
+            receivedAt,
+            queued,
+            queuedAt
           };
 
           console.log(`[SMS] 解析后的数据: sender=${smsRecord.sender}, text=${smsRecord.text.substring(0, 50)}...`);
@@ -1478,18 +1514,36 @@ function connectMQTT() {
           try {
             smsId = db.insertSms({
               mac,
+              smsId: incomingSmsId,
               sender: data.sender || '',
               text: data.text || '',
               phone: normalizedPhone,
               devicePhone,
               timestamp: smsRecord.timestamp,
+              queued: smsRecord.queued,
+              queuedAt: smsRecord.queuedAt,
               status: 'success',
               direction: 'inbound',
               source: 'device'
             });
             console.log(`[SMS] 数据库插入成功, id=${smsId}`);
           } catch (e) {
+            // If the message is a duplicate (same mac + sms_id), treat it as already delivered and still ACK it.
             console.log(`[SMS] 数据库插入失败: ${e.message}`);
+          }
+
+          // ACK back to device so firmware can treat the delivery as confirmed.
+          try {
+            const smsIdForAck = incomingSmsId;
+            if (smsIdForAck && mqttClient && mqttClient.publish) {
+              mqttClient.publish(`sms_forwarder/raw_sms_ack/${mac}`, smsIdForAck, { qos: 1 }, (err) => {
+                if (err) {
+                  console.error('[SMS ACK] publish failed:', err.message || err);
+                }
+              });
+            }
+          } catch (e) {
+            console.error('[SMS ACK] error:', e.message);
           }
 
           dispatchPush({

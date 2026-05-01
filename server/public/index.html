@@ -381,6 +381,9 @@
       gap: 24px;
       align-items: start;
     }
+    .dashboard-split-grid > section {
+      min-width: 0;
+    }
     .msg-filter-grid {
       display: grid;
       grid-template-columns: 240px repeat(3, 130px) auto;
@@ -458,10 +461,12 @@
     .device-card.selected { border-color: rgba(37, 99, 235, 0.45); box-shadow: 0 0 0 4px rgba(37,99,235,0.08), var(--shadow-md); }
     .toolbox-diag-panel {
       margin-bottom: 18px;
+      min-width: 0;
     }
     .diag-dashboard {
       display: grid;
       gap: 16px;
+      min-width: 0;
     }
     .diag-overview-card,
     .diag-trend-card,
@@ -902,6 +907,7 @@
       border: 1px solid rgba(15, 23, 42, 0.08);
       background: rgba(255,255,255,0.82);
       box-shadow: var(--shadow-sm);
+      min-width: 0;
     }
     .diag-section-head {
       display: flex;
@@ -985,6 +991,9 @@
     }
     .diag-table-wrap {
       overflow: auto;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
       border-radius: 18px;
       border: 1px solid rgba(15,23,42,0.08);
       background: rgba(255,255,255,0.82);
@@ -992,7 +1001,7 @@
     }
     .diag-table {
       width: 100%;
-      min-width: 920px;
+      min-width: 1180px;
       border-collapse: separate;
       border-spacing: 0;
       font-size: 13px;
@@ -1057,6 +1066,11 @@
       background: rgba(239,68,68,0.08);
       border-color: rgba(239,68,68,0.18);
       color: #991b1b;
+    }
+    .diag-level-badge.neutral {
+      background: rgba(148,163,184,0.1);
+      border-color: rgba(148,163,184,0.18);
+      color: #475569;
     }
     .diag-cell-muted {
       color: #64748b;
@@ -1188,7 +1202,7 @@
       align-items: center;
       justify-content: center;
       padding: 60px 20px;
-      min-height: 100%;
+      min-height: 140px;
       color: var(--muted);
     }
 
@@ -1242,18 +1256,17 @@
       font-size: 13px;
     }
     .msg-viewport {
+      display: flex;
+      flex-direction: column;
       background: linear-gradient(180deg, rgba(255,255,255,0.5), rgba(248,250,252,0.4));
       border: 1px solid rgba(15, 23, 42, 0.05);
       border-radius: 24px;
       padding: 18px;
-      min-height: 560px;
-      max-height: 560px;
-      overflow-y: auto;
+      overflow: visible;
       box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
     }
     .msg-viewport.table-mode {
       padding: 14px;
-      overflow: hidden;
     }
     .msg-viewport.loading {
       position: relative;
@@ -1269,8 +1282,9 @@
       pointer-events: none;
     }
     .msg-table-wrap {
+      flex: 1 1 auto;
       width: 100%;
-      min-height: 100%;
+      min-height: 0;
       overflow: auto;
       border-radius: 20px;
       border: 1px solid rgba(15,23,42,0.07);
@@ -1339,6 +1353,7 @@
     }
     .msg-mini-badge.sender { background: rgba(239,246,255,0.96); color: #1d4ed8; }
     .msg-mini-badge.receiver { background: rgba(240,253,244,0.96); color: #15803d; }
+    .msg-mini-badge.queued { background: rgba(254, 249, 195, 0.92); color: #854d0e; border-color: rgba(234, 179, 8, 0.18); }
     .msg-arrow { color: var(--muted-soft); font-weight: 700; }
     .msg-body-preview {
       max-width: 0;
@@ -1782,7 +1797,7 @@
       .diag-trend-head { align-items: stretch; }
       .diag-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .diag-focus-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .msg-viewport { min-height: 460px; max-height: none; border-radius: 20px; padding: 12px; }
+      .msg-viewport { border-radius: 20px; padding: 12px; }
       .msg-toolbar { padding: 12px; }
       .device-card { border-radius: 18px; overflow: hidden; }
       .device-card .space-y-2 > div { flex-wrap: wrap; }
@@ -1801,7 +1816,7 @@
       .modal { width: calc(100% - 24px); padding: 20px; border-radius: 24px; max-height: calc(100vh - 24px); overflow-y: auto; }
       .modal-actions { flex-direction: column; }
       .modal-actions .btn { width: 100%; }
-      .msg-viewport { min-height: 460px; max-height: none; }
+      .msg-viewport { min-height: 0; max-height: none; }
       .pagination-controls { gap: 8px; }
       #userMenu { right: 0; left: auto; min-width: 10rem; }
     }
@@ -1837,7 +1852,7 @@
     }
   </style>
 </head>
-<body class="min-h-screen" onload="alert('页面加载完成')">
+<body class="min-h-screen">
   <div id="loginOverlay" class="login-overlay flex hidden">
     <div class="glass-card rounded-[32px] p-8 w-full max-w-sm">
       <div class="text-center mb-8">
@@ -2228,7 +2243,7 @@
         <div id="tab-ping" class="tab-content hidden">
           <div class="content-card max-w-xl">
 <div class="section-kicker">网络测试</div>
-             <button class="btn btn-warning w-full text-lg py-3" id="pingBtn" onclick="alert('点击成功');doPing()">执行 Ping 测试</button>
+             <button class="btn btn-warning w-full text-lg py-3" id="pingBtn" onclick="doPing()">执行 Ping 测试</button>
             <div id="pingResult" class="mt-4"></div>
           </div>
         </div>
@@ -3144,11 +3159,12 @@
       const diag = device?.status?.diag || {};
       const offlineSms = Number(device?.status?.queue?.offlineSms) || 0;
       const pendingUrc = Number(diag.pendingUrc) || 0;
+      const urcDropped = Number(diag.urcDropped) || 0;
       const summary = getDeviceDiagSummary(device);
       if (summary.level === 'error') {
         return [
           '继续观察 5~10 分钟，确认异常是否持续。',
-          pendingUrc >= 6 ? 'URC 积压较高，建议优先查看串口日志。' : '建议查看串口日志，确认接收状态机是否卡住。',
+          urcDropped > 0 ? `URC 已丢弃 ${urcDropped} 行，建议优先查看串口日志。` : pendingUrc >= 6 ? 'URC 积压较高，建议优先查看串口日志。' : '建议查看串口日志，确认接收状态机是否卡住。',
           '如果重启后恢复，基本可判断存在运行期状态退化。'
         ];
       }
@@ -3483,12 +3499,13 @@
       const diag = device?.status?.diag || {};
       const offlineSms = Number(device?.status?.queue?.offlineSms) || 0;
       const pendingUrc = Number(diag.pendingUrc) || 0;
+      const urcDropped = Number(diag.urcDropped) || 0;
       const freeHeap = Number(diag.freeHeap) || 0;
       const minFreeHeap = Number(diag.minFreeHeap) || 0;
       const urcWaitingPdu = !!diag.urcWaitingPdu;
       const pendingDeferredPdu = !!diag.pendingDeferredPdu;
 
-      const hasDiag = pendingUrc > 0 || offlineSms > 0 || freeHeap > 0 || minFreeHeap > 0 || urcWaitingPdu || pendingDeferredPdu;
+      const hasDiag = pendingUrc > 0 || offlineSms > 0 || urcDropped > 0 || freeHeap > 0 || minFreeHeap > 0 || urcWaitingPdu || pendingDeferredPdu;
       if (!hasDiag) {
         return {
           level: 'neutral',
@@ -3498,7 +3515,7 @@
       }
 
       let level = 'ok';
-      if (pendingUrc >= 6 || urcWaitingPdu || pendingDeferredPdu || (freeHeap > 0 && freeHeap < 100000)) {
+      if (urcDropped > 0 || pendingUrc >= 6 || urcWaitingPdu || pendingDeferredPdu || (freeHeap > 0 && freeHeap < 100000)) {
         level = 'error';
       } else if (pendingUrc >= 2 || offlineSms > 0 || (minFreeHeap > 0 && minFreeHeap < 140000)) {
         level = 'warn';
@@ -3507,6 +3524,7 @@
       let headline = `诊断 ${level === 'error' ? '异常' : level === 'warn' ? '关注' : '正常'}`;
       if (level === 'error') {
         const parts = [];
+        if (urcDropped > 0) parts.push(`URC丢弃 ${urcDropped}`);
         if (pendingUrc > 0) parts.push(`URC ${pendingUrc}`);
         if (urcWaitingPdu) parts.push('PDU等待');
         if (pendingDeferredPdu) parts.push('延迟PDU');
@@ -3527,6 +3545,7 @@
         detailParts.push(`URC ${pendingUrc}`);
       }
       detailParts.push(`离线短信 ${offlineSms}`);
+      if (urcDropped > 0) detailParts.push(`URC丢弃 ${urcDropped}`);
       if (minFreeHeap > 0) detailParts.push(`Min ${formatHeapKb(minFreeHeap)}`);
 
       return {
@@ -3547,9 +3566,11 @@
       const freeHeap = Number(diag.freeHeap) || 0;
       const minFreeHeap = Number(diag.minFreeHeap) || 0;
       const pendingUrc = Number(diag.pendingUrc) || 0;
+      const urcDropped = Number(diag.urcDropped) || 0;
       const reasons = [];
       if (diag.urcWaitingPdu) reasons.push('PDU等待');
       if (diag.pendingDeferredPdu) reasons.push('延迟PDU');
+      if (urcDropped > 0) reasons.push(`URC丢弃 ${urcDropped}`);
       if (pendingUrc >= 2) reasons.push(`URC ${pendingUrc}`);
       if (freeHeap > 0 && freeHeap < 100000) reasons.push(`Heap ${formatHeapKb(freeHeap)}`);
       else if (minFreeHeap > 0 && minFreeHeap < 140000) reasons.push(`MinHeap ${formatHeapKb(minFreeHeap)}`);
@@ -3632,24 +3653,29 @@
     function getAllDeviceDiagRows() {
       return (devices || []).map(device => {
         const diag = device?.status?.diag || {};
+        const network = device?.status?.network || {};
         const summary = getDeviceDiagSummary(device);
         const title = (device.remark && String(device.remark).trim()) || (device.phone && String(device.phone).trim()) || device.mac;
         return {
           mac: device.mac,
           title,
+          ip: device.ip || device?.status?.wifi?.ip || '',
           phone: device.phone || '',
           remark: device.remark || '',
           lastSeen: Number(device.lastSeen) || 0,
           lastSeenText: formatLastSeenText(device.lastSeen),
           online: !!device.online,
+          onlineText: device.online ? '在线' : '离线',
+          networkText: network.roaming ? '漫游' : network.registered ? '本地' : '未知',
           freeHeap: Number(diag.freeHeap) || 0,
           minFreeHeap: Number(diag.minFreeHeap) || 0,
           pendingUrc: Number(diag.pendingUrc) || 0,
+          urcDropped: Number(diag.urcDropped) || 0,
           offlineSms: Number(device?.status?.queue?.offlineSms) || 0,
           urcWaitingPdu: !!diag.urcWaitingPdu,
           pendingDeferredPdu: !!diag.pendingDeferredPdu,
           level: summary.level,
-          levelText: summary.level === 'error' ? '异常' : summary.level === 'warn' ? '关注' : '正常',
+          levelText: summary.level === 'error' ? '异常' : summary.level === 'warn' ? '关注' : summary.level === 'neutral' ? '暂无' : '正常',
           summaryText: getSimpleDiagReason(device, summary)
         };
       });
@@ -3683,7 +3709,7 @@
         errorCount: rows.filter(row => row.level === 'error').length,
         warnCount: rows.filter(row => row.level === 'warn').length,
         pduWaitingCount: rows.filter(row => row.urcWaitingPdu).length,
-        urcBacklogCount: rows.filter(row => row.pendingUrc >= 2).length
+        urcBacklogCount: rows.filter(row => row.pendingUrc >= 2 || row.urcDropped > 0).length
       };
     }
 
@@ -3708,26 +3734,38 @@
             <thead>
               <tr>
                 <th>设备</th>
+                <th>在线</th>
+                <th>网络</th>
+                <th>IP</th>
                 <th>最后心跳</th>
                 <th>Heap</th>
                 <th>MinHeap</th>
                 <th>URC</th>
+                <th>URC丢弃</th>
+                <th>离线短信</th>
                 <th>PDU等待</th>
                 <th>延迟PDU</th>
                 <th>状态</th>
+                <th>说明</th>
               </tr>
             </thead>
             <tbody>
               ${rows.map(row => `
                 <tr>
                   <td><div class="diag-device-main">${escapeHtml(row.title)}</div><div class="diag-device-sub">${escapeHtml(row.phone || row.mac)}</div></td>
+                  <td><span class="diag-level-badge ${row.online ? 'ok' : 'neutral'}">${escapeHtml(row.onlineText)}</span></td>
+                  <td class="diag-cell-muted">${escapeHtml(row.networkText)}</td>
+                  <td class="diag-cell-muted">${escapeHtml(row.ip || '-')}</td>
                   <td class="diag-cell-muted">${escapeHtml(row.lastSeenText)}</td>
                   <td>${escapeHtml(formatHeapKb(row.freeHeap))}</td>
                   <td>${escapeHtml(formatHeapKb(row.minFreeHeap))}</td>
                   <td>${escapeHtml(String(row.pendingUrc))}</td>
+                  <td>${escapeHtml(String(row.urcDropped || 0))}</td>
+                  <td>${escapeHtml(String(row.offlineSms))}</td>
                   <td>${escapeHtml(row.urcWaitingPdu ? '是' : '否')}</td>
                   <td>${escapeHtml(row.pendingDeferredPdu ? '是' : '否')}</td>
                   <td><span class="diag-level-badge ${escapeAttr(row.level)}" title="${escapeAttr(row.summaryText)}">${escapeHtml(row.levelText)}</span></td>
+                  <td class="diag-cell-muted">${escapeHtml(row.summaryText)}</td>
                 </tr>`).join('')}
             </tbody>
           </table>
@@ -3742,33 +3780,20 @@
         panel.innerHTML = '<div class="toolbox-diag-empty">当前暂无设备可供诊断。</div>';
         return;
       }
-      const selectedDevice = getSelectedDevice() || devices.find(device => device.online) || devices[0];
-      const attentionRows = allRows.filter(row => ['error', 'warn'].includes(row.level) && row.mac !== selectedDevice?.mac).slice(0, 5);
-      const okCount = allRows.filter(row => row.level === 'ok').length;
-      const waitingCount = allRows.filter(row => row.level === 'neutral').length;
+      const visibleRows = filterDiagRows(allRows);
+      const stats = getDiagOverviewStats(allRows);
       panel.innerHTML = `
         <div class="diag-dashboard">
-          ${renderCurrentDeviceDiagCard(selectedDevice)}
+          ${renderDiagOverviewCards(stats)}
           <div class="diag-attention-card">
             <div class="diag-section-head">
               <div>
-                <div class="diag-section-title">需要关注的其他设备</div>
-                <div class="diag-section-note">${escapeHtml(`正常 ${okCount} 台，等待数据 ${waitingCount} 台`)}</div>
+                <div class="diag-section-title">全部设备诊断</div>
+                <div class="diag-section-note">${escapeHtml(`共 ${allRows.length} 台，当前显示 ${visibleRows.length} 台`)}</div>
               </div>
-              <span class="diag-section-note">${escapeHtml(`共 ${attentionRows.length} 台`)}</span>
+              <span class="diag-section-note">按异常优先排序</span>
             </div>
-            ${attentionRows.length ? `
-              <div class="diag-attention-list">
-                ${attentionRows.map(row => `
-                  <div class="diag-attention-item">
-                    <div class="diag-attention-main">
-                      <div class="diag-attention-name">${escapeHtml(row.title)}</div>
-                      <div class="diag-attention-meta">${escapeHtml(row.lastSeenText)} · ${escapeHtml(row.phone || row.mac)}</div>
-                    </div>
-                    <span class="diag-level-badge ${escapeAttr(row.level)}">${escapeHtml(row.levelText)}</span>
-                    <div class="diag-attention-reason">${escapeHtml(row.summaryText)}</div>
-                  </div>`).join('')}
-              </div>` : '<div class="toolbox-diag-empty">其他设备暂时没有需要处理的问题。</div>'}
+            ${renderDiagOverviewTable(visibleRows)}
           </div>
         </div>`;
     }
@@ -3821,7 +3846,7 @@
     function checkRoamingAndProceed(operation, callback) {
       const device = getSelectedDevice();
       if (device && isDeviceRoaming(device)) {
-        if (!confirm('⚠️ 漫游提示\n\n设备处于漫游状态，继续操作可能产生额外费用。\n\n确定继续吗？')) {
+        if (!confirm('⚠️ 漫游提示\n\n当前设备处于漫游状态，继续执行会消耗蜂窝流量，可能产生额外费用。\n\n确定继续吗？')) {
           return false;
         }
       }
@@ -3998,11 +4023,13 @@
       const inboundPhoneDisplay = message.phone && message.phone !== '未知' ? String(message.phone) : (message.devicePhone || '-');
       const senderDisplay = isOutbound ? (message.devicePhone || '本机') : formatPhone(message.sender);
       const receiverDisplay = isOutbound ? (message.phone ? String(message.phone) : '-') : inboundPhoneDisplay;
+      const queued = !isOutbound && !!message.queued;
       return `
         <div class="msg-relation">
           <span class="msg-mini-badge sender">${escapeHtml(senderDisplay)}</span>
           <span class="msg-arrow">➜</span>
           <span class="msg-mini-badge receiver">${escapeHtml(receiverDisplay)}</span>
+          ${queued ? '<span class="msg-mini-badge queued">补发</span>' : ''}
         </div>`;
     }
 
@@ -4565,7 +4592,7 @@
       // 无论是否确定漫游状态，都进行提示（安全优先）
       if (roamingStatus === true || roamingStatus === undefined) {
         const msg = roamingStatus === true 
-          ? '设备处于漫游状态，发送短信可能产生额外费用。'
+          ? '当前设备处于漫游状态，发送短信可能产生额外费用。'
           : '无法确定设备当前网络状态，发送短信可能产生额外费用。';
         await new Promise(resolve => {
           showRoamingConfirm(msg, resolve);
@@ -4625,7 +4652,7 @@
         const taskType = document.getElementById('scheduleTaskType').value;
         const opName = taskType === 'traffic' ? '创建定时流量任务' : '创建定时短信任务';
         const msg = roamingStatus === true 
-          ? `设备处于漫游状态，${opName}可能产生额外费用。`
+          ? `当前设备处于漫游状态，${opName}可能产生额外费用。`
           : `无法确定设备当前网络状态，${opName}可能产生额外费用。`;
         await new Promise(resolve => {
           showRoamingConfirm(msg, resolve);
@@ -4731,16 +4758,16 @@
         let statusClass = '';
         if (task.status === 'completed') {
           statusText = '已完成';
-          statusClass = 'bg-blue-900 text-blue-400';
+          statusClass = 'bg-blue-50 text-blue-700 border border-blue-100';
         } else if (task.status === 'active') {
           statusText = '执行中';
-          statusClass = 'bg-green-900 text-green-400';
+          statusClass = 'bg-green-50 text-green-700 border border-green-100';
         } else if (task.status === 'failed') {
           statusText = '已失败';
-          statusClass = 'bg-red-900 text-red-400';
+          statusClass = 'bg-red-50 text-red-700 border border-red-100';
         } else {
           statusText = '已暂停';
-          statusClass = 'bg-yellow-900 text-yellow-400';
+          statusClass = 'bg-yellow-50 text-yellow-800 border border-yellow-100';
         }
         const hour = task.interval_hours || 0;
         const minute = task.interval_minutes || 0;
@@ -4763,6 +4790,26 @@
         const detailLabel = taskType === 'traffic'
           ? '定时流量消耗任务'
           : (task.content || '');
+        const compactLabel = (label) => {
+          const raw = String(label || '').trim();
+          if (!raw) return '-';
+          const parts = raw.split('|');
+          return (parts[0] || raw).trim() || raw;
+        };
+        const bindCompact = compactLabel(bindLabel);
+        const deviceCompact = compactLabel(deviceLabel);
+        const extractPhoneish = (value) => {
+          const m = String(value || '').match(/(\+?\d{6,})/);
+          return m ? m[1] : '';
+        };
+        const bindPhone = extractPhoneish(bindCompact);
+        const devicePhone = extractPhoneish(deviceCompact);
+        const bindSameAsCurrent = (bindPhone && devicePhone && bindPhone === devicePhone) || (bindCompact !== '-' && bindCompact === deviceCompact);
+        const metaLine = bindSameAsCurrent
+          ? `设备: ${escapeHtml(devicePhone || deviceCompact)}`
+          : `绑定: ${escapeHtml(bindPhone || bindCompact)} | 设备: ${escapeHtml(devicePhone || deviceCompact)}`;
+        const targetSafe = escapeHtml(String(targetLabel || '-'));
+        const detailSafe = escapeHtml(String(detailLabel || ''));
         const typeBadge = taskType === 'traffic'
           ? '<span class="text-[10px] px-1.5 py-0.5 rounded bg-cyan-900 text-cyan-300">流量</span>'
           : '<span class="text-[10px] px-1.5 py-0.5 rounded bg-indigo-900 text-indigo-300">短信</span>';
@@ -4771,14 +4818,16 @@
           <div class="settings-card cursor-pointer hover:bg-white transition-colors" onclick="openScheduleDetail(${task.id})">
             <div class="settings-row">
               <div class="min-w-0">
-                <span class="text-slate-900 font-medium flex items-center gap-2">${targetLabel}${typeBadge}</span>
-                <div class="text-xs text-slate-400 truncate mt-1">绑定: ${escapeHtml(bindLabel)} | 当前: ${escapeHtml(deviceLabel)}</div>
+                <span class="text-slate-900 font-medium flex items-center gap-2">${targetSafe}${typeBadge}</span>
+                <div class="text-xs text-slate-400 mt-1 whitespace-normal break-words">${metaLine}</div>
               </div>
               <span class="text-xs px-2 py-0.5 rounded ${statusClass}">${statusText}</span>
             </div>
             <div class="px-4 pb-4">
-              <div class="text-sm text-slate-600 truncate">${detailLabel}</div>
-              <div class="text-xs text-slate-400 mt-2">${intervalText} | 下次: ${dateStr} ${nextTimeStr}</div>
+              <div class="mt-3 rounded-xl bg-slate-50 border border-slate-100 px-3 py-2 text-slate-700 leading-5">
+                <div class="break-words line-clamp-2">${detailSafe || '<span class=&quot;text-slate-400&quot;>无内容</span>'}</div>
+              </div>
+              <div class="text-xs text-slate-400 mt-2">${intervalText} · 下次 ${dateStr} ${nextTimeStr}</div>
             </div>
           </div>
         `;
@@ -4974,20 +5023,38 @@
       }
       list.innerHTML = outboundSmsList.map(s => {
         const deviceLabel = getScheduleDeviceLabel(s.mac);
+        const senderDisplay = (() => {
+          const raw = String(deviceLabel || '').trim();
+          if (!raw) return '-';
+          const parts = raw.split('|');
+          return parts.length > 1 ? parts[0].trim() : raw;
+        })();
         const timeStr = formatTimeStr(s.receivedAt || s.timestamp);
         const displayError = getSmsErrorDisplay(s.status, s.errorMessage);
         const errorHtml = displayError ? `<div class="text-red-400 mt-2 truncate">失败原因: ${escapeHtml(displayError)}</div>` : '';
+        const contentText = String(s.text || '').trim();
+        const contentHtml = contentText
+          ? escapeHtml(contentText).replace(/\r?\n/g, '<br>')
+          : '<span class="text-slate-400">无短信内容</span>';
+        const targetValue = s.phone ? `➜ ${escapeHtml(s.phone)}` : '➜ -';
         return `
         <div class="bg-white/80 rounded-2xl p-3 text-xs border border-slate-200 shadow-sm">
-          <div class="flex justify-between text-slate-400 gap-2">
-            <span class="truncate">${escapeHtml(deviceLabel)} -> ${escapeHtml(s.phone || '-')}</span>
-            <span>${escapeHtml(timeStr)}</span>
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0 flex-1">
+              <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-slate-700 font-medium whitespace-normal">
+                <span class="break-all">${escapeHtml(senderDisplay)}</span>
+                <span class="text-slate-300">${targetValue}</span>
+              </div>
+            </div>
+            <span class="shrink-0 text-slate-500 text-right leading-4">${escapeHtml(timeStr)}</span>
           </div>
-          <div class="flex justify-between mt-2">
+          <div class="mt-2 rounded-xl bg-slate-50 border border-slate-100 px-3 py-2 text-slate-700 leading-5">
+            <div class="break-words">${contentHtml}</div>
+          </div>
+          <div class="flex justify-between items-center mt-2 gap-2">
             <span class="text-slate-500">${escapeHtml(getOutboundSourceLabel(s.source))}</span>
             <span class="${getOutboundStatusClass(s.status)}" title="${escapeAttr(getOutboundStatusTitle(s.status, s.errorMessage))}">${escapeHtml(getOutboundStatusLabel(s.status, s.errorMessage))}</span>
           </div>
-          <div class="text-slate-700 mt-2 truncate leading-5">${escapeHtml(s.text || '')}</div>
           ${errorHtml}
         </div>`;
       }).join('');
@@ -5019,8 +5086,7 @@
       }
     }
 
-async function doPing() {
-      alert('[调试] doPing 被点击');
+    async function doPing() {
       const device = getSelectedDevice();
       let roamingStatus;
       if (device?.online) {
@@ -5028,10 +5094,15 @@ async function doPing() {
       } else {
         roamingStatus = device?.status?.network?.roaming ?? device?.roaming;
       }
-      console.log('[DEBUG] device:', device?.name, 'online:', device?.online, 'roamingStatus:', roamingStatus, 'network:', device?.status?.network);
-      alert('[调试] 设备: ' + (device?.name || device?.mac) + '\n在线: ' + device?.online + '\n漫游状态: ' + roamingStatus + '\nnetwork.roaming: ' + device?.status?.network?.roaming);
       if (roamingStatus === true || roamingStatus === undefined) {
-        alert('[调试] 应该弹漫游确认');
+        const msg = roamingStatus === true
+          ? '当前设备处于漫游状态，执行 Ping 测试会消耗蜂窝流量，可能产生额外费用。'
+          : '无法确定设备当前网络状态，执行 Ping 测试可能消耗蜂窝流量并产生费用。';
+        const confirmed = await confirmRoamingWarning(msg);
+        if (!confirmed) {
+          showToast('已取消 Ping 测试', 'info');
+          return;
+        }
       }
       const btn = document.getElementById('pingBtn');
       const resultEl = document.getElementById('pingResult');
@@ -5342,6 +5413,8 @@ async function doPing() {
             <div class="message-detail-kv">
               <div class="message-detail-item"><div class="message-detail-label">设备 MAC</div><div class="message-detail-value">${escapeHtml(message.mac || '-')}</div></div>
               <div class="message-detail-item"><div class="message-detail-label">来源</div><div class="message-detail-value">${escapeHtml(sourceText)}</div></div>
+              <div class="message-detail-item"><div class="message-detail-label">补发</div><div class="message-detail-value">${message.queued ? '是' : '否'}</div></div>
+              <div class="message-detail-item"><div class="message-detail-label">入队时间</div><div class="message-detail-value">${escapeHtml(message.queuedAt || '-')}</div></div>
               <div class="message-detail-item"><div class="message-detail-label">请求 ID</div><div class="message-detail-value">${escapeHtml(message.requestId || message.request_id || '-')}</div></div>
               <div class="message-detail-item"><div class="message-detail-label">设备号码</div><div class="message-detail-value">${escapeHtml(message.devicePhone || '-')}</div></div>
             </div>
@@ -5424,24 +5497,39 @@ async function doPing() {
     }
 
     let roamingConfirmCallback = null;
+    let roamingCancelCallback = null;
 
-    function showRoamingConfirm(message, onConfirm) {
+    function showRoamingConfirm(message, onConfirm, onCancel) {
       document.getElementById('roamingConfirmMsg').textContent = message;
       roamingConfirmCallback = onConfirm;
+      roamingCancelCallback = onCancel;
       document.getElementById('roamingConfirmModal').classList.remove('hidden');
     }
 
     function closeRoamingConfirmModal() {
+      const callback = roamingCancelCallback;
       document.getElementById('roamingConfirmModal').classList.add('hidden');
       roamingConfirmCallback = null;
+      roamingCancelCallback = null;
+      if (callback) {
+        callback();
+      }
     }
 
     function confirmRoamingAction() {
       const callback = roamingConfirmCallback;
-      closeRoamingConfirmModal();
+      document.getElementById('roamingConfirmModal').classList.add('hidden');
+      roamingConfirmCallback = null;
+      roamingCancelCallback = null;
       if (callback) {
         callback();
       }
+    }
+
+    function confirmRoamingWarning(message) {
+      return new Promise(resolve => {
+        showRoamingConfirm(message, () => resolve(true), () => resolve(false));
+      });
     }
 
     async function doSavePhone() {
